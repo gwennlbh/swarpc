@@ -1,5 +1,7 @@
 <div align=center>
-<h1>sw&rpc</h1>
+<h1>
+  <img src="./logo.svg" alt="sw&rpc" />
+</h1>
 
 RPC for Service Workers -- move that heavy computation off of your UI thread!
 
