@@ -25,7 +25,7 @@
 
 /**
  * @template {Procedure<Type, Type, Type>} P
- * @typedef {(input: P['input']['inferOut'], onProgress?: (progress: P['progress']['inferOut']) => void) => Promise<P['success']['inferOut']>} ClientMethod
+ * @typedef {(input: P['input']['inferIn'], onProgress?: (progress: P['progress']['inferOut']) => void) => Promise<P['success']['inferOut']>} ClientMethod
  */
 
 /**
