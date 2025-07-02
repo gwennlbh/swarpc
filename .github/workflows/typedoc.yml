@@ -17,7 +17,7 @@ jobs:
         with:
           node-version: "22"
       - run: npm ci
-      - run: npx typedoc src/*.js
+      - run: npm run typedoc
       - uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
