@@ -59,6 +59,7 @@ swarpc.searchIMDb(async ({ query, pageSize = 10 }, onProgress) => {
   return fetch(`https://rest.imdbapi.dev/v2/search/titles?${queryParams}`)
     .then(fetchProgress({ onProgress }))
     .then((response) => response.json())
+    .then(({ titles } => titles)
 })
 
 // ...
