@@ -10,7 +10,7 @@ RPC for Service Workers -- move that heavy computation off of your UI thread!
 ## Installation
 
 ```bash
-npm add swarpc
+npm add swarpc arktype
 ```
 
 ## Usage
