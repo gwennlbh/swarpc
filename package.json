@@ -1,6 +1,6 @@
 {
   "name": "swarpc",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Full type-safe RPC library for service worker -- move things off of the UI thread with ease!",
   "keywords": [
     "service-workers",
@@ -20,6 +20,10 @@
   "license": "MIT",
   "author": "Gwenn Le Bihan <gwenn.lebihan7@gmail.com>",
   "type": "module",
+  "files": [
+    "dist",
+    "src"
+  ],
   "main": "src/swarpc.js",
   "types": "dist/swarpc.d.ts",
   "scripts": {
