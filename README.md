@@ -17,7 +17,8 @@ npm add swarpc
 
 ### 1. Declare your procedures in a shared file
 
-```javascript
+```typescript
+import type { ProceduresMap } from "swarpc"
 import { type } from "arktype"
 
 export const procedures = {
@@ -33,7 +34,7 @@ export const procedures = {
       genres: "string[]",
     }).array(),
   },
-}
+} as const satisfies ProceduresMap
 ```
 
 ### 2. Register your procedures in the service worker
