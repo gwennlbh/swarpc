@@ -26,7 +26,7 @@ export const procedures = {
     // Input for the procedure
     input: type({ query: "string", "pageSize?": "number" }),
     // Function to be called whenever you can update progress while the procedure is running -- long computations are a first-class concern here. Examples include using the fetch-progress NPM package.
-    progress: type({ transmitted: "number", total: "number" }),
+    progress: type({ transferred: "number", total: "number" }),
     // Output of a successful procedure call
     success: type({
       id: "string",
@@ -85,9 +85,9 @@ Here's a Svelte example!
 
 <search>
     <input type="text" bind:value={query} placeholder="Search IMDb" />
-    <button on:click={async () => {
+    <button onclick={async () => {
         results = await swarpc.searchIMDb({ query }, (p) => {
-            progress = p.transmitted / p.total
+            progress = p.transferred / p.total
         })
     }}>
         Search
