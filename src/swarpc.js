@@ -115,7 +115,7 @@ export function Client(procedures) {
           if (!sw)
             throw new Error("[SWARPC Client] Service Worker is not active")
 
-          sw.addEventListener("message", (event) => {
+          window.addEventListener("message", (event) => {
             const { functionName: fn, ...data } = event.data
 
             if (fn !== functionName) return
