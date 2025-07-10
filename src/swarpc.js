@@ -48,10 +48,12 @@ export function Server(procedures) {
      * @param {{functionName: string} & Partial<{ result: any; error: any; progress: any }>} data
      */
     const postMessage = async (data) => {
-      await self.clients.matchAll().then((clients) => {
-        console.debug(`[SWARPC Server] Posting message to clients`, clients)
-        clients.forEach((client) => client.postMessage(data))
-      })
+      await self.clients
+        .matchAll({ includeUncontrolled: true, type: "window" })
+        .then((clients) => {
+          console.debug(`[SWARPC Server] Posting message to clients`, clients)
+          clients.forEach((client) => client.postMessage(data))
+        })
     }
 
     console.log("[SWARPC Server] Starting message listener on", self)
