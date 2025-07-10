@@ -102,7 +102,6 @@ export function Client(procedures) {
   for (const functionName of Object.keys(procedures)) {
     instance[functionName] = async (input, onProgress = () => {}) => {
       procedures[functionName].input.assert(input)
-      console.log("[SWARPC Client] Calling", functionName, "with", input)
       navigator.serviceWorker.controller?.postMessage({ functionName, input })
       return new Promise((resolve, reject) => {
         navigator.serviceWorker.addEventListener("message", (event) => {
@@ -117,6 +116,11 @@ export function Client(procedures) {
           } else if ("result" in data) {
             resolve(data.result)
           }
+        })
+
+        navigator.serviceWorker.ready.then((registration) => {
+          console.log("[SWARPC Client] Requesting", functionName, "with", input)
+          registration.active.postMessage({ functionName, input })
         })
       })
     }
