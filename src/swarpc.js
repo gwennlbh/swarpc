@@ -111,8 +111,11 @@ export function Client(procedures) {
       procedures[functionName].input.assert(input)
 
       return new Promise((resolve, reject) => {
-        navigator.serviceWorker.ready.then((registration) => {
-          registration.addEventListener("message", (event) => {
+        navigator.serviceWorker.ready.then(({ active: sw }) => {
+          if (!sw)
+            throw new Error("[SWARPC Client] Service Worker is not active")
+
+          sw.addEventListener("message", (event) => {
             const { functionName: fn, ...data } = event.data
 
             if (fn !== functionName) return
@@ -140,7 +143,7 @@ export function Client(procedures) {
           })
 
           console.log("[SWARPC Client] Requesting", functionName, "with", input)
-          registration.active.postMessage({ functionName, input })
+          sw.postMessage({ functionName, input })
         })
       })
     }
