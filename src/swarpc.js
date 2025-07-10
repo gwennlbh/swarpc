@@ -117,10 +117,20 @@ export function Client(procedures) {
           if (fn !== functionName) return
 
           if ("error" in data) {
-            reject(new Error(data.error.message))
+            const err = new Error(data.error.message)
+            console.debug(`[SWARPC Client] Got error for ${functionName}:`, err)
+            reject(err)
           } else if ("progress" in data) {
+            console.debug(
+              `[SWARPC Client] Got progress for ${functionName}:`,
+              data.progress
+            )
             onProgress(data.progress)
           } else if ("result" in data) {
+            console.debug(
+              `[SWARPC Client] Got result for ${functionName}:`,
+              data.result
+            )
             resolve(data.result)
           }
         })
