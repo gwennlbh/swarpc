@@ -78,11 +78,18 @@ export function Server(procedures) {
         return
       }
 
-      await implementation(input, async (progress) =>
-        postMessage({ functionName, progress })
-      )
-        .catch(async (error) => postError(error))
-        .then(async (result) => postMessage({ functionName, result }))
+      await implementation(input, async (progress) => {
+        console.debug(`[SWARPC Server] Progress for ${functionName}:`, progress)
+        await postMessage({ functionName, progress })
+      })
+        .catch(async (error) => {
+          console.debug(`[SWARPC Server] Error in ${functionName}:`, error)
+          await postError(error)
+        })
+        .then(async (result) => {
+          console.debug(`[SWARPC Server] Result for ${functionName}:`, result)
+          await postMessage({ functionName, result })
+        })
     })
   }
 
