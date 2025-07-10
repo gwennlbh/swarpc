@@ -35,6 +35,7 @@ export function Server(procedures) {
   const PayloadSchema = type.or(
     ...Object.entries(procedures).map(([functionName, { input }]) => ({
       functionName: type(`"${functionName}"`),
+      requestId: type("string"),
       input,
     }))
   )
@@ -59,8 +60,13 @@ export function Server(procedures) {
     console.log("[SWARPC Server] Starting message listener on", self)
 
     self.addEventListener("message", async (event) => {
-      const { functionName, input } = PayloadSchema.assert(event.data)
-      console.log("[SWARPC Server] Running", functionName, "with", input)
+      const { functionName, requestId, input } = PayloadSchema.assert(
+        event.data
+      )
+      console.log(
+        `[SWARPC Server] ${requestId} Running ${functionName} with`,
+        input
+      )
 
       /**
        * @param {*} error
@@ -68,6 +74,7 @@ export function Server(procedures) {
       const postError = async (error) =>
         postMessage({
           functionName,
+          requestId,
           error: {
             message: "message" in error ? error.message : String(error),
           },
@@ -80,21 +87,66 @@ export function Server(procedures) {
       }
 
       await implementation(input, async (progress) => {
-        console.debug(`[SWARPC Server] Progress for ${functionName}:`, progress)
-        await postMessage({ functionName, progress })
+        console.debug(`[SWARPC Server] ${requestId} Progress for ${functionName}:`, progress)
+        await postMessage({ functionName, requestId, progress })
       })
         .catch(async (error) => {
-          console.debug(`[SWARPC Server] Error in ${functionName}:`, error)
+          console.debug(`[SWARPC Server] ${requestId} Error in ${functionName}:`, error)
           await postError(error)
         })
         .then(async (result) => {
-          console.debug(`[SWARPC Server] Result for ${functionName}:`, result)
-          await postMessage({ functionName, result })
+          console.debug(`[SWARPC Server] ${requestId} Result for ${functionName}:`, result)
+          await postMessage({ functionName, requestId, result })
         })
     })
   }
 
   return instance
+}
+
+function generateRequestId() {
+  return Math.random().toString(36).substring(2, 15)
+}
+
+/**
+ * @type {Map<string, { reject: (err: Error) => void; onProgress: (progress: any) => void; resolve: (result: any) => void }>}
+ */
+const pendingRequests = new Map()
+
+let _clientListenerStarted = false
+async function startClientListener() {
+  const sw = await navigator.serviceWorker.ready
+  if (!sw.active) {
+    throw new Error("[SWARPC Client] Service Worker is not active")
+  }
+
+  if (!navigator.serviceWorker.controller) {
+    throw new Error(
+      "[SWARPC Client] Service Worker is not controlling the page"
+    )
+  }
+
+  if (_clientListenerStarted) return
+
+  console.debug("[SWARPC Client] Registering message listener for client")
+  window.addEventListener("message", (event) => {
+    const { functionName, requestId, ...data } = event.data || {}
+    if (!requestId) return
+    const handlers = pendingRequests.get(requestId)
+    if (!handlers) return
+
+    if ("error" in data) {
+      handlers.reject(new Error(data.error.message))
+      pendingRequests.delete(requestId)
+    } else if ("progress" in data) {
+      handlers.onProgress(data.progress)
+    } else if ("result" in data) {
+      handlers.resolve(data.result)
+      pendingRequests.delete(requestId)
+    }
+  })
+
+  _clientListenerStarted = true
 }
 
 /**
@@ -110,51 +162,24 @@ export function Client(procedures) {
   for (const functionName of Object.keys(procedures)) {
     instance[functionName] = async (input, onProgress = () => {}) => {
       procedures[functionName].input.assert(input)
+      await startClientListener()
 
+      const sw = await navigator.serviceWorker.ready.then((r) => r.active)
       return new Promise((resolve, reject) => {
-        navigator.serviceWorker.ready.then(({ active: sw }) => {
-          if (!sw)
-            throw new Error("[SWARPC Client] Service Worker is not active")
-
-          if (!navigator.serviceWorker.controller)
-            throw new Error(
-              "[SWARPC Client] Service Worker is not controlling the page"
-            )
-
-          console.debug(
-            `[SWARPC Client] Registering message listener for ${functionName} on`,
-            window
+        if (!navigator.serviceWorker.controller)
+          throw new Error(
+            "[SWARPC Client] Service Worker is not controlling the page"
           )
-          window.addEventListener("message", (event) => {
-            const { functionName: fn, ...data } = event.data
 
-            if (fn !== functionName) return
+        const requestId = generateRequestId()
 
-            if ("error" in data) {
-              const err = new Error(data.error.message)
-              console.debug(
-                `[SWARPC Client] Got error for ${functionName}:`,
-                err
-              )
-              reject(err)
-            } else if ("progress" in data) {
-              console.debug(
-                `[SWARPC Client] Got progress for ${functionName}:`,
-                data.progress
-              )
-              onProgress(data.progress)
-            } else if ("result" in data) {
-              console.debug(
-                `[SWARPC Client] Got result for ${functionName}:`,
-                data.result
-              )
-              resolve(data.result)
-            }
-          })
+        pendingRequests.set(requestId, { resolve, onProgress, reject })
 
-          console.log("[SWARPC Client] Requesting", functionName, "with", input)
-          sw.postMessage({ functionName, input })
-        })
+        console.log(
+          `[SWARPC Client] ${requestId} Requesting ${functionName} with`,
+          input
+        )
+        sw.postMessage({ functionName, input, requestId })
       })
     }
   }
