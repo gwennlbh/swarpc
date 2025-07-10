@@ -35,7 +35,7 @@ export function Server(procedures) {
   const PayloadSchema = type.or(
     ...Object.entries(procedures).map(([functionName, { input }]) => ({
       functionName: type(`"${functionName}"`),
-      requestId: type("string.length >= 1"),
+      requestId: type("string >= 1"),
       input,
     }))
   )
@@ -138,7 +138,7 @@ async function startClientListener() {
   if (_clientListenerStarted) return
 
   console.debug("[SWARPC Client] Registering message listener for client")
-  window.addEventListener("message", (event) => {
+  navigator.serviceWorker.addEventListener("message", (event) => {
     const { functionName, requestId, ...data } = event.data || {}
     if (!requestId) {
       throw new Error("[SWARPC Client] Message received without requestId")
