@@ -50,7 +50,7 @@ export function Server(procedures) {
      */
     const postMessage = async (data) => {
       await self.clients
-        .matchAll({ includeUncontrolled: true })
+        .matchAll()
         .then((clients) => {
           console.debug(`[SWARPC Server] Posting message to clients`, clients)
           clients.forEach((client) => client.postMessage(data))
