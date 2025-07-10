@@ -109,33 +109,36 @@ export function Client(procedures) {
   for (const functionName of Object.keys(procedures)) {
     instance[functionName] = async (input, onProgress = () => {}) => {
       procedures[functionName].input.assert(input)
-      navigator.serviceWorker.controller?.postMessage({ functionName, input })
+
       return new Promise((resolve, reject) => {
-        navigator.serviceWorker.addEventListener("message", (event) => {
-          const { functionName: fn, ...data } = event.data
-
-          if (fn !== functionName) return
-
-          if ("error" in data) {
-            const err = new Error(data.error.message)
-            console.debug(`[SWARPC Client] Got error for ${functionName}:`, err)
-            reject(err)
-          } else if ("progress" in data) {
-            console.debug(
-              `[SWARPC Client] Got progress for ${functionName}:`,
-              data.progress
-            )
-            onProgress(data.progress)
-          } else if ("result" in data) {
-            console.debug(
-              `[SWARPC Client] Got result for ${functionName}:`,
-              data.result
-            )
-            resolve(data.result)
-          }
-        })
-
         navigator.serviceWorker.ready.then((registration) => {
+          registration.addEventListener("message", (event) => {
+            const { functionName: fn, ...data } = event.data
+
+            if (fn !== functionName) return
+
+            if ("error" in data) {
+              const err = new Error(data.error.message)
+              console.debug(
+                `[SWARPC Client] Got error for ${functionName}:`,
+                err
+              )
+              reject(err)
+            } else if ("progress" in data) {
+              console.debug(
+                `[SWARPC Client] Got progress for ${functionName}:`,
+                data.progress
+              )
+              onProgress(data.progress)
+            } else if ("result" in data) {
+              console.debug(
+                `[SWARPC Client] Got result for ${functionName}:`,
+                data.result
+              )
+              resolve(data.result)
+            }
+          })
+
           console.log("[SWARPC Client] Requesting", functionName, "with", input)
           registration.active.postMessage({ functionName, input })
         })
