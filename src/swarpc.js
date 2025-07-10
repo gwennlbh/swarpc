@@ -35,7 +35,7 @@ export function Server(procedures) {
   const PayloadSchema = type.or(
     ...Object.entries(procedures).map(([functionName, { input }]) => ({
       functionName: type(`"${functionName}"`),
-      requestId: type("string"),
+      requestId: type("string.length >= 1"),
       input,
     }))
   )
@@ -87,15 +87,24 @@ export function Server(procedures) {
       }
 
       await implementation(input, async (progress) => {
-        console.debug(`[SWARPC Server] ${requestId} Progress for ${functionName}:`, progress)
+        console.debug(
+          `[SWARPC Server] ${requestId} Progress for ${functionName}:`,
+          progress
+        )
         await postMessage({ functionName, requestId, progress })
       })
         .catch(async (error) => {
-          console.debug(`[SWARPC Server] ${requestId} Error in ${functionName}:`, error)
+          console.debug(
+            `[SWARPC Server] ${requestId} Error in ${functionName}:`,
+            error
+          )
           await postError(error)
         })
         .then(async (result) => {
-          console.debug(`[SWARPC Server] ${requestId} Result for ${functionName}:`, result)
+          console.debug(
+            `[SWARPC Server] ${requestId} Result for ${functionName}:`,
+            result
+          )
           await postMessage({ functionName, requestId, result })
         })
     })
@@ -131,9 +140,15 @@ async function startClientListener() {
   console.debug("[SWARPC Client] Registering message listener for client")
   window.addEventListener("message", (event) => {
     const { functionName, requestId, ...data } = event.data || {}
-    if (!requestId) return
+    if (!requestId) {
+      throw new Error("[SWARPC Client] Message received without requestId")
+    }
     const handlers = pendingRequests.get(requestId)
-    if (!handlers) return
+    if (!handlers) {
+      throw new Error(
+        `[SWARPC Client] ${requestId} has no active request handlers`
+      )
+    }
 
     if ("error" in data) {
       handlers.reject(new Error(data.error.message))
