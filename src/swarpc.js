@@ -116,6 +116,11 @@ export function Client(procedures) {
           if (!sw)
             throw new Error("[SWARPC Client] Service Worker is not active")
 
+          if (!navigator.serviceWorker.controller)
+            throw new Error(
+              "[SWARPC Client] Service Worker is not controlling the page"
+            )
+
           console.debug(
             `[SWARPC Client] Registering message listener for ${functionName} on`,
             window
