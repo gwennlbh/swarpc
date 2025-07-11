@@ -7,9 +7,11 @@ import { type } from "arktype"
 /**
  * @template {ProceduresMap} Procedures
  * @param {Procedures} procedures
+ * @param {object} [options]
+ * @param {Worker} [options.worker] the worker instance to connect to -- uses the navigator's service worker if not provided
  * @returns {SwarpcServer<Procedures>}
  */
-export function Server(procedures) {
+export function Server(procedures, { worker } = { worker: undefined }) {
   /** @type {SwarpcServer<Procedures>}  */
   // @ts-expect-error
   const instance = {
@@ -49,10 +51,14 @@ export function Server(procedures) {
      * @param {{functionName: string} & Partial<{ result: any; error: any; progress: any }>} data
      */
     const postMessage = async (data) => {
-      await self.clients.matchAll().then((clients) => {
-        console.debug(`[SWARPC Server] Posting message to clients`, clients)
-        clients.forEach((client) => client.postMessage(data))
-      })
+      if (worker) {
+        self.postMessage(data)
+      } else {
+        await self.clients.matchAll().then((clients) => {
+          console.debug(`[SWARPC Server] Posting message to clients`, clients)
+          clients.forEach((client) => client.postMessage(data))
+        })
+      }
     }
 
     console.log("[SWARPC Server] Starting message listener on", self)
@@ -184,7 +190,8 @@ export function Client(procedures, { worker } = { worker: undefined }) {
       procedures[functionName].input.assert(input)
       await startClientListener(worker)
 
-      const w = worker ?? (await navigator.serviceWorker.ready.then((r) => r.active))
+      const w =
+        worker ?? (await navigator.serviceWorker.ready.then((r) => r.active))
       return new Promise((resolve, reject) => {
         if (!worker && !navigator.serviceWorker.controller)
           console.warn(
