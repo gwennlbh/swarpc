@@ -24,12 +24,12 @@
     "dist",
     "src"
   ],
-  "main": "src/swarpc.js",
+  "main": "dist/swarpc.js",
   "types": "dist/swarpc.d.ts",
   "scripts": {
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "typedoc": "typedoc src/swarpc.js src/typings.js --readme README.md"
+    "typedoc": "typedoc src/swarpc.ts src/types.ts --readme README.md"
   },
   "dependencies": {
     "arktype": "^2.1.20"
