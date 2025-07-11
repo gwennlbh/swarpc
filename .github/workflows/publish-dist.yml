@@ -1,0 +1,31 @@
+name: Build dist/ and commit it to main branch
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "package.json"
+      - "tsconfig.json"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: npm run build
+      - name: Commit and push
+        uses: EndBug/add-and-commit@v9
+        with:
+          author_name: github-actions
+          author_email: github-actions@users.noreply.github.com
+          message: "📦 Update dist/ "
+          add: "dist/*"
