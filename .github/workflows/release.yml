@@ -1,0 +1,42 @@
+name: Release when commit changes version in package.json
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "package.json"
+  workflow_dispatch:
+
+permissions: 
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: npm ci
+
+      - id: check # This will be the reference for getting the outputs.
+        uses: EndBug/version-check@v2 # You can choose the version/branch you prefer.
+
+        with:
+          diff-search: true
+
+      - name: Publish release
+        if: steps.check.outputs.changed  == 'true'
+        run: npm publish --provenance 
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
