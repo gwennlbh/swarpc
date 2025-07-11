@@ -121,20 +121,27 @@ function generateRequestId() {
 const pendingRequests = new Map()
 
 let _clientListenerStarted = false
-async function startClientListener() {
-  const sw = await navigator.serviceWorker.ready
-  if (!sw.active) {
-    throw new Error("[SWARPC Client] Service Worker is not active")
-  }
-
-  if (!navigator.serviceWorker.controller) {
-    console.warn("[SWARPC Client] Service Worker is not controlling the page")
-  }
-
+/**
+ * @param {Worker} [worker] the worker instance to connect to -- uses the navigator's service worker if not provided
+ */
+async function startClientListener(worker) {
   if (_clientListenerStarted) return
 
-  console.debug("[SWARPC Client] Registering message listener for client")
-  navigator.serviceWorker.addEventListener("message", (event) => {
+  if (!worker) {
+    const sw = await navigator.serviceWorker.ready
+    if (!sw?.active) {
+      throw new Error("[SWARPC Client] Service Worker is not active")
+    }
+
+    if (!navigator.serviceWorker.controller) {
+      console.warn("[SWARPC Client] Service Worker is not controlling the page")
+    }
+  }
+
+  const w = worker ?? navigator.serviceWorker
+  console.debug("[SWARPC Client] Registering message listener for client", w)
+
+  w.addEventListener("message", (event) => {
     const { functionName, requestId, ...data } = event.data || {}
     if (!requestId) {
       throw new Error("[SWARPC Client] Message received without requestId")
@@ -163,9 +170,11 @@ async function startClientListener() {
 /**
  * @template {ProceduresMap} Procedures
  * @param {Procedures} procedures
+ * @param {object} [options]
+ * @param {Worker} [options.worker] the worker instance to connect to -- uses the navigator's service worker if not provided
  * @returns {SwarpcClient<Procedures>}
  */
-export function Client(procedures) {
+export function Client(procedures, { worker } = { worker: undefined }) {
   /** @type {SwarpcClient<Procedures>} */
   // @ts-expect-error
   const instance = { procedures }
@@ -173,11 +182,11 @@ export function Client(procedures) {
   for (const functionName of Object.keys(procedures)) {
     instance[functionName] = async (input, onProgress = () => {}) => {
       procedures[functionName].input.assert(input)
-      await startClientListener()
+      await startClientListener(worker)
 
-      const sw = await navigator.serviceWorker.ready.then((r) => r.active)
+      const w = worker ?? (await navigator.serviceWorker.ready.then((r) => r.active))
       return new Promise((resolve, reject) => {
-        if (!navigator.serviceWorker.controller)
+        if (!worker && !navigator.serviceWorker.controller)
           console.warn(
             "[SWARPC Client] Service Worker is not controlling the page"
           )
@@ -190,7 +199,7 @@ export function Client(procedures) {
           `[SWARPC Client] ${requestId} Requesting ${functionName} with`,
           input
         )
-        sw.postMessage({ functionName, input, requestId })
+        w.postMessage({ functionName, input, requestId })
       })
     }
   }
