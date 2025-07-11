@@ -1,10 +1,5 @@
 import { type } from "arktype"
-import type {
-  ProceduresMap,
-  SwarpcClient,
-  SwarpcServer,
-  ProcedureImplementation,
-} from "./types"
+import type { ProceduresMap, SwarpcClient, SwarpcServer } from "./types.js"
 
 export function Server<Procedures extends ProceduresMap>(
   procedures: Procedures,
@@ -112,11 +107,14 @@ async function startClientListener(worker?: Worker) {
   }
 
   const w = worker ?? navigator.serviceWorker
-  w.addEventListener("message", (event: MessageEvent) => {
-    const { functionName, requestId, ...data } = event.data || {}
+  w.addEventListener("message", (event) => {
+    const { functionName, requestId, ...data } =
+      (event as MessageEvent).data || {}
+
     if (!requestId) {
       throw new Error("[SWARPC Client] Message received without requestId")
     }
+
     const handlers = pendingRequests.get(requestId)
     if (!handlers) {
       throw new Error(
@@ -147,7 +145,7 @@ export function Client<Procedures extends ProceduresMap>(
   for (const functionName of Object.keys(procedures) as Array<
     keyof Procedures
   >) {
-    instance[functionName] = (async (input, onProgress = () => {}) => {
+    instance[functionName] = (async (input: unknown, onProgress = () => {}) => {
       procedures[functionName].input.assert(input)
       await startClientListener(worker)
 
