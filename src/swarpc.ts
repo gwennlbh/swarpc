@@ -17,19 +17,12 @@ export function Server<Procedures extends ProceduresMap>(
   } as SwarpcServer<Procedures>
 
   for (const functionName in procedures) {
-    // @ts-expect-error
-    instance[functionName] = (
-      implementation: ProcedureImplementation<
-        Procedures[typeof functionName]["input"],
-        Procedures[typeof functionName]["progress"],
-        Procedures[typeof functionName]["success"]
-      >
-    ) => {
+    instance[functionName] = ((implementation) => {
       if (!instance.procedures[functionName]) {
         throw new Error(`No procedure found for function name: ${functionName}`)
       }
       instance.implementations[functionName] = implementation as any
-    }
+    }) as SwarpcServer<Procedures>[typeof functionName]
   }
 
   const PayloadSchema = type.or(
@@ -154,13 +147,7 @@ export function Client<Procedures extends ProceduresMap>(
   for (const functionName of Object.keys(procedures) as Array<
     keyof Procedures
   >) {
-    // @ts-expect-error
-    instance[functionName] = async (
-      input: Procedures[keyof Procedures]["input"]["inferIn"],
-      onProgress: (
-        progress: Procedures[keyof Procedures]["progress"]["inferOut"]
-      ) => void = () => {}
-    ) => {
+    instance[functionName] = (async (input, onProgress = () => {}) => {
       procedures[functionName].input.assert(input)
       await startClientListener(worker)
 
@@ -183,7 +170,7 @@ export function Client<Procedures extends ProceduresMap>(
 
         w.postMessage({ functionName, input, requestId })
       })
-    }
+    }) as SwarpcClient<Procedures>[typeof functionName]
   }
 
   return instance as SwarpcClient<Procedures>

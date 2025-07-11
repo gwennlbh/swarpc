@@ -68,13 +68,12 @@ function Server(procedures, _a) {
         start: function () { },
     };
     var _loop_1 = function (functionName) {
-        // @ts-expect-error
-        instance[functionName] = function (implementation) {
+        instance[functionName] = (function (implementation) {
             if (!instance.procedures[functionName]) {
                 throw new Error("No procedure found for function name: ".concat(functionName));
             }
             instance.implementations[functionName] = implementation;
-        };
+        });
     };
     for (var functionName in procedures) {
         _loop_1(functionName);
@@ -226,8 +225,7 @@ function Client(procedures, _a) {
     var _b = _a === void 0 ? {} : _a, worker = _b.worker;
     var instance = { procedures: procedures };
     var _loop_2 = function (functionName) {
-        // @ts-expect-error
-        instance[functionName] = function (input_1) {
+        instance[functionName] = (function (input_1) {
             var args_1 = [];
             for (var _i = 1; _i < arguments.length; _i++) {
                 args_1[_i - 1] = arguments[_i];
@@ -264,7 +262,7 @@ function Client(procedures, _a) {
                     }
                 });
             });
-        };
+        });
     };
     for (var _i = 0, _c = Object.keys(procedures); _i < _c.length; _i++) {
         var functionName = _c[_i];
