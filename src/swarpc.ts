@@ -1,6 +1,8 @@
 import { type } from "arktype"
 import type { ProceduresMap, SwarpcClient, SwarpcServer } from "./types.js"
 
+export type { ProceduresMap, SwarpcClient, SwarpcServer }
+
 export function Server<Procedures extends ProceduresMap>(
   procedures: Procedures,
   { worker }: { worker?: Worker } = {}
