@@ -1,6 +1,6 @@
 {
   "name": "swarpc",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Full type-safe RPC library for service worker -- move things off of the UI thread with ease!",
   "keywords": [
     "service-workers",
