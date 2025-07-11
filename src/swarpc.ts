@@ -1,7 +1,7 @@
 import { type } from "arktype"
 import type { ProceduresMap, SwarpcClient, SwarpcServer } from "./types.js"
 
-export type { ProceduresMap, SwarpcClient, SwarpcServer }
+export type { ProceduresMap, SwarpcClient, SwarpcServer } from "./types.js"
 
 export function Server<Procedures extends ProceduresMap>(
   procedures: Procedures,
