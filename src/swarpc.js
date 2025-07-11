@@ -49,12 +49,10 @@ export function Server(procedures) {
      * @param {{functionName: string} & Partial<{ result: any; error: any; progress: any }>} data
      */
     const postMessage = async (data) => {
-      await self.clients
-        .matchAll()
-        .then((clients) => {
-          console.debug(`[SWARPC Server] Posting message to clients`, clients)
-          clients.forEach((client) => client.postMessage(data))
-        })
+      await self.clients.matchAll().then((clients) => {
+        console.debug(`[SWARPC Server] Posting message to clients`, clients)
+        clients.forEach((client) => client.postMessage(data))
+      })
     }
 
     console.log("[SWARPC Server] Starting message listener on", self)
@@ -130,9 +128,7 @@ async function startClientListener() {
   }
 
   if (!navigator.serviceWorker.controller) {
-    throw new Error(
-      "[SWARPC Client] Service Worker is not controlling the page"
-    )
+    console.warn("[SWARPC Client] Service Worker is not controlling the page")
   }
 
   if (_clientListenerStarted) return
@@ -182,7 +178,7 @@ export function Client(procedures) {
       const sw = await navigator.serviceWorker.ready.then((r) => r.active)
       return new Promise((resolve, reject) => {
         if (!navigator.serviceWorker.controller)
-          throw new Error(
+          console.warn(
             "[SWARPC Client] Service Worker is not controlling the page"
           )
 
