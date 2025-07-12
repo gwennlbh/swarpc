@@ -58,6 +58,9 @@ export function Server<Procedures extends ProceduresMap>(
       const { functionName, requestId, input } = PayloadSchema.assert(
         event.data
       )
+
+      l.server.debug(requestId, `Received request for ${functionName}`, input)
+
       const postError = async (error: any) =>
         postMessage({
           functionName,
@@ -74,12 +77,15 @@ export function Server<Procedures extends ProceduresMap>(
       }
 
       await implementation(input, async (progress: any) => {
+        l.server.debug(requestId, `Progress for ${functionName}`, progress)
         await postMessage({ functionName, requestId, progress })
       })
         .catch(async (error: any) => {
+          l.server.error(requestId, `Error in ${functionName}`, error)
           await postError(error)
         })
         .then(async (result: any) => {
+          l.server.debug(requestId, `Result for ${functionName}`, result)
           await postMessage({ functionName, requestId, result })
         })
     })
@@ -157,6 +163,13 @@ export function Client<Procedures extends ProceduresMap>(
   for (const functionName of Object.keys(procedures) as Array<
     keyof Procedures
   >) {
+    if (typeof functionName !== "string") {
+      throw new Error(
+        `[SWARPC Client] Invalid function name, don't use symbols`
+      )
+    }
+
+    // @ts-expect-error
     instance[functionName] = (async (input: unknown, onProgress = () => {}) => {
       procedures[functionName].input.assert(input)
       await startClientListener(worker)
@@ -176,6 +189,7 @@ export function Client<Procedures extends ProceduresMap>(
 
         pendingRequests.set(requestId, { resolve, onProgress, reject })
 
+        l.client.debug(requestId, `Requesting ${functionName} with`, input)
         w.postMessage({ functionName, input, requestId })
       })
     }) as SwarpcClient<Procedures>[typeof functionName]
