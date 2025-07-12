@@ -111,12 +111,12 @@ async function startClientListener(worker?: Worker) {
     }
 
     if (!navigator.serviceWorker.controller) {
-      console.warn("[SWARPC Client] Service Worker is not controlling the page")
+      l.client.warn("", "Service Worker is not controlling the page")
     }
   }
 
   const w = worker ?? navigator.serviceWorker
-  console.log("[SWARPC Client] Starting client listener on", w)
+  l.client.debug("", "Starting client listener on", w)
   w.addEventListener("message", (event) => {
     const { functionName, requestId, ...data } =
       (event as MessageEvent).data || {}
@@ -170,9 +170,7 @@ export function Client<Procedures extends ProceduresMap>(
 
       return new Promise((resolve, reject) => {
         if (!worker && !navigator.serviceWorker.controller)
-          console.warn(
-            "[SWARPC Client] Service Worker is not controlling the page"
-          )
+          l.client.warn("", "Service Worker is not controlling the page")
 
         const requestId = generateRequestId()
 
@@ -184,4 +182,52 @@ export function Client<Procedures extends ProceduresMap>(
   }
 
   return instance as SwarpcClient<Procedures>
+}
+
+const l = {
+  server: {
+    debug: (rqid: string | null, message: string, ...args: any[]) =>
+      log("debug", "server", rqid, message, ...args),
+    info: (rqid: string | null, message: string, ...args: any[]) =>
+      log("info", "server", rqid, message, ...args),
+    warn: (rqid: string | null, message: string, ...args: any[]) =>
+      log("warn", "server", rqid, message, ...args),
+    error: (rqid: string | null, message: string, ...args: any[]) =>
+      log("error", "server", rqid, message, ...args),
+  },
+  client: {
+    debug: (rqid: string | null, message: string, ...args: any[]) =>
+      log("debug", "client", rqid, message, ...args),
+    info: (rqid: string | null, message: string, ...args: any[]) =>
+      log("info", "client", rqid, message, ...args),
+    warn: (rqid: string | null, message: string, ...args: any[]) =>
+      log("warn", "client", rqid, message, ...args),
+    error: (rqid: string | null, message: string, ...args: any[]) =>
+      log("error", "client", rqid, message, ...args),
+  },
+}
+
+function log(
+  severity: "debug" | "info" | "warn" | "error",
+  side: "server" | "client",
+  rqid: string | null,
+  message: string,
+  ...args: any[]
+) {
+  const prefix =
+    "[" +
+    ["SWARPC", side, rqid ? `%c${rqid}%c` : ""].filter(Boolean).join(" ") +
+    "]"
+
+  const prefixStyles = rqid ? ["color: cyan;", "color: inherit;"] : []
+
+  if (severity === "debug") {
+    console.debug(prefix, ...prefixStyles, message, ...args)
+  } else if (severity === "info") {
+    console.info(prefix, ...prefixStyles, message, ...args)
+  } else if (severity === "warn") {
+    console.warn(prefix, ...prefixStyles, message, ...args)
+  } else if (severity === "error") {
+    console.error(prefix, ...prefixStyles, message, ...args)
+  }
 }
