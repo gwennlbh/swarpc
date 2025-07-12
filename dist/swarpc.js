@@ -1,16 +1,17 @@
 import { type } from "arktype";
+import { zImplementations, zProcedures, } from "./types.js";
 export function Server(procedures, { worker } = {}) {
     const instance = {
-        procedures,
-        implementations: {},
-        start: () => { },
+        [zProcedures]: procedures,
+        [zImplementations]: {},
+        start: (self) => { },
     };
     for (const functionName in procedures) {
         instance[functionName] = ((implementation) => {
-            if (!instance.procedures[functionName]) {
+            if (!instance[zProcedures][functionName]) {
                 throw new Error(`No procedure found for function name: ${functionName}`);
             }
-            instance.implementations[functionName] = implementation;
+            instance[zImplementations][functionName] = implementation;
         });
     }
     const PayloadSchema = type.or(...Object.entries(procedures).map(([functionName, { input }]) => ({
@@ -38,7 +39,7 @@ export function Server(procedures, { worker } = {}) {
                     message: "message" in error ? error.message : String(error),
                 },
             });
-            const implementation = instance.implementations[functionName];
+            const implementation = instance[zImplementations][functionName];
             if (!implementation) {
                 await postError("No implementation found");
                 return;
@@ -98,7 +99,7 @@ async function startClientListener(worker) {
     _clientListenerStarted = true;
 }
 export function Client(procedures, { worker } = {}) {
-    const instance = { procedures };
+    const instance = { [zProcedures]: procedures };
     for (const functionName of Object.keys(procedures)) {
         instance[functionName] = (async (input, onProgress = () => { }) => {
             procedures[functionName].input.assert(input);

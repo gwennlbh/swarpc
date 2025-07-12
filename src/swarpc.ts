@@ -1,5 +1,12 @@
 import { type } from "arktype"
-import type { ProceduresMap, SwarpcClient, SwarpcServer } from "./types.js"
+import {
+  ImplementationsMap,
+  zImplementations,
+  zProcedures,
+  type ProceduresMap,
+  type SwarpcClient,
+  type SwarpcServer,
+} from "./types.js"
 
 export type { ProceduresMap, SwarpcClient, SwarpcServer } from "./types.js"
 
@@ -8,17 +15,17 @@ export function Server<Procedures extends ProceduresMap>(
   { worker }: { worker?: Worker } = {}
 ): SwarpcServer<Procedures> {
   const instance = {
-    procedures,
-    implementations: {} as SwarpcServer<Procedures>["implementations"],
-    start: () => {},
+    [zProcedures]: procedures,
+    [zImplementations]: {} as ImplementationsMap<Procedures>,
+    start: (self: Window) => {},
   } as SwarpcServer<Procedures>
 
   for (const functionName in procedures) {
     instance[functionName] = ((implementation) => {
-      if (!instance.procedures[functionName]) {
+      if (!instance[zProcedures][functionName]) {
         throw new Error(`No procedure found for function name: ${functionName}`)
       }
-      instance.implementations[functionName] = implementation as any
+      instance[zImplementations][functionName] = implementation as any
     }) as SwarpcServer<Procedures>[typeof functionName]
   }
 
@@ -60,7 +67,7 @@ export function Server<Procedures extends ProceduresMap>(
           },
         })
 
-      const implementation = instance.implementations[functionName]
+      const implementation = instance[zImplementations][functionName]
       if (!implementation) {
         await postError("No implementation found")
         return
@@ -142,7 +149,9 @@ export function Client<Procedures extends ProceduresMap>(
   procedures: Procedures,
   { worker }: { worker?: Worker } = {}
 ): SwarpcClient<Procedures> {
-  const instance = { procedures } as Partial<SwarpcClient<Procedures>>
+  const instance = { [zProcedures]: procedures } as Partial<
+    SwarpcClient<Procedures>
+  >
 
   for (const functionName of Object.keys(procedures) as Array<
     keyof Procedures
