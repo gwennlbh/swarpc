@@ -75,6 +75,7 @@ async function startClientListener(worker) {
         }
     }
     const w = worker ?? navigator.serviceWorker;
+    console.log("[SWARPC Client] Starting client listener on", w);
     w.addEventListener("message", (event) => {
         const { functionName, requestId, ...data } = event.data || {};
         if (!requestId) {
