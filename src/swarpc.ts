@@ -89,7 +89,7 @@ export function Server<Procedures extends ProceduresMap>(
 }
 
 function generateRequestId(): string {
-  return Math.random().toString(36).substring(2, 15)
+  return Math.random().toString(16).substring(2, 8).toUpperCase()
 }
 
 type PendingRequest = {
