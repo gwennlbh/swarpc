@@ -1,2 +1,2 @@
-export const zImplementations = Symbol("SWARPC ReservedName implementations");
-export const zProcedures = Symbol("SWARPC ReservedName procedures");
+export const zImplementations = Symbol("SWARPC implementations");
+export const zProcedures = Symbol("SWARPC procedures");
