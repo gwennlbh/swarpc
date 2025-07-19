@@ -2,16 +2,10 @@ type Constructor<T> = new (...args: any[]) => T
 
 // TODO: keep it in sync with web standards, how?
 const transferableClasses: Constructor<Transferable>[] = [
-  OffscreenCanvas,
-  ImageBitmap,
   MessagePort,
-  MediaSourceHandle,
   ReadableStream,
   WritableStream,
   TransformStream,
-  AudioData,
-  VideoFrame,
-  RTCDataChannel,
   ArrayBuffer,
 ]
 
