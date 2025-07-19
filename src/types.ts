@@ -59,6 +59,33 @@ export type ImplementationsMap<Procedures extends ProceduresMap> = {
 }
 
 /**
+ * Declaration of hooks to run on messages received from the server
+ */
+export type Hooks<Procedures extends ProceduresMap> = {
+  /**
+   * Called when a procedure call has been successful.
+   */
+  success?: <Procedure extends keyof ProceduresMap>(
+    procedure: Procedure,
+    data: Procedures[Procedure]["success"]["inferOut"]
+  ) => void
+  /**
+   * Called when a procedure call has failed.
+   */
+  error?: <Procedure extends keyof ProceduresMap>(
+    procedure: Procedure,
+    error: Error
+  ) => void
+  /**
+   * Called when a procedure call sends progress updates.
+   */
+  progress?: <Procedure extends keyof ProceduresMap>(
+    procedure: Procedure,
+    data: Procedures[Procedure]["progress"]["inferOut"]
+  ) => void
+}
+
+/**
  * A procedure's corresponding method on the client instance -- used to call the procedure
  */
 export type ClientMethod<P extends Procedure<Type, Type, Type>> = (

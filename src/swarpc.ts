@@ -1,5 +1,6 @@
 import { type, type Type } from "arktype"
 import {
+  Hooks,
   ImplementationsMap,
   Procedure,
   zImplementations,
@@ -158,7 +159,10 @@ let _clientListenerStarted = false
  * @param worker if provided, the client will use this worker to listen for messages, instead of using the service worker
  * @returns
  */
-async function startClientListener(worker?: Worker) {
+async function startClientListener<Procedures extends ProceduresMap>(
+  worker?: Worker,
+  hooks: Hooks<Procedures> = {}
+) {
   if (_clientListenerStarted) return
 
   // Get service worker registration if no worker is provided
@@ -196,14 +200,17 @@ async function startClientListener(worker?: Worker) {
       )
     }
 
-    // React to the data received
-    // Unless it's a progress update, the request is finished, thus we can remove it from the pending requests
+    // React to the data received: call hook, call handler,
+    // and remove the request from pendingRequests (unless it's a progress update)
     if ("error" in data) {
+      hooks.error?.(functionName, new Error(data.error.message))
       handlers.reject(new Error(data.error.message))
       pendingRequests.delete(requestId)
     } else if ("progress" in data) {
+      hooks.progress?.(functionName, data.progress)
       handlers.onProgress(data.progress)
     } else if ("result" in data) {
+      hooks.success?.(functionName, data.result)
       handlers.resolve(data.result)
       pendingRequests.delete(requestId)
     }
@@ -217,11 +224,12 @@ async function startClientListener(worker?: Worker) {
  * @param procedures procedures the client will be able to call
  * @param param1 various options
  * @param param1.worker if provided, the client will use this worker to post messages.
+ * @param param1.hooks hooks to run on messages received from the server
  * @returns a sw&rpc client instance. Each property of the procedures map will be a method, that accepts an input and an optional onProgress callback.
  */
 export function Client<Procedures extends ProceduresMap>(
   procedures: Procedures,
-  { worker }: { worker?: Worker } = {}
+  { worker, hooks = {} }: { worker?: Worker; hooks?: Hooks<Procedures> } = {}
 ): SwarpcClient<Procedures> {
   // Store procedures on a symbol key, to avoid conflicts with procedure names
   const instance = { [zProcedures]: procedures } as Partial<
@@ -243,7 +251,7 @@ export function Client<Procedures extends ProceduresMap>(
       // Validate the input against the procedure's input schema
       procedures[functionName].input.assert(input)
       // Ensure that we're listening for messages from the server
-      await startClientListener(worker)
+      await startClientListener(worker, hooks)
 
       // If no worker is provided, we use the service worker
       const w =
