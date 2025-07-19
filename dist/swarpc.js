@@ -124,7 +124,8 @@ async function startClientListener(worker, hooks = {}) {
     w.addEventListener("message", (event) => {
         // Get the data from the event
         // We don't use a arktype schema here, we trust the server to send valid data
-        const { functionName, requestId, ...data } = event.data || {};
+        const { functionName, requestId, ...data } = (event
+            .data || {});
         // Sanity check in case we somehow receive a message without requestId
         if (!requestId) {
             throw new Error("[SWARPC Client] Message received without requestId");

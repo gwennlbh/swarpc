@@ -33,7 +33,7 @@ export type Procedure<I extends Type, P extends Type, S extends Type> = {
  */
 export type ProcedureImplementation<I extends Type, P extends Type, S extends Type> = (input: I["inferOut"], onProgress: (progress: P["inferIn"]) => void) => Promise<S["inferIn"]>;
 /**
- * Declarations of procedures by name
+ * Declarations of procedures by name.
  */
 export type ProceduresMap = Record<string, Procedure<Type, Type, Type>>;
 /**
@@ -59,6 +59,26 @@ export type Hooks<Procedures extends ProceduresMap> = {
      */
     progress?: <Procedure extends keyof ProceduresMap>(procedure: Procedure, data: Procedures[Procedure]["progress"]["inferOut"]) => void;
 };
+export type PayloadHeader<PM extends ProceduresMap, Name extends keyof PM = keyof PM> = {
+    functionName: Name & string;
+    requestId: string;
+    autotransfer: PM[Name]["autotransfer"];
+};
+export type PayloadCore<PM extends ProceduresMap, Name extends keyof PM = keyof PM> = {
+    input: PM[Name]["input"]["inferOut"];
+} | {
+    progress: PM[Name]["progress"]["inferOut"];
+} | {
+    result: PM[Name]["success"]["inferOut"];
+} | {
+    error: {
+        message: string;
+    };
+};
+/**
+ * The effective payload as sent by the server to the client
+ */
+export type Payload<PM extends ProceduresMap, Name extends keyof PM = keyof PM> = PayloadHeader<PM, Name> & PayloadCore<PM, Name>;
 /**
  * A procedure's corresponding method on the client instance -- used to call the procedure
  */
