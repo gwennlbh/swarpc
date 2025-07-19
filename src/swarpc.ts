@@ -1,8 +1,9 @@
-import { type, type Type } from "arktype"
+import { type } from "arktype"
 import {
   Hooks,
   ImplementationsMap,
-  Procedure,
+  Payload,
+  PayloadCore,
   zImplementations,
   zProcedures,
   type ProceduresMap,
@@ -54,17 +55,7 @@ export function Server<Procedures extends ProceduresMap>(
 
   instance.start = (self: Window) => {
     // Used to post messages back to the client
-    const postMessage = async (
-      data: {
-        functionName: string
-        requestId: string
-        autotransfer: Procedure<Type, Type, Type>["autotransfer"]
-      } & Partial<{
-        result: any
-        error: any
-        progress: any
-      }>
-    ) => {
+    const postMessage = async (data: Payload<Procedures>) => {
       const transfer =
         data.autotransfer === "never" ? [] : findTransferables(data)
 
@@ -92,7 +83,7 @@ export function Server<Procedures extends ProceduresMap>(
 
       // Shorthand function with functionName, requestId, etc. set
       const postMsg = async (
-        data: { result: any } | { error: any } | { progress: any }
+        data: PayloadCore<Procedures, typeof functionName>
       ) => postMessage({ functionName, requestId, autotransfer, ...data })
 
       // Prepare a function to post errors back to the client
@@ -184,8 +175,8 @@ async function startClientListener<Procedures extends ProceduresMap>(
   w.addEventListener("message", (event) => {
     // Get the data from the event
     // We don't use a arktype schema here, we trust the server to send valid data
-    const { functionName, requestId, ...data } =
-      (event as MessageEvent).data || {}
+    const { functionName, requestId, ...data } = ((event as MessageEvent)
+      .data || {}) as Payload<Procedures>
 
     // Sanity check in case we somehow receive a message without requestId
     if (!requestId) {
