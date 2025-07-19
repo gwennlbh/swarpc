@@ -53,7 +53,13 @@ export function Server(procedures, { worker } = {}) {
             // Get autotransfer preference from the procedure definition
             const { autotransfer = "output-only" } = instance[zProcedures][functionName];
             // Shorthand function with functionName, requestId, etc. set
-            const postMsg = async (data) => postMessage({ functionName, requestId, autotransfer, ...data });
+            const postMsg = async (data) => postMessage({
+                by: "sw&rpc",
+                functionName,
+                requestId,
+                autotransfer,
+                ...data,
+            });
             // Prepare a function to post errors back to the client
             const postError = async (error) => postMsg({
                 error: {
@@ -123,9 +129,12 @@ async function startClientListener(worker, hooks = {}) {
     l.client.debug("", "Starting client listener on", w);
     w.addEventListener("message", (event) => {
         // Get the data from the event
+        const eventData = event.data || {};
+        // Ignore other messages that aren't for us
+        if (eventData?.by !== "sw&rpc")
+            return;
         // We don't use a arktype schema here, we trust the server to send valid data
-        const { functionName, requestId, ...data } = (event
-            .data || {});
+        const { functionName, requestId, ...data } = eventData;
         // Sanity check in case we somehow receive a message without requestId
         if (!requestId) {
             throw new Error("[SWARPC Client] Message received without requestId");

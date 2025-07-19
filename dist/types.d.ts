@@ -60,6 +60,7 @@ export type Hooks<Procedures extends ProceduresMap> = {
     progress?: <Procedure extends keyof ProceduresMap>(procedure: Procedure, data: Procedures[Procedure]["progress"]["inferOut"]) => void;
 };
 export type PayloadHeader<PM extends ProceduresMap, Name extends keyof PM = keyof PM> = {
+    by: "sw&rpc";
     functionName: Name & string;
     requestId: string;
     autotransfer: PM[Name]["autotransfer"];
