@@ -30,13 +30,15 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "typedoc": "typedoc src/swarpc.ts src/types.ts --readme README.md"
+    "typedoc": "typedoc src/swarpc.ts src/types.ts --readme README.md",
+    "version": "kacl release && prettier -w CHANGELOG.md && git add CHANGELOG.md"
   },
   "dependencies": {
     "arktype": "^2.1.20"
   },
   "devDependencies": {
     "kacl": "^1.1.1",
+    "prettier": "^3.6.2",
     "typedoc": "^0.28.7",
     "typescript": "^5.8.3"
   }
