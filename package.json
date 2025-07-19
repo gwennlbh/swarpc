@@ -36,6 +36,7 @@
     "arktype": "^2.1.20"
   },
   "devDependencies": {
+    "kacl": "^1.1.1",
     "typedoc": "^0.28.7",
     "typescript": "^5.8.3"
   }
