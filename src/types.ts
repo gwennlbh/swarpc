@@ -4,8 +4,18 @@ import type { Type } from "arktype"
  * A procedure declaration
  */
 export type Procedure<I extends Type, P extends Type, S extends Type> = {
+  /**
+   * ArkType type for the input (first argument) of the procedure, when calling it from the client.
+   */
   input: I
+  /**
+   * ArkType type for the data as the first argument given to the `onProgress` callback
+   * when calling the procedure from the client.
+   */
   progress: P
+  /**
+   * ArkType type for the output (return value) of the procedure, when calling it from the client.
+   */
   success: S
   /**
    * When should the procedure automatically add ArrayBuffers and other transferable objects
