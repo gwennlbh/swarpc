@@ -89,6 +89,7 @@ export type PayloadHeader<
   PM extends ProceduresMap,
   Name extends keyof PM = keyof PM
 > = {
+  by: "sw&rpc"
   functionName: Name & string
   requestId: string
   autotransfer: PM[Name]["autotransfer"]

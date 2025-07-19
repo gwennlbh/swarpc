@@ -84,7 +84,14 @@ export function Server<Procedures extends ProceduresMap>(
       // Shorthand function with functionName, requestId, etc. set
       const postMsg = async (
         data: PayloadCore<Procedures, typeof functionName>
-      ) => postMessage({ functionName, requestId, autotransfer, ...data })
+      ) =>
+        postMessage({
+          by: "sw&rpc",
+          functionName,
+          requestId,
+          autotransfer,
+          ...data,
+        })
 
       // Prepare a function to post errors back to the client
       const postError = async (error: any) =>
@@ -174,9 +181,14 @@ async function startClientListener<Procedures extends ProceduresMap>(
   l.client.debug("", "Starting client listener on", w)
   w.addEventListener("message", (event) => {
     // Get the data from the event
+    const eventData = (event as MessageEvent).data || {}
+
+    // Ignore other messages that aren't for us
+    if (eventData?.by !== "sw&rpc") return
+
     // We don't use a arktype schema here, we trust the server to send valid data
-    const { functionName, requestId, ...data } = ((event as MessageEvent)
-      .data || {}) as Payload<Procedures>
+    const { functionName, requestId, ...data } =
+      eventData as Payload<Procedures>
 
     // Sanity check in case we somehow receive a message without requestId
     if (!requestId) {
