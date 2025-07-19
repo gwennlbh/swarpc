@@ -28,6 +28,7 @@
   "types": "dist/swarpc.d.ts",
   "scripts": {
     "build": "tsc",
+    "dev": "tsc --watch",
     "test": "echo \"Error: no test specified\" && exit 1",
     "typedoc": "typedoc src/swarpc.ts src/types.ts --readme README.md"
   },
