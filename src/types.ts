@@ -18,8 +18,8 @@ export type ProcedureImplementation<
   S extends Type
 > = (
   input: I["inferOut"],
-  onProgress: (progress: P["inferOut"]) => void
-) => Promise<S["inferOut"]>
+  onProgress: (progress: P["inferIn"]) => void
+) => Promise<S["inferIn"]>
 
 /**
  * Declarations of procedures by name
