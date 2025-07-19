@@ -1,5 +1,6 @@
 import { type } from "arktype";
 import { zImplementations, zProcedures, } from "./types.js";
+import { findTransferables } from "./utils.js";
 /**
  * Creates a sw&rpc server instance.
  * @param procedures procedures the server will implement
@@ -34,12 +35,13 @@ export function Server(procedures, { worker } = {}) {
     instance.start = (self) => {
         // Used to post messages back to the client
         const postMessage = async (data) => {
+            const transfer = data.autotransfer === "never" ? [] : findTransferables(data);
             if (worker) {
-                self.postMessage(data);
+                self.postMessage(data, { transfer });
             }
             else {
                 await self.clients.matchAll().then((clients) => {
-                    clients.forEach((client) => client.postMessage(data));
+                    clients.forEach((client) => client.postMessage(data, { transfer }));
                 });
             }
         };
@@ -48,10 +50,12 @@ export function Server(procedures, { worker } = {}) {
             // Decode the payload
             const { functionName, requestId, input } = PayloadSchema.assert(event.data);
             l.server.debug(requestId, `Received request for ${functionName}`, input);
+            // Get autotransfer preference from the procedure definition
+            const { autotransfer = "output-only" } = instance[zProcedures][functionName];
+            // Shorthand function with functionName, requestId, etc. set
+            const postMsg = async (data) => postMessage({ functionName, requestId, autotransfer, ...data });
             // Prepare a function to post errors back to the client
-            const postError = async (error) => postMessage({
-                functionName,
-                requestId,
+            const postError = async (error) => postMsg({
                 error: {
                     message: "message" in error ? error.message : String(error),
                 },
@@ -65,7 +69,7 @@ export function Server(procedures, { worker } = {}) {
             // Call the implementation with the input and a progress callback
             await implementation(input, async (progress) => {
                 l.server.debug(requestId, `Progress for ${functionName}`, progress);
-                await postMessage({ functionName, requestId, progress });
+                await postMsg({ progress });
             })
                 // Send errors
                 .catch(async (error) => {
@@ -75,7 +79,7 @@ export function Server(procedures, { worker } = {}) {
                 // Send results
                 .then(async (result) => {
                 l.server.debug(requestId, `Result for ${functionName}`, result);
-                await postMessage({ functionName, requestId, result });
+                await postMsg({ result });
             });
         });
     };
@@ -182,7 +186,11 @@ export function Client(procedures, { worker } = {}) {
                 pendingRequests.set(requestId, { resolve, onProgress, reject });
                 // Post the message to the server
                 l.client.debug(requestId, `Requesting ${functionName} with`, input);
-                w.postMessage({ functionName, input, requestId });
+                w.postMessage({ functionName, input, requestId }, {
+                    transfer: procedures[functionName].autotransfer === "always"
+                        ? findTransferables(input)
+                        : [],
+                });
             });
         });
     }

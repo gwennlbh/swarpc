@@ -6,11 +6,22 @@ export type Procedure<I extends Type, P extends Type, S extends Type> = {
     input: I;
     progress: P;
     success: S;
+    /**
+     * When should the procedure automatically add ArrayBuffers and other transferable objects
+     * to the [transfer list](https://developer.mozilla.org/en-US/docs/Web/API/DedicatedWorkerGlobalScope/postMessage#transfer)
+     * when sending messages, both from the client to the server and vice versa.
+     *
+     * Transferring objects can improve performance by avoiding copies of large objects,
+     * but _moves_ them to the other context, meaning that they cannot be used in the original context after being sent.
+     *
+     * 'output-only' by default: only transferables sent from the server to the client will be transferred.
+     */
+    autotransfer?: "always" | "never" | "output-only";
 };
 /**
  * An implementation of a procedure
  */
-export type ProcedureImplementation<I extends Type, P extends Type, S extends Type> = (input: I["inferOut"], onProgress: (progress: P["inferOut"]) => void) => Promise<S["inferOut"]>;
+export type ProcedureImplementation<I extends Type, P extends Type, S extends Type> = (input: I["inferOut"], onProgress: (progress: P["inferIn"]) => void) => Promise<S["inferIn"]>;
 /**
  * Declarations of procedures by name
  */
