@@ -1,12 +1,14 @@
-import { type } from "arktype"
+import { type, type Type } from "arktype"
 import {
   ImplementationsMap,
+  Procedure,
   zImplementations,
   zProcedures,
   type ProceduresMap,
   type SwarpcClient,
   type SwarpcServer,
 } from "./types.js"
+import { findTransferables } from "./utils.js"
 
 export type { ProceduresMap, SwarpcClient, SwarpcServer } from "./types.js"
 
@@ -52,17 +54,24 @@ export function Server<Procedures extends ProceduresMap>(
   instance.start = (self: Window) => {
     // Used to post messages back to the client
     const postMessage = async (
-      data: { functionName: string; requestId: string } & Partial<{
+      data: {
+        functionName: string
+        requestId: string
+        autotransfer: Procedure<Type, Type, Type>["autotransfer"]
+      } & Partial<{
         result: any
         error: any
         progress: any
       }>
     ) => {
+      const transfer =
+        data.autotransfer === "never" ? [] : findTransferables(data)
+
       if (worker) {
-        self.postMessage(data)
+        self.postMessage(data, { transfer })
       } else {
         await (self as any).clients.matchAll().then((clients: any[]) => {
-          clients.forEach((client) => client.postMessage(data))
+          clients.forEach((client) => client.postMessage(data, { transfer }))
         })
       }
     }
@@ -76,11 +85,18 @@ export function Server<Procedures extends ProceduresMap>(
 
       l.server.debug(requestId, `Received request for ${functionName}`, input)
 
+      // Get autotransfer preference from the procedure definition
+      const { autotransfer = "output-only" } =
+        instance[zProcedures][functionName]
+
+      // Shorthand function with functionName, requestId, etc. set
+      const postMsg = async (
+        data: { result: any } | { error: any } | { progress: any }
+      ) => postMessage({ functionName, requestId, autotransfer, ...data })
+
       // Prepare a function to post errors back to the client
       const postError = async (error: any) =>
-        postMessage({
-          functionName,
-          requestId,
+        postMsg({
           error: {
             message: "message" in error ? error.message : String(error),
           },
@@ -96,7 +112,7 @@ export function Server<Procedures extends ProceduresMap>(
       // Call the implementation with the input and a progress callback
       await implementation(input, async (progress: any) => {
         l.server.debug(requestId, `Progress for ${functionName}`, progress)
-        await postMessage({ functionName, requestId, progress })
+        await postMsg({ progress })
       })
         // Send errors
         .catch(async (error: any) => {
@@ -106,7 +122,7 @@ export function Server<Procedures extends ProceduresMap>(
         // Send results
         .then(async (result: any) => {
           l.server.debug(requestId, `Result for ${functionName}`, result)
-          await postMessage({ functionName, requestId, result })
+          await postMsg({ result })
         })
     })
   }
@@ -250,7 +266,15 @@ export function Client<Procedures extends ProceduresMap>(
 
         // Post the message to the server
         l.client.debug(requestId, `Requesting ${functionName} with`, input)
-        w.postMessage({ functionName, input, requestId })
+        w.postMessage(
+          { functionName, input, requestId },
+          {
+            transfer:
+              procedures[functionName].autotransfer === "always"
+                ? findTransferables(input)
+                : [],
+          }
+        )
       })
     }) as SwarpcClient<Procedures>[typeof functionName]
   }
