@@ -207,7 +207,7 @@ export type SwarpcClient<Procedures extends ProceduresMap> = {
 export type SwarpcServer<Procedures extends ProceduresMap> = {
   [zProcedures]: Procedures
   [zImplementations]: ImplementationsMap<Procedures>
-  start(self: Window): void
+  start(self: Window | Worker): void
 } & {
   [F in keyof Procedures]: (
     impl: ProcedureImplementation<
