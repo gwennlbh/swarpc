@@ -41,7 +41,7 @@
     "@vitest/web-worker": "^3.2.4",
     "kacl": "^1.1.1",
     "prettier": "^3.6.2",
-    "typedoc": "^0.28.7",
+    "typedoc": "^0.28.9",
     "typescript": "^5.8.3",
     "vite": "^7.0.6",
     "vitest": "^3.2.4"
