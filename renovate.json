@@ -11,7 +11,8 @@
     },
     {
       "paths": ["example/package.json"],
-      "automerge": true
+      "automerge": true,
+      "groupName": "Example package updates"
     }
   ]
 }
