@@ -32,7 +32,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "typedoc": "typedoc",
-    "version": "kacl release && prettier -w CHANGELOG.md && git add CHANGELOG.md"
+    "version": "kacl release && prettier -w CHANGELOG.md && git add CHANGELOG.md",
+    "typedoc:dev": "nodemon --watch src --watch README.md --watch typedoc.json --watch typedoc.css --exec npm run typedoc",
+    "typedoc:serve": "npx sirv-cli --dev docs"
   },
   "dependencies": {
     "arktype": "^2.1.20"
@@ -40,7 +42,9 @@
   "devDependencies": {
     "@vitest/web-worker": "^3.2.4",
     "kacl": "^1.1.1",
+    "nodemon": "^3.1.10",
     "prettier": "^3.6.2",
+    "sirv-cli": "^3.0.1",
     "typedoc": "^0.28.9",
     "typedoc-material-theme": "^1.4.0",
     "typescript": "^5.9.2",

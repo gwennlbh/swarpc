@@ -2,6 +2,17 @@
   "entryPoints": ["src/index.ts", "src/types.ts"],
   "plugin": ["typedoc-material-theme"],
   "readme": "README.md",
+  "githubPages": true,
+  "searchInComments": true,
+  "darkHighlightTheme": "one-dark-pro",
+  "lightHighlightTheme": "snazzy-light",
+  "useFirstParagraphOfCommentAsSummary": true,
+  "navigationLinks": {
+    "Source code": "https://github.com/gwennlbh/swarpc",
+    "Report a bug": "https://github.com/gwennlbh/swarpc/issues/new?labels=bug",
+    "Suggest an idea": "https://github.com/gwennlbh/swarpc/issues/new?labels=enhancement"
+  },
+  "customCss": "typedoc.css",
   "highlightLanguages": [
     "bash",
     "console",
