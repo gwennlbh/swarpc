@@ -1,6 +1,20 @@
+/**
+ * @module
+ * @mergeModuleWith <project>
+ */
 import { type LogLevel } from "./log.js";
-import { type ProceduresMap, type SwarpcServer } from "./types.js";
-export type { SwarpcServer } from "./types.js";
+import { ImplementationsMap, ProcedureImplementation, zImplementations, zProcedures, type ProceduresMap } from "./types.js";
+/**
+ * The sw&rpc server instance, which provides methods to register procedure implementations,
+ * and listens for incoming messages that call those procedures
+ */
+export type SwarpcServer<Procedures extends ProceduresMap> = {
+    [zProcedures]: Procedures;
+    [zImplementations]: ImplementationsMap<Procedures>;
+    start(self: Window | Worker): void;
+} & {
+    [F in keyof Procedures]: (impl: ProcedureImplementation<Procedures[F]["input"], Procedures[F]["progress"], Procedures[F]["success"]>) => void;
+};
 /**
  * Creates a sw&rpc server instance.
  * @param procedures procedures the server will implement

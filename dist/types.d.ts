@@ -1,3 +1,7 @@
+/**
+ * @module
+ * @mergeModuleWith <project>
+ */
 import { type Type } from "arktype";
 /**
  * A procedure declaration
@@ -76,6 +80,9 @@ export type Hooks<Procedures extends ProceduresMap> = {
      */
     progress?: <Procedure extends keyof ProceduresMap>(procedure: Procedure, data: Procedures[Procedure]["progress"]["inferOut"]) => void;
 };
+/**
+ * @source
+ */
 export declare const PayloadHeaderSchema: import("arktype").Generic<[["Name", string]], {
     readonly by: "\"sw&rpc\"";
     readonly functionName: "Name";
@@ -86,6 +93,9 @@ export type PayloadHeader<PM extends ProceduresMap, Name extends keyof PM = keyo
     functionName: Name & string;
     requestId: string;
 };
+/**
+ * @source
+ */
 export declare const PayloadCoreSchema: import("arktype").Generic<[["I", unknown], ["P", unknown], ["S", unknown]], {
     readonly "input?": "I";
     readonly "progress?": "P";
@@ -112,6 +122,9 @@ export type PayloadCore<PM extends ProceduresMap, Name extends keyof PM = keyof 
         message: string;
     };
 };
+/**
+ * @source
+ */
 export declare const PayloadSchema: import("arktype").Generic<[["Name", string], ["I", unknown], ["P", unknown], ["S", unknown]], readonly ["PayloadHeaderSchema<Name>", "&", "PayloadCoreSchema<I, P, S>"], {
     PayloadCoreSchema: import("arktype/internal/scope.ts").bindGenericToScope<import("@ark/schema").GenericAst<[["I", unknown], ["P", unknown], ["S", unknown]], {
         readonly "input?": "I";
@@ -230,31 +243,14 @@ export type ClientMethod<P extends Procedure<Type, Type, Type>> = ((input: P["in
 };
 /**
  * Symbol used as the key for the procedures map on the server instance
+ * @internal
+ * @source
  */
 export declare const zImplementations: unique symbol;
 /**
  * Symbol used as the key for the procedures map on instances
+ * @internal
+ * @source
  */
 export declare const zProcedures: unique symbol;
-/**
- * The sw&rpc client instance, which provides methods to call procedures.
- * Each property of the procedures map will be a method, that accepts an input, an optional onProgress callback and an optional request ID.
- * If you want to be able to cancel the request, you can set the request's ID yourself, and call `.abort(requestId, reason)` on the client instance to cancel it.
- */
-export type SwarpcClient<Procedures extends ProceduresMap> = {
-    [zProcedures]: Procedures;
-} & {
-    [F in keyof Procedures]: ClientMethod<Procedures[F]>;
-};
-/**
- * The sw&rpc server instance, which provides methods to register procedure implementations,
- * and listens for incoming messages that call those procedures
- */
-export type SwarpcServer<Procedures extends ProceduresMap> = {
-    [zProcedures]: Procedures;
-    [zImplementations]: ImplementationsMap<Procedures>;
-    start(self: Window | Worker): void;
-} & {
-    [F in keyof Procedures]: (impl: ProcedureImplementation<Procedures[F]["input"], Procedures[F]["progress"], Procedures[F]["success"]>) => void;
-};
 //# sourceMappingURL=types.d.ts.map

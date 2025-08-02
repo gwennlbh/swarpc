@@ -1,3 +1,7 @@
+/**
+ * @module
+ * @mergeModuleWith <project>
+ */
 import { type } from "arktype";
 import { createLogger } from "./log.js";
 import { PayloadHeaderSchema, PayloadSchema, zImplementations, zProcedures, } from "./types.js";

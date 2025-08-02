@@ -1,5 +1,9 @@
+/**
+ * @module
+ * @mergeModuleWith <project>
+ */
 import { createLogger } from "./log.js";
-import { zProcedures } from "./types.js";
+import { zProcedures, } from "./types.js";
 import { findTransferables } from "./utils.js";
 /**
  * Pending requests are stored in a map, where the key is the request ID.
@@ -152,6 +156,7 @@ async function startClientListener(l, worker, hooks = {}) {
 }
 /**
  * Generate a random request ID, used to identify requests between client and server.
+ * @source
  * @returns a 6-character hexadecimal string
  */
 export function makeRequestId() {
