@@ -1,5 +1,10 @@
 {
-  "entryPoints": ["src/client.ts", "src/server.ts", "src/types.ts"],
+  "entryPoints": [
+    "src/client.ts",
+    "src/server.ts",
+    "src/types.ts",
+    "src/log.ts"
+  ],
   "projectDocuments": ["./README.md", "./CHANGELOG.md"],
   "includeVersion": true,
   "plugin": [
@@ -26,7 +31,7 @@
     "Report a bug": "https://github.com/gwennlbh/swarpc/issues/new?labels=bug",
     "Suggest an idea": "https://github.com/gwennlbh/swarpc/issues/new?labels=enhancement"
   },
-  "sort": ["source-order"],
+  "sort": ["documents-first", "kind", "source-order"],
   "customCss": "typedoc.css",
   "highlightLanguages": [
     "bash",
@@ -41,5 +46,30 @@
     "tsx",
     "typescript",
     "svelte"
+  ],
+  "kindSortOrder": [
+    "Reference",
+    "Project",
+    "Module",
+    "Namespace",
+    "Class",
+    "Function",
+    "Enum",
+    "EnumMember",
+    "Interface",
+    "TypeAlias",
+    "Constructor",
+    "Property",
+    "Variable",
+    "Accessor",
+    "Method",
+    "Parameter",
+    "TypeParameter",
+    "TypeLiteral",
+    "CallSignature",
+    "ConstructorSignature",
+    "IndexSignature",
+    "GetSignature",
+    "SetSignature"
   ]
 }
