@@ -6,9 +6,9 @@ import { procedures } from "./lib/procedures"
 const swarpc = Server(procedures)
 
 // 2. Implement your procedures
-swarpc.getClassmapping(async ({ ref, delay }, onProgress, abort) => {
+swarpc.getClassmapping(async ({ ref, delay }, onProgress, tools) => {
   let aborted = false
-  abort?.addEventListener("abort", () => {
+  tools.abortSignal?.addEventListener("abort", () => {
     aborted = true
   })
 
@@ -21,7 +21,7 @@ swarpc.getClassmapping(async ({ ref, delay }, onProgress, abort) => {
 
   return fetch(
     `https://raw.githubusercontent.com/cigaleapp/models/${ref}/polymny-17k-classmapping.txt`,
-    { signal: abort }
+    { signal: tools.abortSignal }
   )
     .then(fetchProgress({ onProgress }))
     .then((response) => response.text())

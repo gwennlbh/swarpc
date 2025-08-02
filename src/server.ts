@@ -1,5 +1,5 @@
 /**
- * @module 
+ * @module
  * @mergeModuleWith <project>
  */
 
@@ -19,7 +19,7 @@ import {
 import { findTransferables } from "./utils.js"
 
 /**
- * The sw&rpc server instance, which provides methods to register procedure implementations,
+ * The sw&rpc server instance, which provides methods to register {@link ProcedureImplementation | procedure implementations},
  * and listens for incoming messages that call those procedures
  */
 export type SwarpcServer<Procedures extends ProceduresMap> = {
@@ -67,22 +67,16 @@ export function Server<Procedures extends ProceduresMap>(
       if (!instance[zProcedures][functionName]) {
         throw new Error(`No procedure found for function name: ${functionName}`)
       }
-      instance[zImplementations][functionName] = (
-        input,
-        onProgress,
-        abortSignal
-      ) => {
-        abortSignal?.throwIfAborted()
+      instance[zImplementations][functionName] = (input, onProgress, tools) => {
+        tools.abortSignal?.throwIfAborted()
         return new Promise((resolve, reject) => {
-          abortSignal?.addEventListener("abort", () => {
-            let { requestId, reason } = abortSignal?.reason
+          tools.abortSignal?.addEventListener("abort", () => {
+            let { requestId, reason } = tools.abortSignal?.reason
             l.debug(requestId, `Aborted ${functionName} request: ${reason}`)
             reject({ aborted: reason })
           })
 
-          implementation(input, onProgress, abortSignal)
-            .then(resolve)
-            .catch(reject)
+          implementation(input, onProgress, tools).then(resolve).catch(reject)
         })
       }
     }) as SwarpcServer<Procedures>[typeof functionName]
@@ -180,7 +174,10 @@ export function Server<Procedures extends ProceduresMap>(
           l.debug(requestId, `Progress for ${functionName}`, progress)
           await postMsg({ progress })
         },
-        abortControllers.get(requestId)?.signal
+        {
+          abortSignal: abortControllers.get(requestId)?.signal,
+          logger: createLogger("server", loglevel, requestId),
+        }
       )
         // Send errors
         .catch(async (error: any) => {

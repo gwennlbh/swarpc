@@ -1,9 +1,10 @@
 /**
- * @module 
+ * @module
  * @mergeModuleWith <project>
  */
 
 import { type, type Type } from "arktype"
+import { Logger, RequestBoundLogger } from "./log.js"
 
 /**
  * A procedure declaration
@@ -61,9 +62,27 @@ export type ProcedureImplementation<
   P extends Type,
   S extends Type,
 > = (
+  /**
+   * Input data for the procedure
+   */
   input: I["inferOut"],
+  /**
+   * Callback to call with progress updates.
+   */
   onProgress: (progress: P["inferIn"]) => void,
-  abortSignal?: AbortSignal
+  /**
+   * Additional tools useful when implementing the procedure.
+   */
+  tools: {
+    /**
+     * AbortSignal that can be used to handle request cancellation -- see [Make cancellable requests](https://gwennlbh.github.io/swarpc/docs/#make-cancelable-requests)
+     */
+    abortSignal?: AbortSignal
+    /**
+     * Logger instance to use for logging messages related to this procedure call, using the same format as SWARPC's built-in logging.
+     */
+    logger: RequestBoundLogger
+  }
 ) => Promise<S["inferIn"]>
 
 /**

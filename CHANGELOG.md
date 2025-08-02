@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- A way to log things using the same info and format as swarpc itself inside a procedure implementation: see [`ProcedureImplementation:tools.logger`](https://gwennlbh.github.io/swarpc/docs/types/ProcedureImplementation.html#:~:text=Make%20cancellable%20requests-,logger,-:%20RequestBoundLogger)
+
 ## [0.7.1] - 2025-08-02
 
 ### Fixed

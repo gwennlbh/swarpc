@@ -1,30 +1,86 @@
+/**
+ * @module
+ * @mergeModuleWith <project>
+ */
+
+/**
+ * @ignore
+ */
+export function createLogger(side: "server" | "client", level: LogLevel): Logger
 export function createLogger(
   side: "server" | "client",
-  level: LogLevel = "debug"
+  level: LogLevel,
+  rqid: string
+): RequestBoundLogger
+export function createLogger(
+  side: "server" | "client",
+  level: LogLevel = "debug",
+  rqid?: string
 ) {
-  const enabledLevels = LOG_LEVELS.slice(LOG_LEVELS.indexOf(level))
+  const lvls = LOG_LEVELS.slice(LOG_LEVELS.indexOf(level))
+
+  if (rqid) {
+    return {
+      debug: lvls.includes("debug") ? logger("debug", side, rqid) : () => {},
+      info: lvls.includes("info") ? logger("info", side, rqid) : () => {},
+      warn: lvls.includes("warn") ? logger("warn", side, rqid) : () => {},
+      error: lvls.includes("error") ? logger("error", side, rqid) : () => {},
+    } as RequestBoundLogger
+  }
 
   return {
-    debug: enabledLevels.includes("debug") ? logger("debug", side) : () => {},
-    info: enabledLevels.includes("info") ? logger("info", side) : () => {},
-    warn: enabledLevels.includes("warn") ? logger("warn", side) : () => {},
-    error: enabledLevels.includes("error") ? logger("error", side) : () => {},
+    debug: lvls.includes("debug") ? logger("debug", side) : () => {},
+    info: lvls.includes("info") ? logger("info", side) : () => {},
+    warn: lvls.includes("warn") ? logger("warn", side) : () => {},
+    error: lvls.includes("error") ? logger("error", side) : () => {},
   }
 }
 
-export type Logger = ReturnType<typeof createLogger>
+/**
+ * @hide
+ */
+export type Logger = {
+  debug: (rqid: string | null, message: string, ...args: any[]) => void
+  info: (rqid: string | null, message: string, ...args: any[]) => void
+  warn: (rqid: string | null, message: string, ...args: any[]) => void
+  error: (rqid: string | null, message: string, ...args: any[]) => void
+}
 
-const LOG_LEVELS = ["debug", "info", "warn", "error"] as const
+export type RequestBoundLogger = {
+  debug: (message: string, ...args: any[]) => void
+  info: (message: string, ...args: any[]) => void
+  warn: (message: string, ...args: any[]) => void
+  error: (message: string, ...args: any[]) => void
+}
+
+/** @source */
+export const LOG_LEVELS = ["debug", "info", "warn", "error"] as const
+
 export type LogLevel = (typeof LOG_LEVELS)[number]
 
 /**
- * Creates partially-applied logging functions given the first 2 args
+ * Creates partially-applied logging functions given the first 2 or 3 args
  * @param severity
  * @param side
+ * @param rqid request ID, or null to not bind it
  * @returns
  */
-function logger(severity: LogLevel, side: "server" | "client") {
-  return (rqid: string | null, message: string, ...args: any[]) =>
+function logger(
+  severity: LogLevel,
+  side: "server" | "client",
+  rqid: string
+): (message: string, ...args: any[]) => void
+function logger(
+  severity: LogLevel,
+  side: "server" | "client"
+): (rqid: string | null, message: string, ...args: any[]) => void
+function logger(severity: LogLevel, side: "server" | "client", rqid?: string) {
+  if (rqid === undefined) {
+    return (rqid: string | null, message: string, ...args: any[]) =>
+      log(severity, side, rqid, message, ...args)
+  }
+
+  return (message: string, ...args: any[]) =>
     log(severity, side, rqid, message, ...args)
 }
 
@@ -36,7 +92,7 @@ function logger(severity: LogLevel, side: "server" | "client") {
  * @param message
  * @param args passed to console methods directly
  */
-export function log(
+function log(
   severity: "debug" | "info" | "warn" | "error",
   side: "server" | "client",
   rqid: string | null,
