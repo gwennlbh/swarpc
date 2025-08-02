@@ -45,7 +45,7 @@ export type Procedure<I extends Type, P extends Type, S extends Type> = {
  * const result = await request
  * ```
  */
-export type CancelablePromise<T> = {
+export type CancelablePromise<T = unknown> = {
   request: Promise<T>
   /**
    * Abort the request.
@@ -87,6 +87,9 @@ export type ProcedureImplementation<
 
 /**
  * Declarations of procedures by name.
+ * 
+ * An example of declaring procedures:
+ * {@includeCode ../example/src/lib/procedures.ts}
  */
 export type ProceduresMap = Record<string, Procedure<Type, Type, Type>>
 

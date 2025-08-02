@@ -37,7 +37,7 @@ export function createLogger(
 }
 
 /**
- * @hide
+ * @ignore
  */
 export type Logger = {
   debug: (rqid: string | null, message: string, ...args: any[]) => void

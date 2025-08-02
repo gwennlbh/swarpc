@@ -43,11 +43,14 @@ let _clientListenerStarted = false
 
 /**
  *
- * @param procedures procedures the client will be able to call
+ * @param procedures procedures the client will be able to call, see {@link ProceduresMap}
  * @param options various options
  * @param options.worker if provided, the client will use this worker to post messages.
  * @param options.hooks hooks to run on messages received from the server
- * @returns a sw&rpc client instance. Each property of the procedures map will be a method, that accepts an input and an optional onProgress callback.
+ * @returns a sw&rpc client instance. Each property of the procedures map will be a method, that accepts an input and an optional onProgress callback, see {@link ClientMethod}
+ * 
+ * An example of defining and using a client:
+ * {@includeCode ../example/src/routes/+page.svelte}
  */
 export function Client<Procedures extends ProceduresMap>(
   procedures: Procedures,
