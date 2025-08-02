@@ -1,3 +1,8 @@
+/**
+ * @module 
+ * @mergeModuleWith <project>
+ */
+
 import { type, type Type } from "arktype"
 
 /**
@@ -104,6 +109,9 @@ export type Hooks<Procedures extends ProceduresMap> = {
   ) => void
 }
 
+/**
+ * @source
+ */
 export const PayloadHeaderSchema = type("<Name extends string>", {
   by: '"sw&rpc"',
   functionName: "Name",
@@ -119,6 +127,9 @@ export type PayloadHeader<
   requestId: string
 }
 
+/**
+ * @source
+ */
 export const PayloadCoreSchema = type("<I, P, S>", {
   "input?": "I",
   "progress?": "P",
@@ -147,6 +158,9 @@ export type PayloadCore<
       error: { message: string }
     }
 
+/**
+ * @source
+ */
 export const PayloadSchema = type
   .scope({ PayloadCoreSchema, PayloadHeaderSchema })
   .type("<Name extends string, I, P, S>", [
@@ -182,38 +196,14 @@ export type ClientMethod<P extends Procedure<Type, Type, Type>> = ((
 
 /**
  * Symbol used as the key for the procedures map on the server instance
+ * @internal
+ * @source
  */
 export const zImplementations = Symbol("SWARPC implementations")
+
 /**
  * Symbol used as the key for the procedures map on instances
+ * @internal
+ * @source
  */
 export const zProcedures = Symbol("SWARPC procedures")
-
-/**
- * The sw&rpc client instance, which provides methods to call procedures.
- * Each property of the procedures map will be a method, that accepts an input, an optional onProgress callback and an optional request ID.
- * If you want to be able to cancel the request, you can set the request's ID yourself, and call `.abort(requestId, reason)` on the client instance to cancel it.
- */
-export type SwarpcClient<Procedures extends ProceduresMap> = {
-  [zProcedures]: Procedures
-} & {
-  [F in keyof Procedures]: ClientMethod<Procedures[F]>
-}
-
-/**
- * The sw&rpc server instance, which provides methods to register procedure implementations,
- * and listens for incoming messages that call those procedures
- */
-export type SwarpcServer<Procedures extends ProceduresMap> = {
-  [zProcedures]: Procedures
-  [zImplementations]: ImplementationsMap<Procedures>
-  start(self: Window | Worker): void
-} & {
-  [F in keyof Procedures]: (
-    impl: ProcedureImplementation<
-      Procedures[F]["input"],
-      Procedures[F]["progress"],
-      Procedures[F]["success"]
-    >
-  ) => void
-}

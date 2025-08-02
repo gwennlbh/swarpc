@@ -1,6 +1,20 @@
 {
-  "entryPoints": ["src/index.ts", "src/types.ts"],
-  "plugin": ["typedoc-material-theme"],
+  "entryPoints": ["src/client.ts", "src/server.ts", "src/types.ts"],
+  "projectDocuments": ["./README.md", "./CHANGELOG.md"],
+  "includeVersion": true,
+  "plugin": [
+    "typedoc-material-theme",
+    "typedoc-plugin-mdn-links",
+    "typedoc-plugin-dt-links",
+    "typedoc-plugin-extras",
+    "typedoc-plugin-inline-sources",
+    "@8hobbies/typedoc-plugin-plausible"
+  ],
+  "plausibleSiteOrigin": "https://stats.gwen.works/js",
+  "plausibleSiteDomain": "gwennlbh.github.io/swarpc",
+  "footerLastModified": true,
+  "resolveUtilityTypes": true,
+  "favicon": "./favicon.png",
   "readme": "README.md",
   "githubPages": true,
   "searchInComments": true,
@@ -12,6 +26,7 @@
     "Report a bug": "https://github.com/gwennlbh/swarpc/issues/new?labels=bug",
     "Suggest an idea": "https://github.com/gwennlbh/swarpc/issues/new?labels=enhancement"
   },
+  "sort": ["source-order"],
   "customCss": "typedoc.css",
   "highlightLanguages": [
     "bash",

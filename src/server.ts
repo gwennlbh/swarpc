@@ -1,3 +1,8 @@
+/**
+ * @module 
+ * @mergeModuleWith <project>
+ */
+
 import { type } from "arktype"
 import { createLogger, type LogLevel } from "./log.js"
 import {
@@ -6,14 +11,30 @@ import {
   PayloadCore,
   PayloadHeaderSchema,
   PayloadSchema,
+  ProcedureImplementation,
   zImplementations,
   zProcedures,
   type ProceduresMap,
-  type SwarpcServer,
 } from "./types.js"
 import { findTransferables } from "./utils.js"
 
-export type { SwarpcServer } from "./types.js"
+/**
+ * The sw&rpc server instance, which provides methods to register procedure implementations,
+ * and listens for incoming messages that call those procedures
+ */
+export type SwarpcServer<Procedures extends ProceduresMap> = {
+  [zProcedures]: Procedures
+  [zImplementations]: ImplementationsMap<Procedures>
+  start(self: Window | Worker): void
+} & {
+  [F in keyof Procedures]: (
+    impl: ProcedureImplementation<
+      Procedures[F]["input"],
+      Procedures[F]["progress"],
+      Procedures[F]["success"]
+    >
+  ) => void
+}
 
 const abortControllers = new Map<string, AbortController>()
 const abortedRequests = new Set<string>()

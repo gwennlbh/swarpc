@@ -1,15 +1,29 @@
+/**
+ * @module 
+ * @mergeModuleWith <project>
+ */
+
 import { createLogger, type Logger, type LogLevel } from "./log.js"
 import {
+  ClientMethod,
   Hooks,
   Payload,
   PayloadCore,
   zProcedures,
   type ProceduresMap,
-  type SwarpcClient
 } from "./types.js"
 import { findTransferables } from "./utils.js"
 
-export type { SwarpcClient } from "./types.js"
+/**
+ * The sw&rpc client instance, which provides methods to call procedures.
+ * Each property of the procedures map will be a method, that accepts an input, an optional onProgress callback and an optional request ID.
+ * If you want to be able to cancel the request, you can set the request's ID yourself, and call `.abort(requestId, reason)` on the client instance to cancel it.
+ */
+export type SwarpcClient<Procedures extends ProceduresMap> = {
+  [zProcedures]: Procedures
+} & {
+  [F in keyof Procedures]: ClientMethod<Procedures[F]>
+}
 
 /**
  * Pending requests are stored in a map, where the key is the request ID.
@@ -238,6 +252,7 @@ async function startClientListener<Procedures extends ProceduresMap>(
 
 /**
  * Generate a random request ID, used to identify requests between client and server.
+ * @source 
  * @returns a 6-character hexadecimal string
  */
 export function makeRequestId(): string {
