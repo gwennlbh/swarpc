@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Client, makeRequestId } from "swarpc"
+  import { Client, type CancelablePromise } from "swarpc"
   import { procedures } from "$lib/procedures"
 
   const swarpc = Client(procedures)
@@ -8,11 +8,12 @@
   let results: typeof procedures.getClassmapping.success.inferOut = $state([])
   let progress = $state(0)
   let loading = $state(false)
-  let requestId = $state("")
+  let _cancel: CancelablePromise<typeof results>["cancel"] | undefined =
+    $state()
 
-  async function cancel() {
-    if (!requestId) return
-    await swarpc.abort(requestId, "User cancelled the request")
+  async function cancel(reason: string) {
+    if (!_cancel) return
+    await _cancel(reason)
     loading = false
   }
 </script>
@@ -20,15 +21,14 @@
 <search>
   <button
     onclick={async () => {
-      requestId = makeRequestId()
-      results = await swarpc.getClassmapping(
-        { ref: "main" },
-        (p) => {
-          loading = true
-          progress = p.transferred / p.total
-        },
-        requestId
-      )
+      const request = swarpc.getClassmapping({ ref: "main" }, (p) => {
+        loading = true
+        progress = p.transferred / p.total
+      })
+
+      console.log("started request", request.cancel)
+      _cancel = request.cancel
+      results = await request
 
       loading = false
     }}
@@ -36,6 +36,10 @@
     Get classmapping
   </button>
 </search>
+
+{#if _cancel}
+  <button onclick={async () => cancel("User cancelled")}>Cancel</button>
+{/if}
 
 {#if progress > 0 && progress < 1}
   <progress value={progress} max="1">Loading…</progress>

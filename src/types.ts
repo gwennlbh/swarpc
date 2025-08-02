@@ -31,6 +31,23 @@ export type Procedure<I extends Type, P extends Type, S extends Type> = {
 }
 
 /**
+ * A promise that you can cancel by calling `.cancel(reason)` on it:
+ *
+ * ```js
+ * const call = client.runProcedure(input, onProgress)
+ * setTimeout(() => call.cancel("Cancelled by user"), 1000)
+ * const result = await call
+ * ```
+ */
+export type CancelablePromise<T> = Promise<T> & {
+  /**
+   * Abort the request.
+   * @param reason The reason for cancelling the request.
+   */
+  cancel: (reason: string) => Promise<void>
+}
+
+/**
  * An implementation of a procedure
  */
 export type ProcedureImplementation<
@@ -151,9 +168,8 @@ export type Payload<
  */
 export type ClientMethod<P extends Procedure<Type, Type, Type>> = (
   input: P["input"]["inferIn"],
-  onProgress?: (progress: P["progress"]["inferOut"]) => void,
-  requestId?: string
-) => Promise<P["success"]["inferOut"]>
+  onProgress?: (progress: P["progress"]["inferOut"]) => void
+) => CancelablePromise<P["success"]["inferOut"]>
 
 /**
  * Symbol used as the key for the procedures map on the server instance
@@ -171,7 +187,6 @@ export const zProcedures = Symbol("SWARPC procedures")
  */
 export type SwarpcClient<Procedures extends ProceduresMap> = {
   [zProcedures]: Procedures
-  abort(requestId: string, reason: string): Promise<void>
 } & {
   [F in keyof Procedures]: ClientMethod<Procedures[F]>
 }

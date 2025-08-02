@@ -1,7 +1,9 @@
 import { l } from "./log.js"
 import {
+  CancelablePromise,
   Hooks,
   Payload,
+  PayloadCore,
   zProcedures,
   type ProceduresMap,
   type SwarpcClient,
@@ -39,32 +41,9 @@ export function Client<Procedures extends ProceduresMap>(
   { worker, hooks = {} }: { worker?: Worker; hooks?: Hooks<Procedures> } = {}
 ): SwarpcClient<Procedures> {
   // Store procedures on a symbol key, to avoid conflicts with procedure names
-  const instance = {
-    [zProcedures]: procedures,
-    abort: async (requestId: string, reason: string) => {
-      const req = pendingRequests.get(requestId)
-      if (!req) {
-        throw new Error(
-          `[SWARPC Client] Cannot abort ${requestId}: No request found `
-        )
-      }
-
-      const proc = procedures[req.functionName]
-      if (!proc) {
-        throw new Error(
-          `[SWARPC Client] Cannot abort ${requestId}: No declaration found for ${req.functionName}`
-        )
-      }
-
-      await postMessage(worker, hooks, {
-        by: "sw&rpc",
-        requestId,
-        functionName: req.functionName,
-        autotransfer: proc.autotransfer,
-        abort: { reason },
-      })
-    },
-  } as Partial<SwarpcClient<Procedures>>
+  const instance = { [zProcedures]: procedures } as Partial<
+    SwarpcClient<Procedures>
+  >
 
   for (const functionName of Object.keys(procedures) as Array<
     keyof Procedures
@@ -77,18 +56,31 @@ export function Client<Procedures extends ProceduresMap>(
 
     // Set the method on the instance
     // @ts-expect-error
-    instance[functionName] = (async (
-      input: unknown,
-      onProgress = () => {},
-      requestId?: string
-    ) => {
+    instance[functionName] = (async (input: unknown, onProgress = () => {}) => {
       // Validate the input against the procedure's input schema
       procedures[functionName].input.assert(input)
-      // Ensure that we're listening for messages from the server
 
-      return new Promise((resolve, reject) => {
-        requestId ??= makeRequestId()
+      const requestId = makeRequestId()
 
+      const send = async (
+        msg: PayloadCore<Procedures, typeof functionName>,
+        options?: StructuredSerializeOptions
+      ) => {
+        return postMessage(
+          worker,
+          hooks,
+          {
+            ...msg,
+            by: "sw&rpc",
+            requestId,
+            functionName,
+            autotransfer: procedures[functionName].autotransfer,
+          },
+          options
+        )
+      }
+
+      const promise = new Promise((resolve, reject) => {
         // Store promise handlers (as well as progress updates handler)
         // so the client listener can resolve/reject the promise (and react to progress updates)
         // when the server sends messages back
@@ -99,28 +91,26 @@ export function Client<Procedures extends ProceduresMap>(
           reject,
         })
 
+        const transfer =
+          procedures[functionName].autotransfer === "always"
+            ? findTransferables(input)
+            : []
+
         // Post the message to the server
         l.client.debug(requestId, `Requesting ${functionName} with`, input)
-        postMessage(
-          worker,
-          hooks,
-          {
-            by: "sw&rpc",
-            requestId,
-            functionName,
-            input,
-            autotransfer: procedures[functionName].autotransfer,
-          },
-          {
-            transfer:
-              procedures[functionName].autotransfer === "always"
-                ? findTransferables(input)
-                : [],
-          }
-        )
+        send({ input }, { transfer })
           .then(() => {})
           .catch(reject)
-      })
+      }) as CancelablePromise<
+        Procedures[typeof functionName]["success"]["inferOut"]
+      >
+
+      // Attach a cancel method to the promise
+      promise.cancel = async (reason: string) => {
+        l.client.debug(requestId, `Cancelling ${functionName} with`, reason)
+        await send({ abort: { reason } })
+        pendingRequests.delete(requestId)
+      }
     }) as SwarpcClient<Procedures>[typeof functionName]
   }
 
