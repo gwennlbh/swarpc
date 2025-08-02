@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- [Cancellable requests](https://gwennlbh.github.io/swarpc/docs/#make-cancelable-requests)
+
 ## [0.6.1] - 2025-07-19
 
 ### Fixed
