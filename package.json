@@ -29,6 +29,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
     "test": "echo \"Error: no test specified\" && exit 1",
     "typedoc": "typedoc src/index.ts src/types.ts --readme README.md",
     "version": "kacl release && prettier -w CHANGELOG.md && git add CHANGELOG.md"
