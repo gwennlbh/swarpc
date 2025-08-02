@@ -1,0 +1,13 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "schedule:weekly"],
+  "commitMessagePrefix": "⬆️ ",
+  "rangeStrategy": "bump",
+  "packageRules": [
+    {
+      "description": "Auto-merge updates to dev tooling (linters, formatters, etc)",
+      "matchDepTypes": ["devDependencies"],
+      "automerge": true
+    }
+  ]
+}
