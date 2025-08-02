@@ -12,4 +12,9 @@ export declare function Client<Procedures extends ProceduresMap>(procedures: Pro
     worker?: Worker;
     hooks?: Hooks<Procedures>;
 }): SwarpcClient<Procedures>;
+/**
+ * Generate a random request ID, used to identify requests between client and server.
+ * @returns a 6-character hexadecimal string
+ */
+export declare function makeRequestId(): string;
 //# sourceMappingURL=client.d.ts.map
