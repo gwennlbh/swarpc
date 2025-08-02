@@ -8,6 +8,10 @@
       "description": "Auto-merge updates to dev tooling (linters, formatters, etc)",
       "matchDepTypes": ["devDependencies"],
       "automerge": true
+    },
+    {
+      "paths": ["example/package.json"],
+      "automerge": true
     }
   ]
 }
