@@ -1,7 +1,9 @@
 import { l } from "./log.js"
 import {
+  CancelablePromise,
   Hooks,
   Payload,
+  PayloadCore,
   zProcedures,
   type ProceduresMap,
   type SwarpcClient,
@@ -17,6 +19,7 @@ export type { SwarpcClient } from "./types.js"
  */
 const pendingRequests = new Map<string, PendingRequest>()
 type PendingRequest = {
+  functionName: string
   reject: (err: Error) => void
   onProgress: (progress: any) => void
   resolve: (result: any) => void
@@ -51,49 +54,109 @@ export function Client<Procedures extends ProceduresMap>(
       )
     }
 
+    const send = async (
+      requestId: string,
+      msg: PayloadCore<Procedures, typeof functionName>,
+      options?: StructuredSerializeOptions
+    ) => {
+      return postMessage(
+        worker,
+        hooks,
+        {
+          ...msg,
+          by: "sw&rpc",
+          requestId,
+          functionName,
+        },
+        options
+      )
+    }
+
     // Set the method on the instance
-    // @ts-expect-error
-    instance[functionName] = (async (input: unknown, onProgress = () => {}) => {
+    const _runProcedure = async (
+      input: unknown,
+      onProgress: (progress: unknown) => void | Promise<void> = () => {},
+      reqid?: string
+    ) => {
       // Validate the input against the procedure's input schema
       procedures[functionName].input.assert(input)
-      // Ensure that we're listening for messages from the server
-      await startClientListener(worker, hooks)
 
-      // If no worker is provided, we use the service worker
-      const w =
-        worker ?? (await navigator.serviceWorker.ready.then((r) => r.active))
-
-      if (!w) {
-        throw new Error("[SWARPC Client] No active service worker found")
-      }
+      const requestId = reqid ?? makeRequestId()
 
       return new Promise((resolve, reject) => {
-        if (!worker && !navigator.serviceWorker.controller)
-          l.client.warn("", "Service Worker is not controlling the page")
-
-        const requestId = generateRequestId()
-
         // Store promise handlers (as well as progress updates handler)
         // so the client listener can resolve/reject the promise (and react to progress updates)
         // when the server sends messages back
-        pendingRequests.set(requestId, { resolve, onProgress, reject })
+        pendingRequests.set(requestId, {
+          functionName,
+          resolve,
+          onProgress,
+          reject,
+        })
+
+        const transfer =
+          procedures[functionName].autotransfer === "always"
+            ? findTransferables(input)
+            : []
 
         // Post the message to the server
         l.client.debug(requestId, `Requesting ${functionName} with`, input)
-        w.postMessage(
-          { functionName, input, requestId },
-          {
-            transfer:
-              procedures[functionName].autotransfer === "always"
-                ? findTransferables(input)
-                : [],
-          }
-        )
+        send(requestId, { input }, { transfer })
+          .then(() => {})
+          .catch(reject)
       })
-    }) as SwarpcClient<Procedures>[typeof functionName]
+    }
+
+    // @ts-expect-error
+    instance[functionName] = _runProcedure
+    instance[functionName]!.cancelable = (input, onProgress) => {
+      const requestId = makeRequestId()
+      return {
+        request: _runProcedure(input, onProgress, requestId),
+        async cancel(reason: string) {
+          if (!pendingRequests.has(requestId)) {
+            l.client.warn(
+              requestId,
+              `Cannot cancel ${functionName} request, it has already been resolved or rejected`
+            )
+            return
+          }
+
+          l.client.debug(requestId, `Cancelling ${functionName} with`, reason)
+          await send(requestId, { abort: { reason } })
+          pendingRequests.delete(requestId)
+        },
+      }
+    }
   }
 
   return instance as SwarpcClient<Procedures>
+}
+
+/**
+ * Warms up the client by starting the listener and getting the worker, then posts a message to the worker.
+ * @returns the worker to use
+ */
+async function postMessage<Procedures extends ProceduresMap>(
+  worker: Worker | undefined,
+  hooks: Hooks<Procedures>,
+  message: Payload<Procedures>,
+  options?: StructuredSerializeOptions
+) {
+  await startClientListener(worker, hooks)
+
+  if (!worker && !navigator.serviceWorker.controller)
+    l.client.warn("", "Service Worker is not controlling the page")
+
+  // If no worker is provided, we use the service worker
+  const w =
+    worker ?? (await navigator.serviceWorker.ready.then((r) => r.active))
+
+  if (!w) {
+    throw new Error("[SWARPC Client] No active service worker found")
+  }
+
+  w.postMessage(message, options)
 }
 
 /**
@@ -131,8 +194,7 @@ async function startClientListener<Procedures extends ProceduresMap>(
     if (eventData?.by !== "sw&rpc") return
 
     // We don't use a arktype schema here, we trust the server to send valid data
-    const { functionName, requestId, ...data } =
-      eventData as Payload<Procedures>
+    const { requestId, ...data } = eventData as Payload<Procedures>
 
     // Sanity check in case we somehow receive a message without requestId
     if (!requestId) {
@@ -150,14 +212,14 @@ async function startClientListener<Procedures extends ProceduresMap>(
     // React to the data received: call hook, call handler,
     // and remove the request from pendingRequests (unless it's a progress update)
     if ("error" in data) {
-      hooks.error?.(functionName, new Error(data.error.message))
+      hooks.error?.(data.functionName, new Error(data.error.message))
       handlers.reject(new Error(data.error.message))
       pendingRequests.delete(requestId)
     } else if ("progress" in data) {
-      hooks.progress?.(functionName, data.progress)
+      hooks.progress?.(data.functionName, data.progress)
       handlers.onProgress(data.progress)
     } else if ("result" in data) {
-      hooks.success?.(functionName, data.result)
+      hooks.success?.(data.functionName, data.result)
       handlers.resolve(data.result)
       pendingRequests.delete(requestId)
     }
@@ -170,6 +232,6 @@ async function startClientListener<Procedures extends ProceduresMap>(
  * Generate a random request ID, used to identify requests between client and server.
  * @returns a 6-character hexadecimal string
  */
-function generateRequestId(): string {
+export function makeRequestId(): string {
   return Math.random().toString(16).substring(2, 8).toUpperCase()
 }
