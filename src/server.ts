@@ -16,6 +16,7 @@ import { findTransferables } from "./utils.js"
 export type { SwarpcServer } from "./types.js"
 
 const abortControllers = new Map<string, AbortController>()
+const abortedRequests = new Set<string>()
 
 /**
  * Creates a sw&rpc server instance.
@@ -51,8 +52,12 @@ export function Server<Procedures extends ProceduresMap>(
         abortSignal?.throwIfAborted()
         return new Promise((resolve, reject) => {
           abortSignal?.addEventListener("abort", () => {
-            l.server.debug(null, `Aborted ${functionName} request`)
-            reject(abortSignal?.reason)
+            let { requestId, reason } = abortSignal?.reason
+            l.server.debug(
+              requestId,
+              `Aborted ${functionName} request: ${reason}`
+            )
+            reject({ aborted: reason })
           })
 
           implementation(input, onProgress, abortSignal)
@@ -98,14 +103,16 @@ export function Server<Procedures extends ProceduresMap>(
       // Shorthand function with functionName, requestId, etc. set
       const postMsg = async (
         data: PayloadCore<Procedures, typeof functionName>
-      ) =>
-        postMessage({
+      ) => {
+        if (abortedRequests.has(requestId)) return
+        await postMessage({
           by: "sw&rpc",
           functionName,
           requestId,
           autotransfer,
           ...data,
         })
+      }
 
       // Prepare a function to post errors back to the client
       const postError = async (error: any) =>
@@ -160,6 +167,18 @@ export function Server<Procedures extends ProceduresMap>(
       )
         // Send errors
         .catch(async (error: any) => {
+          // Handle errors caused by abortions
+          if ("aborted" in error) {
+            l.server.debug(
+              requestId,
+              `Received abort error for ${functionName}`,
+              error.aborted
+            )
+            abortedRequests.add(requestId)
+            abortControllers.delete(requestId)
+            return
+          }
+
           l.server.error(requestId, `Error in ${functionName}`, error)
           await postError(error)
         })
@@ -167,6 +186,9 @@ export function Server<Procedures extends ProceduresMap>(
         .then(async (result: any) => {
           l.server.debug(requestId, `Result for ${functionName}`, result)
           await postMsg({ result })
+        })
+        .finally(() => {
+          abortedRequests.delete(requestId)
         })
     })
   }

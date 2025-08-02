@@ -34,12 +34,13 @@ export type Procedure<I extends Type, P extends Type, S extends Type> = {
  * A promise that you can cancel by calling `.cancel(reason)` on it:
  *
  * ```js
- * const call = client.runProcedure(input, onProgress)
- * setTimeout(() => call.cancel("Cancelled by user"), 1000)
- * const result = await call
+ * const { request, cancel } = client.runProcedure.cancelable(input, onProgress)
+ * setTimeout(() => cancel("Cancelled by user"), 1000)
+ * const result = await request
  * ```
  */
-export type CancelablePromise<T> = Promise<T> & {
+export type CancelablePromise<T> = {
+  request: Promise<T>
   /**
    * Abort the request.
    * @param reason The reason for cancelling the request.
@@ -164,12 +165,21 @@ export type Payload<
 > = PayloadHeader<PM, Name> & PayloadCore<PM, Name>
 
 /**
- * A procedure's corresponding method on the client instance -- used to call the procedure. If you want to be able to cancel the request, you can set the request's ID yourself, and call `.abort(requestId, reason)` on the client instance to cancel it.
+ * A procedure's corresponding method on the client instance -- used to call the procedure. If you want to be able to cancel the request, you can use the `cancelable` method instead of running the procedure directly.
  */
-export type ClientMethod<P extends Procedure<Type, Type, Type>> = (
+export type ClientMethod<P extends Procedure<Type, Type, Type>> = ((
   input: P["input"]["inferIn"],
   onProgress?: (progress: P["progress"]["inferOut"]) => void
-) => CancelablePromise<P["success"]["inferOut"]>
+) => Promise<P["success"]["inferOut"]>) & {
+  /**
+   * A method that returns a `CancelablePromise`. Cancel it by calling `.cancel(reason)` on it, and wait for the request to resolve by awaiting the `request` property on the returned object.
+   */
+  cancelable: (
+    input: P["input"]["inferIn"],
+    onProgress?: (progress: P["progress"]["inferOut"]) => void,
+    requestId?: string
+  ) => CancelablePromise<P["success"]["inferOut"]>
+}
 
 /**
  * Symbol used as the key for the procedures map on the server instance

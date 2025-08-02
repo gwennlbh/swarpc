@@ -54,33 +54,37 @@ export function Client<Procedures extends ProceduresMap>(
       )
     }
 
+    const send = async (
+      requestId: string,
+      msg: PayloadCore<Procedures, typeof functionName>,
+      options?: StructuredSerializeOptions
+    ) => {
+      return postMessage(
+        worker,
+        hooks,
+        {
+          ...msg,
+          by: "sw&rpc",
+          requestId,
+          functionName,
+          autotransfer: procedures[functionName].autotransfer,
+        },
+        options
+      )
+    }
+
     // Set the method on the instance
-    // @ts-expect-error
-    instance[functionName] = (async (input: unknown, onProgress = () => {}) => {
+    const _runProcedure = async (
+      input: unknown,
+      onProgress: (progress: unknown) => void | Promise<void> = () => {},
+      reqid?: string
+    ) => {
       // Validate the input against the procedure's input schema
       procedures[functionName].input.assert(input)
 
-      const requestId = makeRequestId()
+      const requestId = reqid ?? makeRequestId()
 
-      const send = async (
-        msg: PayloadCore<Procedures, typeof functionName>,
-        options?: StructuredSerializeOptions
-      ) => {
-        return postMessage(
-          worker,
-          hooks,
-          {
-            ...msg,
-            by: "sw&rpc",
-            requestId,
-            functionName,
-            autotransfer: procedures[functionName].autotransfer,
-          },
-          options
-        )
-      }
-
-      const promise = new Promise((resolve, reject) => {
+      return new Promise((resolve, reject) => {
         // Store promise handlers (as well as progress updates handler)
         // so the client listener can resolve/reject the promise (and react to progress updates)
         // when the server sends messages back
@@ -98,20 +102,33 @@ export function Client<Procedures extends ProceduresMap>(
 
         // Post the message to the server
         l.client.debug(requestId, `Requesting ${functionName} with`, input)
-        send({ input }, { transfer })
+        send(requestId, { input }, { transfer })
           .then(() => {})
           .catch(reject)
-      }) as CancelablePromise<
-        Procedures[typeof functionName]["success"]["inferOut"]
-      >
+      })
+    }
 
-      // Attach a cancel method to the promise
-      promise.cancel = async (reason: string) => {
-        l.client.debug(requestId, `Cancelling ${functionName} with`, reason)
-        await send({ abort: { reason } })
-        pendingRequests.delete(requestId)
+    // @ts-expect-error
+    instance[functionName] = _runProcedure
+    instance[functionName]!.cancelable = (input, onProgress) => {
+      const requestId = makeRequestId()
+      return {
+        request: _runProcedure(input, onProgress, requestId),
+        async cancel(reason: string) {
+          if (!pendingRequests.has(requestId)) {
+            l.client.warn(
+              requestId,
+              `Cannot cancel ${functionName} request, it has already been resolved or rejected`
+            )
+            return
+          }
+
+          l.client.debug(requestId, `Cancelling ${functionName} with`, reason)
+          await send(requestId, { abort: { reason } })
+          pendingRequests.delete(requestId)
+        },
       }
-    }) as SwarpcClient<Procedures>[typeof functionName]
+    }
   }
 
   return instance as SwarpcClient<Procedures>

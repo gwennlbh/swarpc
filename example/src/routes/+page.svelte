@@ -21,13 +21,15 @@
 <search>
   <button
     onclick={async () => {
-      const request = swarpc.getClassmapping({ ref: "main" }, (p) => {
-        loading = true
-        progress = p.transferred / p.total
-      })
+      const { request, cancel } = swarpc.getClassmapping.cancelable(
+        { ref: "main", delay: 2 },
+        (p) => {
+          loading = true
+          progress = p.transferred / p.total
+        }
+      )
 
-      console.log("started request", request.cancel)
-      _cancel = request.cancel
+      _cancel = cancel
       results = await request
 
       loading = false
