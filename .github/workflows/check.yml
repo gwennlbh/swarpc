@@ -15,7 +15,8 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "24.5.0"
+          node-version-file: package.json
+          cache: npm
       - run: npm install
       - run: npm run typecheck
 
@@ -27,6 +28,7 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "24.5.0"
+          node-version-file: package.json
+          cache: npm
       - run: npm install
       - run: npm test
