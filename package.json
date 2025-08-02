@@ -24,13 +24,13 @@
     "dist",
     "src"
   ],
-  "main": "dist/swarpc.js",
-  "types": "dist/swarpc.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "typedoc": "typedoc src/swarpc.ts src/types.ts --readme README.md",
+    "typedoc": "typedoc src/index.ts src/types.ts --readme README.md",
     "version": "kacl release && prettier -w CHANGELOG.md && git add CHANGELOG.md"
   },
   "dependencies": {
