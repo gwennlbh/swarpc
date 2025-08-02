@@ -107,3 +107,47 @@ Here's a Svelte example!
     {/each}
 </ul>
 ```
+
+### Make cancelable requests
+
+#### Implementation
+
+To make your procedures meaningfully cancelable, you have to make use of the [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) API. This is passed as a third argument when implementing your procedures:
+
+```js
+server.searchIMDb(async ({ query }, onProgress, abort) => {
+  // If you're doing heavy computation without fetch:
+  let aborted = false
+  abort?.addEventListener("abort", () => {
+    aborted = true
+  })
+
+  // Use `aborted` to check if the request was canceled within your hot loop
+  for (...) {
+    /* here */ if (aborted) return
+    ...
+  }
+
+  // When using fetch:
+  await fetch(..., { signal: abort })
+})
+```
+
+#### Call sites
+
+Instead of calling `await client.myProcedure()` directly, call `client.myProcedure.cancelable()`. You'll get back an object with
+
+- `async cancel(reason)`: a function to cancel the request
+- `request`: a Promise that resolves to the result of the procedure call. `await` it to wait for the request to finish.
+
+Example:
+
+```js
+// Normal call:
+const result = await swarpc.searchIMDb({ query })
+
+// Cancelable call:
+const { request, cancel } = swarpc.searchIMDb.cancelable({ query })
+setTimeout(() => cancel().then(() => console.warn("Took too long!!")), 5_000)
+await request
+```
