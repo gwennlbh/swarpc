@@ -1,16 +1,23 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended", "schedule:weekly"],
+  "extends": [
+    "config:recommended",
+    "schedule:weekly"
+  ],
   "commitMessagePrefix": "⬆️ ",
   "rangeStrategy": "bump",
   "packageRules": [
     {
       "description": "Auto-merge updates to dev tooling (linters, formatters, etc)",
-      "matchDepTypes": ["devDependencies"],
+      "matchDepTypes": [
+        "devDependencies"
+      ],
       "automerge": true
     },
     {
-      "paths": ["example/package.json"],
+      "matchFileNames": [
+        "example/package.json"
+      ],
       "automerge": true,
       "groupName": "Example package updates"
     }
