@@ -21,6 +21,7 @@ jobs:
         with:
           node-version: "22"
       - run: npm ci
+      - run: rm -r dist || true
       - run: npm run build
       - name: Commit and push
         uses: EndBug/add-and-commit@v9
