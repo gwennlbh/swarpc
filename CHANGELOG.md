@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - [Cancellable requests](https://gwennlbh.github.io/swarpc/docs/#make-cancelable-requests)
 - [Configurable log levels](http://gwennlbh.github.io/swarpc/docs/functions/index.Client.html#:~:text=from%20the%20server-,Optionalloglevel,-?:%20%22debug%22%20%7C)
 
+### Fixed
+
+- Type of [`Server#start`](<https://gwennlbh.github.io/swarpc/docs/types/types.SwarpcServer.html#:~:text=%22%5BzProcedures%5D%22:%20Procedures;-,start,-(self:%20Window):%20void;>)'s `self` parameter now correctly accepts both `Window` and `Worker` contexts.
+
 ## [0.6.1] - 2025-07-19
 
 ### Fixed
