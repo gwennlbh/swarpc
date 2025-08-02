@@ -7,6 +7,7 @@
     {
       "groupName": "Tooling updates",
       "description": "Auto-merge updates to dev tooling (linters, formatters, etc)",
+      "matchFileNames": ["!example/package.json"],
       "matchDepTypes": ["devDependencies"],
       "automerge": true
     },
