@@ -67,7 +67,6 @@ export function Client<Procedures extends ProceduresMap>(
           by: "sw&rpc",
           requestId,
           functionName,
-          autotransfer: procedures[functionName].autotransfer,
         },
         options
       )

@@ -117,7 +117,6 @@ export type PayloadHeader<
   by: "sw&rpc"
   functionName: Name & string
   requestId: string
-  autotransfer: PM[Name]["autotransfer"]
 }
 
 export const PayloadCoreSchema = type("<I, P, S>", {

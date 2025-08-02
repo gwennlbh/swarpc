@@ -70,9 +70,11 @@ export function Server<Procedures extends ProceduresMap>(
 
   instance.start = (self: Window) => {
     // Used to post messages back to the client
-    const postMessage = async (data: Payload<Procedures>) => {
-      const transfer =
-        data.autotransfer === "never" ? [] : findTransferables(data)
+    const postMessage = async (
+      autotransfer: boolean,
+      data: Payload<Procedures>
+    ) => {
+      const transfer = autotransfer ? [] : findTransferables(data)
 
       if (worker) {
         self.postMessage(data, { transfer })
@@ -105,11 +107,10 @@ export function Server<Procedures extends ProceduresMap>(
         data: PayloadCore<Procedures, typeof functionName>
       ) => {
         if (abortedRequests.has(requestId)) return
-        await postMessage({
+        await postMessage(autotransfer !== "never", {
           by: "sw&rpc",
           functionName,
           requestId,
-          autotransfer,
           ...data,
         })
       }
