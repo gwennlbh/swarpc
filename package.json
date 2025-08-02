@@ -30,7 +30,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest",
     "typedoc": "typedoc src/index.ts src/types.ts --readme README.md",
     "version": "kacl release && prettier -w CHANGELOG.md && git add CHANGELOG.md"
   },
@@ -38,9 +38,12 @@
     "arktype": "^2.1.20"
   },
   "devDependencies": {
+    "@vitest/web-worker": "^3.2.4",
     "kacl": "^1.1.1",
     "prettier": "^3.6.2",
     "typedoc": "^0.28.7",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vite": "^7.0.6",
+    "vitest": "^3.2.4"
   }
 }
