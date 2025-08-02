@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Client } from "swarpc"
+  import { Client, makeRequestId } from "swarpc"
   import { procedures } from "$lib/procedures"
 
   const swarpc = Client(procedures)
@@ -8,15 +8,28 @@
   let results: typeof procedures.getClassmapping.success.inferOut = $state([])
   let progress = $state(0)
   let loading = $state(false)
+  let requestId = $state("")
+
+  async function cancel() {
+    if (!requestId) return
+    await swarpc.abort(requestId, "User cancelled the request")
+    loading = false
+  }
 </script>
 
 <search>
   <button
     onclick={async () => {
-      results = await swarpc.getClassmapping({ ref: "main" }, (p) => {
-        loading = true
-        progress = p.transferred / p.total
-      })
+      requestId = makeRequestId()
+      results = await swarpc.getClassmapping(
+        { ref: "main" },
+        (p) => {
+          loading = true
+          progress = p.transferred / p.total
+        },
+        requestId
+      )
+
       loading = false
     }}
   >

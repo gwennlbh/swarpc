@@ -4,6 +4,7 @@ import {
   ImplementationsMap,
   Payload,
   PayloadCore,
+  PayloadSchema,
   zImplementations,
   zProcedures,
   type ProceduresMap,
@@ -12,6 +13,8 @@ import {
 import { findTransferables } from "./utils.js"
 
 export type { SwarpcServer } from "./types.js"
+
+const abortControllers = new Map<string, AbortController>()
 
 /**
  * Creates a sw&rpc server instance.
@@ -39,17 +42,42 @@ export function Server<Procedures extends ProceduresMap>(
       if (!instance[zProcedures][functionName]) {
         throw new Error(`No procedure found for function name: ${functionName}`)
       }
-      instance[zImplementations][functionName] = implementation as any
+      instance[zImplementations][functionName] = (
+        input,
+        onProgress,
+        abortSignal
+      ) => {
+        abortSignal?.throwIfAborted()
+        return new Promise((resolve, reject) => {
+          abortSignal?.addEventListener("abort", () => {
+            l.server.debug(null, `Aborted ${functionName} request`)
+            reject(abortSignal?.reason)
+          })
+
+          implementation(input, onProgress, abortSignal)
+            .then(resolve)
+            .catch(reject)
+        })
+      }
     }) as SwarpcServer<Procedures>[typeof functionName]
   }
 
   // Define payload schema for incoming messages
-  const PayloadSchema = type.or(
-    ...Object.entries(procedures).map(([functionName, { input }]) => ({
-      functionName: type(`"${functionName}"`),
-      requestId: type("string >= 1"),
-      input,
-    }))
+  const Payload = type.or(
+    ...Object.entries(procedures).map(([functionName, schemas]) =>
+      PayloadSchema(
+        type(`"${functionName}"`),
+        schemas.input,
+        schemas.progress,
+        schemas.success
+      ).exclude(
+        type.or(
+          { error: "unknown" },
+          { result: "unknown" },
+          { progress: "unknown" }
+        )
+      )
+    )
   )
 
   instance.start = (self: Window) => {
@@ -70,11 +98,14 @@ export function Server<Procedures extends ProceduresMap>(
     // Listen for messages from the client
     self.addEventListener("message", async (event: MessageEvent) => {
       // Decode the payload
-      const { functionName, requestId, input } = PayloadSchema.assert(
-        event.data
-      )
+      const {
+        requestId,
+        functionName,
+        by: _,
+        ...data
+      } = Payload.assert(event.data)
 
-      l.server.debug(requestId, `Received request for ${functionName}`, input)
+      l.server.debug(requestId, `Received request for ${data}`, data)
 
       // Get autotransfer preference from the procedure definition
       const { autotransfer = "output-only" } =
@@ -107,11 +138,29 @@ export function Server<Procedures extends ProceduresMap>(
         return
       }
 
+      // Handle abortion requests (pro-choice ftw!!)
+      if ("abort" in data) {
+        const controller = abortControllers.get(requestId)
+
+        if (!controller)
+          await postError("No abort controller found for request")
+
+        controller?.abort(data.abort.reason)
+        return
+      }
+
+      // Set up the abort controller for this request
+      abortControllers.set(requestId, new AbortController())
+
       // Call the implementation with the input and a progress callback
-      await implementation(input, async (progress: any) => {
-        l.server.debug(requestId, `Progress for ${functionName}`, progress)
-        await postMsg({ progress })
-      })
+      await implementation(
+        data.input,
+        async (progress: any) => {
+          l.server.debug(requestId, `Progress for ${functionName}`, progress)
+          await postMsg({ progress })
+        },
+        abortControllers.get(requestId)?.signal
+      )
         // Send errors
         .catch(async (error: any) => {
           l.server.error(requestId, `Error in ${functionName}`, error)

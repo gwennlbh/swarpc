@@ -1,4 +1,4 @@
-import type { Type } from "arktype"
+import { type, type Type } from "arktype"
 
 /**
  * A procedure declaration
@@ -36,10 +36,11 @@ export type Procedure<I extends Type, P extends Type, S extends Type> = {
 export type ProcedureImplementation<
   I extends Type,
   P extends Type,
-  S extends Type
+  S extends Type,
 > = (
   input: I["inferOut"],
-  onProgress: (progress: P["inferIn"]) => void
+  onProgress: (progress: P["inferIn"]) => void,
+  abortSignal?: AbortSignal
 ) => Promise<S["inferIn"]>
 
 /**
@@ -85,9 +86,16 @@ export type Hooks<Procedures extends ProceduresMap> = {
   ) => void
 }
 
+export const PayloadHeaderSchema = type("<Name extends string>", {
+  by: '"sw&rpc"',
+  functionName: "Name",
+  requestId: "string >= 1",
+  autotransfer: '"always" | "never" | "output-only"',
+})
+
 export type PayloadHeader<
   PM extends ProceduresMap,
-  Name extends keyof PM = keyof PM
+  Name extends keyof PM = keyof PM,
 > = {
   by: "sw&rpc"
   functionName: Name & string
@@ -95,9 +103,23 @@ export type PayloadHeader<
   autotransfer: PM[Name]["autotransfer"]
 }
 
+export const PayloadCoreSchema = type("<I, P, S>", [
+  { input: "I" },
+  "|",
+  [
+    { progress: "P" },
+    "|",
+    [
+      { result: "S" },
+      "|",
+      [{ abort: { reason: "string" } }, "|", { error: { message: "string" } }],
+    ],
+  ],
+])
+
 export type PayloadCore<
   PM extends ProceduresMap,
-  Name extends keyof PM = keyof PM
+  Name extends keyof PM = keyof PM,
 > =
   | {
       input: PM[Name]["input"]["inferOut"]
@@ -109,23 +131,35 @@ export type PayloadCore<
       result: PM[Name]["success"]["inferOut"]
     }
   | {
+      abort: { reason: string }
+    }
+  | {
       error: { message: string }
     }
+
+export const PayloadSchema = type
+  .scope({ PayloadCoreSchema, PayloadHeaderSchema })
+  .type("<Name extends string, I, P, S>", [
+    "PayloadHeaderSchema<Name>",
+    "&",
+    "PayloadCoreSchema<I, P, S>",
+  ])
 
 /**
  * The effective payload as sent by the server to the client
  */
 export type Payload<
   PM extends ProceduresMap,
-  Name extends keyof PM = keyof PM
+  Name extends keyof PM = keyof PM,
 > = PayloadHeader<PM, Name> & PayloadCore<PM, Name>
 
 /**
- * A procedure's corresponding method on the client instance -- used to call the procedure
+ * A procedure's corresponding method on the client instance -- used to call the procedure. If you want to be able to cancel the request, you can set the request's ID yourself, and call `.abort(requestId, reason)` on the client instance to cancel it.
  */
 export type ClientMethod<P extends Procedure<Type, Type, Type>> = (
   input: P["input"]["inferIn"],
-  onProgress?: (progress: P["progress"]["inferOut"]) => void
+  onProgress?: (progress: P["progress"]["inferOut"]) => void,
+  requestId?: string
 ) => Promise<P["success"]["inferOut"]>
 
 /**
@@ -138,10 +172,13 @@ export const zImplementations = Symbol("SWARPC implementations")
 export const zProcedures = Symbol("SWARPC procedures")
 
 /**
- * The sw&rpc client instance, which provides methods to call procedures
+ * The sw&rpc client instance, which provides methods to call procedures.
+ * Each property of the procedures map will be a method, that accepts an input, an optional onProgress callback and an optional request ID.
+ * If you want to be able to cancel the request, you can set the request's ID yourself, and call `.abort(requestId, reason)` on the client instance to cancel it.
  */
 export type SwarpcClient<Procedures extends ProceduresMap> = {
   [zProcedures]: Procedures
+  abort(requestId: string, reason: string): Promise<void>
 } & {
   [F in keyof Procedures]: ClientMethod<Procedures[F]>
 }

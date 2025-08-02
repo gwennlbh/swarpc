@@ -17,6 +17,7 @@ export type { SwarpcClient } from "./types.js"
  */
 const pendingRequests = new Map<string, PendingRequest>()
 type PendingRequest = {
+  functionName: string
   reject: (err: Error) => void
   onProgress: (progress: any) => void
   resolve: (result: any) => void
@@ -38,9 +39,32 @@ export function Client<Procedures extends ProceduresMap>(
   { worker, hooks = {} }: { worker?: Worker; hooks?: Hooks<Procedures> } = {}
 ): SwarpcClient<Procedures> {
   // Store procedures on a symbol key, to avoid conflicts with procedure names
-  const instance = { [zProcedures]: procedures } as Partial<
-    SwarpcClient<Procedures>
-  >
+  const instance = {
+    [zProcedures]: procedures,
+    abort: async (requestId: string, reason: string) => {
+      const req = pendingRequests.get(requestId)
+      if (!req) {
+        throw new Error(
+          `[SWARPC Client] Cannot abort ${requestId}: No request found `
+        )
+      }
+
+      const proc = procedures[req.functionName]
+      if (!proc) {
+        throw new Error(
+          `[SWARPC Client] Cannot abort ${requestId}: No declaration found for ${req.functionName}`
+        )
+      }
+
+      await postMessage(worker, hooks, {
+        by: "sw&rpc",
+        requestId,
+        functionName: req.functionName,
+        autotransfer: proc.autotransfer,
+        abort: { reason },
+      })
+    },
+  } as Partial<SwarpcClient<Procedures>>
 
   for (const functionName of Object.keys(procedures) as Array<
     keyof Procedures
@@ -53,35 +77,40 @@ export function Client<Procedures extends ProceduresMap>(
 
     // Set the method on the instance
     // @ts-expect-error
-    instance[functionName] = (async (input: unknown, onProgress = () => {}) => {
+    instance[functionName] = (async (
+      input: unknown,
+      onProgress = () => {},
+      requestId?: string
+    ) => {
       // Validate the input against the procedure's input schema
       procedures[functionName].input.assert(input)
       // Ensure that we're listening for messages from the server
-      await startClientListener(worker, hooks)
-
-      // If no worker is provided, we use the service worker
-      const w =
-        worker ?? (await navigator.serviceWorker.ready.then((r) => r.active))
-
-      if (!w) {
-        throw new Error("[SWARPC Client] No active service worker found")
-      }
 
       return new Promise((resolve, reject) => {
-        if (!worker && !navigator.serviceWorker.controller)
-          l.client.warn("", "Service Worker is not controlling the page")
-
-        const requestId = generateRequestId()
+        requestId ??= makeRequestId()
 
         // Store promise handlers (as well as progress updates handler)
         // so the client listener can resolve/reject the promise (and react to progress updates)
         // when the server sends messages back
-        pendingRequests.set(requestId, { resolve, onProgress, reject })
+        pendingRequests.set(requestId, {
+          functionName,
+          resolve,
+          onProgress,
+          reject,
+        })
 
         // Post the message to the server
         l.client.debug(requestId, `Requesting ${functionName} with`, input)
-        w.postMessage(
-          { functionName, input, requestId },
+        postMessage(
+          worker,
+          hooks,
+          {
+            by: "sw&rpc",
+            requestId,
+            functionName,
+            input,
+            autotransfer: procedures[functionName].autotransfer,
+          },
           {
             transfer:
               procedures[functionName].autotransfer === "always"
@@ -89,11 +118,39 @@ export function Client<Procedures extends ProceduresMap>(
                 : [],
           }
         )
+          .then(() => {})
+          .catch(reject)
       })
     }) as SwarpcClient<Procedures>[typeof functionName]
   }
 
   return instance as SwarpcClient<Procedures>
+}
+
+/**
+ * Warms up the client by starting the listener and getting the worker, then posts a message to the worker.
+ * @returns the worker to use
+ */
+async function postMessage<Procedures extends ProceduresMap>(
+  worker: Worker | undefined,
+  hooks: Hooks<Procedures>,
+  message: Payload<Procedures>,
+  options?: StructuredSerializeOptions
+) {
+  await startClientListener(worker, hooks)
+
+  if (!worker && !navigator.serviceWorker.controller)
+    l.client.warn("", "Service Worker is not controlling the page")
+
+  // If no worker is provided, we use the service worker
+  const w =
+    worker ?? (await navigator.serviceWorker.ready.then((r) => r.active))
+
+  if (!w) {
+    throw new Error("[SWARPC Client] No active service worker found")
+  }
+
+  w.postMessage(message, options)
 }
 
 /**
@@ -131,8 +188,7 @@ async function startClientListener<Procedures extends ProceduresMap>(
     if (eventData?.by !== "sw&rpc") return
 
     // We don't use a arktype schema here, we trust the server to send valid data
-    const { functionName, requestId, ...data } =
-      eventData as Payload<Procedures>
+    const { requestId, ...data } = eventData as Payload<Procedures>
 
     // Sanity check in case we somehow receive a message without requestId
     if (!requestId) {
@@ -150,14 +206,14 @@ async function startClientListener<Procedures extends ProceduresMap>(
     // React to the data received: call hook, call handler,
     // and remove the request from pendingRequests (unless it's a progress update)
     if ("error" in data) {
-      hooks.error?.(functionName, new Error(data.error.message))
+      hooks.error?.(data.functionName, new Error(data.error.message))
       handlers.reject(new Error(data.error.message))
       pendingRequests.delete(requestId)
     } else if ("progress" in data) {
-      hooks.progress?.(functionName, data.progress)
+      hooks.progress?.(data.functionName, data.progress)
       handlers.onProgress(data.progress)
     } else if ("result" in data) {
-      hooks.success?.(functionName, data.result)
+      hooks.success?.(data.functionName, data.result)
       handlers.resolve(data.result)
       pendingRequests.delete(requestId)
     }
@@ -170,6 +226,6 @@ async function startClientListener<Procedures extends ProceduresMap>(
  * Generate a random request ID, used to identify requests between client and server.
  * @returns a 6-character hexadecimal string
  */
-function generateRequestId(): string {
+export function makeRequestId(): string {
   return Math.random().toString(16).substring(2, 8).toUpperCase()
 }
