@@ -31,7 +31,7 @@
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
-    "typedoc": "typedoc src/index.ts src/types.ts --readme README.md",
+    "typedoc": "typedoc",
     "version": "kacl release && prettier -w CHANGELOG.md && git add CHANGELOG.md"
   },
   "dependencies": {
@@ -42,6 +42,7 @@
     "kacl": "^1.1.1",
     "prettier": "^3.6.2",
     "typedoc": "^0.28.9",
+    "typedoc-material-theme": "^1.4.0",
     "typescript": "^5.9.2",
     "vite": "^7.0.6",
     "vitest": "^3.2.4"

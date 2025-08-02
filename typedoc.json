@@ -1,0 +1,19 @@
+{
+  "entryPoints": ["src/index.ts", "src/types.ts"],
+  "plugin": ["typedoc-material-theme"],
+  "readme": "README.md",
+  "highlightLanguages": [
+    "bash",
+    "console",
+    "css",
+    "html",
+    "javascript",
+    "json",
+    "jsonc",
+    "json5",
+    "yaml",
+    "tsx",
+    "typescript",
+    "svelte"
+  ]
+}
