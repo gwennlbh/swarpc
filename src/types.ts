@@ -90,7 +90,6 @@ export const PayloadHeaderSchema = type("<Name extends string>", {
   by: '"sw&rpc"',
   functionName: "Name",
   requestId: "string >= 1",
-  autotransfer: '"always" | "never" | "output-only"',
 })
 
 export type PayloadHeader<
@@ -103,19 +102,13 @@ export type PayloadHeader<
   autotransfer: PM[Name]["autotransfer"]
 }
 
-export const PayloadCoreSchema = type("<I, P, S>", [
-  { input: "I" },
-  "|",
-  [
-    { progress: "P" },
-    "|",
-    [
-      { result: "S" },
-      "|",
-      [{ abort: { reason: "string" } }, "|", { error: { message: "string" } }],
-    ],
-  ],
-])
+export const PayloadCoreSchema = type("<I, P, S>", {
+  "input?": "I",
+  "progress?": "P",
+  "result?": "S",
+  "abort?": { reason: "string" },
+  "error?": { message: "string" },
+})
 
 export type PayloadCore<
   PM extends ProceduresMap,

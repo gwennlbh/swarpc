@@ -1,9 +1,10 @@
-import { type } from "arktype"
+import { ArkErrors, type } from "arktype"
 import { l } from "./log.js"
 import {
   ImplementationsMap,
   Payload,
   PayloadCore,
+  PayloadHeaderSchema,
   PayloadSchema,
   zImplementations,
   zProcedures,
@@ -62,24 +63,6 @@ export function Server<Procedures extends ProceduresMap>(
     }) as SwarpcServer<Procedures>[typeof functionName]
   }
 
-  // Define payload schema for incoming messages
-  const Payload = type.or(
-    ...Object.entries(procedures).map(([functionName, schemas]) =>
-      PayloadSchema(
-        type(`"${functionName}"`),
-        schemas.input,
-        schemas.progress,
-        schemas.success
-      ).exclude(
-        type.or(
-          { error: "unknown" },
-          { result: "unknown" },
-          { progress: "unknown" }
-        )
-      )
-    )
-  )
-
   instance.start = (self: Window) => {
     // Used to post messages back to the client
     const postMessage = async (data: Payload<Procedures>) => {
@@ -98,17 +81,18 @@ export function Server<Procedures extends ProceduresMap>(
     // Listen for messages from the client
     self.addEventListener("message", async (event: MessageEvent) => {
       // Decode the payload
-      const {
-        requestId,
-        functionName,
-        by: _,
-        ...data
-      } = Payload.assert(event.data)
+      const { requestId, functionName } = PayloadHeaderSchema(
+        type.enumerated(...Object.keys(procedures))
+      ).assert(event.data)
 
-      l.server.debug(requestId, `Received request for ${data}`, data)
+      l.server.debug(
+        requestId,
+        `Received request for ${functionName}`,
+        event.data
+      )
 
       // Get autotransfer preference from the procedure definition
-      const { autotransfer = "output-only" } =
+      const { autotransfer = "output-only", ...schemas } =
         instance[zProcedures][functionName]
 
       // Shorthand function with functionName, requestId, etc. set
@@ -138,23 +122,36 @@ export function Server<Procedures extends ProceduresMap>(
         return
       }
 
+      // Define payload schema for incoming messages
+      const payload = PayloadSchema(
+        type(`"${functionName}"`),
+        schemas.input,
+        schemas.progress,
+        schemas.success
+      ).assert(event.data)
+
       // Handle abortion requests (pro-choice ftw!!)
-      if ("abort" in data) {
+      if (payload.abort) {
         const controller = abortControllers.get(requestId)
 
         if (!controller)
           await postError("No abort controller found for request")
 
-        controller?.abort(data.abort.reason)
+        controller?.abort(payload.abort.reason)
         return
       }
 
       // Set up the abort controller for this request
       abortControllers.set(requestId, new AbortController())
 
+      if (!payload.input) {
+        await postError("No input provided")
+        return
+      }
+
       // Call the implementation with the input and a progress callback
       await implementation(
-        data.input,
+        payload.input,
         async (progress: any) => {
           l.server.debug(requestId, `Progress for ${functionName}`, progress)
           await postMsg({ progress })
