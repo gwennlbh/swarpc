@@ -1,12 +1,11 @@
-import { l } from "./log.js"
+import { createLogger, type Logger, type LogLevel } from "./log.js"
 import {
-  CancelablePromise,
   Hooks,
   Payload,
   PayloadCore,
   zProcedures,
   type ProceduresMap,
-  type SwarpcClient,
+  type SwarpcClient
 } from "./types.js"
 import { findTransferables } from "./utils.js"
 
@@ -38,8 +37,14 @@ let _clientListenerStarted = false
  */
 export function Client<Procedures extends ProceduresMap>(
   procedures: Procedures,
-  { worker, hooks = {} }: { worker?: Worker; hooks?: Hooks<Procedures> } = {}
+  {
+    worker,
+    loglevel = "debug",
+    hooks = {},
+  }: { worker?: Worker; hooks?: Hooks<Procedures>; loglevel?: LogLevel } = {}
 ): SwarpcClient<Procedures> {
+  const l = createLogger("client", loglevel)
+
   // Store procedures on a symbol key, to avoid conflicts with procedure names
   const instance = { [zProcedures]: procedures } as Partial<
     SwarpcClient<Procedures>
@@ -60,6 +65,7 @@ export function Client<Procedures extends ProceduresMap>(
       options?: StructuredSerializeOptions
     ) => {
       return postMessage(
+        l,
         worker,
         hooks,
         {
@@ -100,7 +106,7 @@ export function Client<Procedures extends ProceduresMap>(
             : []
 
         // Post the message to the server
-        l.client.debug(requestId, `Requesting ${functionName} with`, input)
+        l.debug(requestId, `Requesting ${functionName} with`, input)
         send(requestId, { input }, { transfer })
           .then(() => {})
           .catch(reject)
@@ -115,14 +121,14 @@ export function Client<Procedures extends ProceduresMap>(
         request: _runProcedure(input, onProgress, requestId),
         async cancel(reason: string) {
           if (!pendingRequests.has(requestId)) {
-            l.client.warn(
+            l.warn(
               requestId,
               `Cannot cancel ${functionName} request, it has already been resolved or rejected`
             )
             return
           }
 
-          l.client.debug(requestId, `Cancelling ${functionName} with`, reason)
+          l.debug(requestId, `Cancelling ${functionName} with`, reason)
           await send(requestId, { abort: { reason } })
           pendingRequests.delete(requestId)
         },
@@ -138,15 +144,16 @@ export function Client<Procedures extends ProceduresMap>(
  * @returns the worker to use
  */
 async function postMessage<Procedures extends ProceduresMap>(
+  l: Logger,
   worker: Worker | undefined,
   hooks: Hooks<Procedures>,
   message: Payload<Procedures>,
   options?: StructuredSerializeOptions
 ) {
-  await startClientListener(worker, hooks)
+  await startClientListener(l, worker, hooks)
 
   if (!worker && !navigator.serviceWorker.controller)
-    l.client.warn("", "Service Worker is not controlling the page")
+    l.warn("", "Service Worker is not controlling the page")
 
   // If no worker is provided, we use the service worker
   const w =
@@ -165,6 +172,7 @@ async function postMessage<Procedures extends ProceduresMap>(
  * @returns
  */
 async function startClientListener<Procedures extends ProceduresMap>(
+  l: Logger,
   worker?: Worker,
   hooks: Hooks<Procedures> = {}
 ) {
@@ -178,14 +186,14 @@ async function startClientListener<Procedures extends ProceduresMap>(
     }
 
     if (!navigator.serviceWorker.controller) {
-      l.client.warn("", "Service Worker is not controlling the page")
+      l.warn("", "Service Worker is not controlling the page")
     }
   }
 
   const w = worker ?? navigator.serviceWorker
 
   // Start listening for messages
-  l.client.debug("", "Starting client listener on", w)
+  l.debug("", "Starting client listener on", w)
   w.addEventListener("message", (event) => {
     // Get the data from the event
     const eventData = (event as MessageEvent).data || {}

@@ -1,20 +1,21 @@
-/**
- * Convenience shortcuts for logging.
- */
-export const l = {
-  server: {
-    debug: logger("debug", "server"),
-    info: logger("info", "server"),
-    warn: logger("warn", "server"),
-    error: logger("error", "server"),
-  },
-  client: {
-    debug: logger("debug", "client"),
-    info: logger("info", "client"),
-    warn: logger("warn", "client"),
-    error: logger("error", "client"),
-  },
+export function createLogger(
+  side: "server" | "client",
+  level: LogLevel = "debug"
+) {
+  const enabledLevels = LOG_LEVELS.slice(LOG_LEVELS.indexOf(level))
+
+  return {
+    debug: enabledLevels.includes("debug") ? logger("debug", side) : () => {},
+    info: enabledLevels.includes("info") ? logger("info", side) : () => {},
+    warn: enabledLevels.includes("warn") ? logger("warn", side) : () => {},
+    error: enabledLevels.includes("error") ? logger("error", side) : () => {},
+  }
 }
+
+export type Logger = ReturnType<typeof createLogger>
+
+const LOG_LEVELS = ["debug", "info", "warn", "error"] as const
+export type LogLevel = (typeof LOG_LEVELS)[number]
 
 /**
  * Creates partially-applied logging functions given the first 2 args
@@ -22,10 +23,7 @@ export const l = {
  * @param side
  * @returns
  */
-function logger(
-  severity: "debug" | "info" | "warn" | "error",
-  side: "server" | "client"
-) {
+function logger(severity: LogLevel, side: "server" | "client") {
   return (rqid: string | null, message: string, ...args: any[]) =>
     log(severity, side, rqid, message, ...args)
 }

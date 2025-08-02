@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 
 - [Cancellable requests](https://gwennlbh.github.io/swarpc/docs/#make-cancelable-requests)
+- [Configurable log levels](http://gwennlbh.github.io/swarpc/docs/functions/index.Client.html#:~:text=from%20the%20server-,Optionalloglevel,-?:%20%22debug%22%20%7C)
 
 ## [0.6.1] - 2025-07-19
 

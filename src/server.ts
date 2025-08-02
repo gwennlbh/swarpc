@@ -1,5 +1,5 @@
-import { ArkErrors, type } from "arktype"
-import { l } from "./log.js"
+import { type } from "arktype"
+import { createLogger, type LogLevel } from "./log.js"
 import {
   ImplementationsMap,
   Payload,
@@ -27,8 +27,10 @@ const abortedRequests = new Set<string>()
  */
 export function Server<Procedures extends ProceduresMap>(
   procedures: Procedures,
-  { worker }: { worker?: Worker } = {}
+  { worker, loglevel = "debug" }: { worker?: Worker; loglevel?: LogLevel } = {}
 ): SwarpcServer<Procedures> {
+  const l = createLogger("server", loglevel)
+
   // Initialize the instance.
   // Procedures and implementations are stored on properties with symbol keys,
   // to avoid any conflicts with procedure names, and also discourage direct access to them.
@@ -53,10 +55,7 @@ export function Server<Procedures extends ProceduresMap>(
         return new Promise((resolve, reject) => {
           abortSignal?.addEventListener("abort", () => {
             let { requestId, reason } = abortSignal?.reason
-            l.server.debug(
-              requestId,
-              `Aborted ${functionName} request: ${reason}`
-            )
+            l.debug(requestId, `Aborted ${functionName} request: ${reason}`)
             reject({ aborted: reason })
           })
 
@@ -92,11 +91,7 @@ export function Server<Procedures extends ProceduresMap>(
         type.enumerated(...Object.keys(procedures))
       ).assert(event.data)
 
-      l.server.debug(
-        requestId,
-        `Received request for ${functionName}`,
-        event.data
-      )
+      l.debug(requestId, `Received request for ${functionName}`, event.data)
 
       // Get autotransfer preference from the procedure definition
       const { autotransfer = "output-only", ...schemas } =
@@ -161,7 +156,7 @@ export function Server<Procedures extends ProceduresMap>(
       await implementation(
         payload.input,
         async (progress: any) => {
-          l.server.debug(requestId, `Progress for ${functionName}`, progress)
+          l.debug(requestId, `Progress for ${functionName}`, progress)
           await postMsg({ progress })
         },
         abortControllers.get(requestId)?.signal
@@ -170,7 +165,7 @@ export function Server<Procedures extends ProceduresMap>(
         .catch(async (error: any) => {
           // Handle errors caused by abortions
           if ("aborted" in error) {
-            l.server.debug(
+            l.debug(
               requestId,
               `Received abort error for ${functionName}`,
               error.aborted
@@ -180,12 +175,12 @@ export function Server<Procedures extends ProceduresMap>(
             return
           }
 
-          l.server.error(requestId, `Error in ${functionName}`, error)
+          l.error(requestId, `Error in ${functionName}`, error)
           await postError(error)
         })
         // Send results
         .then(async (result: any) => {
-          l.server.debug(requestId, `Result for ${functionName}`, result)
+          l.debug(requestId, `Result for ${functionName}`, result)
           await postMsg({ result })
         })
         .finally(() => {
