@@ -1,3 +1,4 @@
+import { type LogLevel } from "./log.js";
 import { Hooks, type ProceduresMap, type SwarpcClient } from "./types.js";
 export type { SwarpcClient } from "./types.js";
 /**
@@ -8,9 +9,10 @@ export type { SwarpcClient } from "./types.js";
  * @param options.hooks hooks to run on messages received from the server
  * @returns a sw&rpc client instance. Each property of the procedures map will be a method, that accepts an input and an optional onProgress callback.
  */
-export declare function Client<Procedures extends ProceduresMap>(procedures: Procedures, { worker, hooks }?: {
+export declare function Client<Procedures extends ProceduresMap>(procedures: Procedures, { worker, loglevel, hooks, }?: {
     worker?: Worker;
     hooks?: Hooks<Procedures>;
+    loglevel?: LogLevel;
 }): SwarpcClient<Procedures>;
 /**
  * Generate a random request ID, used to identify requests between client and server.

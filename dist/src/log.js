@@ -1,20 +1,13 @@
-/**
- * Convenience shortcuts for logging.
- */
-export const l = {
-    server: {
-        debug: logger("debug", "server"),
-        info: logger("info", "server"),
-        warn: logger("warn", "server"),
-        error: logger("error", "server"),
-    },
-    client: {
-        debug: logger("debug", "client"),
-        info: logger("info", "client"),
-        warn: logger("warn", "client"),
-        error: logger("error", "client"),
-    },
-};
+export function createLogger(side, level = "debug") {
+    const enabledLevels = LOG_LEVELS.slice(LOG_LEVELS.indexOf(level));
+    return {
+        debug: enabledLevels.includes("debug") ? logger("debug", side) : () => { },
+        info: enabledLevels.includes("info") ? logger("info", side) : () => { },
+        warn: enabledLevels.includes("warn") ? logger("warn", side) : () => { },
+        error: enabledLevels.includes("error") ? logger("error", side) : () => { },
+    };
+}
+const LOG_LEVELS = ["debug", "info", "warn", "error"];
 /**
  * Creates partially-applied logging functions given the first 2 args
  * @param severity

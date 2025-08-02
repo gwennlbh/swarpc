@@ -1,5 +1,5 @@
 import { type } from "arktype";
-import { l } from "./log.js";
+import { createLogger } from "./log.js";
 import { PayloadHeaderSchema, PayloadSchema, zImplementations, zProcedures, } from "./types.js";
 import { findTransferables } from "./utils.js";
 const abortControllers = new Map();
@@ -11,7 +11,8 @@ const abortedRequests = new Set();
  * @param options.worker if provided, the server will use this worker to post messages, instead of sending it to all clients
  * @returns a SwarpcServer instance. Each property of the procedures map will be a method, that accepts a function implementing the procedure. There is also .start(), to be called after implementing all procedures.
  */
-export function Server(procedures, { worker } = {}) {
+export function Server(procedures, { worker, loglevel = "debug" } = {}) {
+    const l = createLogger("server", loglevel);
     // Initialize the instance.
     // Procedures and implementations are stored on properties with symbol keys,
     // to avoid any conflicts with procedure names, and also discourage direct access to them.
@@ -31,7 +32,7 @@ export function Server(procedures, { worker } = {}) {
                 return new Promise((resolve, reject) => {
                     abortSignal?.addEventListener("abort", () => {
                         let { requestId, reason } = abortSignal?.reason;
-                        l.server.debug(requestId, `Aborted ${functionName} request: ${reason}`);
+                        l.debug(requestId, `Aborted ${functionName} request: ${reason}`);
                         reject({ aborted: reason });
                     });
                     implementation(input, onProgress, abortSignal)
@@ -58,7 +59,7 @@ export function Server(procedures, { worker } = {}) {
         self.addEventListener("message", async (event) => {
             // Decode the payload
             const { requestId, functionName } = PayloadHeaderSchema(type.enumerated(...Object.keys(procedures))).assert(event.data);
-            l.server.debug(requestId, `Received request for ${functionName}`, event.data);
+            l.debug(requestId, `Received request for ${functionName}`, event.data);
             // Get autotransfer preference from the procedure definition
             const { autotransfer = "output-only", ...schemas } = instance[zProcedures][functionName];
             // Shorthand function with functionName, requestId, etc. set
@@ -102,24 +103,24 @@ export function Server(procedures, { worker } = {}) {
             }
             // Call the implementation with the input and a progress callback
             await implementation(payload.input, async (progress) => {
-                l.server.debug(requestId, `Progress for ${functionName}`, progress);
+                l.debug(requestId, `Progress for ${functionName}`, progress);
                 await postMsg({ progress });
             }, abortControllers.get(requestId)?.signal)
                 // Send errors
                 .catch(async (error) => {
                 // Handle errors caused by abortions
                 if ("aborted" in error) {
-                    l.server.debug(requestId, `Received abort error for ${functionName}`, error.aborted);
+                    l.debug(requestId, `Received abort error for ${functionName}`, error.aborted);
                     abortedRequests.add(requestId);
                     abortControllers.delete(requestId);
                     return;
                 }
-                l.server.error(requestId, `Error in ${functionName}`, error);
+                l.error(requestId, `Error in ${functionName}`, error);
                 await postError(error);
             })
                 // Send results
                 .then(async (result) => {
-                l.server.debug(requestId, `Result for ${functionName}`, result);
+                l.debug(requestId, `Result for ${functionName}`, result);
                 await postMsg({ result });
             })
                 .finally(() => {

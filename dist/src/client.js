@@ -1,5 +1,5 @@
-import { l } from "./log.js";
-import { zProcedures, } from "./types.js";
+import { createLogger } from "./log.js";
+import { zProcedures } from "./types.js";
 import { findTransferables } from "./utils.js";
 /**
  * Pending requests are stored in a map, where the key is the request ID.
@@ -17,7 +17,8 @@ let _clientListenerStarted = false;
  * @param options.hooks hooks to run on messages received from the server
  * @returns a sw&rpc client instance. Each property of the procedures map will be a method, that accepts an input and an optional onProgress callback.
  */
-export function Client(procedures, { worker, hooks = {} } = {}) {
+export function Client(procedures, { worker, loglevel = "debug", hooks = {}, } = {}) {
+    const l = createLogger("client", loglevel);
     // Store procedures on a symbol key, to avoid conflicts with procedure names
     const instance = { [zProcedures]: procedures };
     for (const functionName of Object.keys(procedures)) {
@@ -25,7 +26,7 @@ export function Client(procedures, { worker, hooks = {} } = {}) {
             throw new Error(`[SWARPC Client] Invalid function name, don't use symbols`);
         }
         const send = async (requestId, msg, options) => {
-            return postMessage(worker, hooks, {
+            return postMessage(l, worker, hooks, {
                 ...msg,
                 by: "sw&rpc",
                 requestId,
@@ -51,7 +52,7 @@ export function Client(procedures, { worker, hooks = {} } = {}) {
                     ? findTransferables(input)
                     : [];
                 // Post the message to the server
-                l.client.debug(requestId, `Requesting ${functionName} with`, input);
+                l.debug(requestId, `Requesting ${functionName} with`, input);
                 send(requestId, { input }, { transfer })
                     .then(() => { })
                     .catch(reject);
@@ -65,10 +66,10 @@ export function Client(procedures, { worker, hooks = {} } = {}) {
                 request: _runProcedure(input, onProgress, requestId),
                 async cancel(reason) {
                     if (!pendingRequests.has(requestId)) {
-                        l.client.warn(requestId, `Cannot cancel ${functionName} request, it has already been resolved or rejected`);
+                        l.warn(requestId, `Cannot cancel ${functionName} request, it has already been resolved or rejected`);
                         return;
                     }
-                    l.client.debug(requestId, `Cancelling ${functionName} with`, reason);
+                    l.debug(requestId, `Cancelling ${functionName} with`, reason);
                     await send(requestId, { abort: { reason } });
                     pendingRequests.delete(requestId);
                 },
@@ -81,10 +82,10 @@ export function Client(procedures, { worker, hooks = {} } = {}) {
  * Warms up the client by starting the listener and getting the worker, then posts a message to the worker.
  * @returns the worker to use
  */
-async function postMessage(worker, hooks, message, options) {
-    await startClientListener(worker, hooks);
+async function postMessage(l, worker, hooks, message, options) {
+    await startClientListener(l, worker, hooks);
     if (!worker && !navigator.serviceWorker.controller)
-        l.client.warn("", "Service Worker is not controlling the page");
+        l.warn("", "Service Worker is not controlling the page");
     // If no worker is provided, we use the service worker
     const w = worker ?? (await navigator.serviceWorker.ready.then((r) => r.active));
     if (!w) {
@@ -97,7 +98,7 @@ async function postMessage(worker, hooks, message, options) {
  * @param worker if provided, the client will use this worker to listen for messages, instead of using the service worker
  * @returns
  */
-async function startClientListener(worker, hooks = {}) {
+async function startClientListener(l, worker, hooks = {}) {
     if (_clientListenerStarted)
         return;
     // Get service worker registration if no worker is provided
@@ -107,12 +108,12 @@ async function startClientListener(worker, hooks = {}) {
             throw new Error("[SWARPC Client] Service Worker is not active");
         }
         if (!navigator.serviceWorker.controller) {
-            l.client.warn("", "Service Worker is not controlling the page");
+            l.warn("", "Service Worker is not controlling the page");
         }
     }
     const w = worker ?? navigator.serviceWorker;
     // Start listening for messages
-    l.client.debug("", "Starting client listener on", w);
+    l.debug("", "Starting client listener on", w);
     w.addEventListener("message", (event) => {
         // Get the data from the event
         const eventData = event.data || {};
