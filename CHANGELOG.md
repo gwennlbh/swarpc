@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- "Invalid entry point" error when trying to import Swarpc
+
 ## [0.7.0] - 2025-08-02
 
 ### Added
