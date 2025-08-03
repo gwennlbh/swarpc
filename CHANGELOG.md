@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.10.0] - 2025-08-03
+
 ### Changed
 
 - **BREAKING:** `Server#start` is now asynchronous, but does not take an argument anymore.
@@ -72,7 +74,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - support for transferable objects via a new [`autotransfer` property on procedure declarations](https://gwennlbh.github.io/swarpc/docs/types/types.Procedure.html#autotransfer)
 
-[Unreleased]: https://github.com/gwennlbh/swarpc/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/gwennlbh/swarpc/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/gwennlbh/swarpc/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/gwennlbh/swarpc/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/gwennlbh/swarpc/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/gwennlbh/swarpc/compare/v0.7.0...v0.7.1
