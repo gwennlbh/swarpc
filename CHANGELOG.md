@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2025-08-03
+
 ### Added
 
 - A way to log things using the same info and format as swarpc itself inside a procedure implementation: see [`ProcedureImplementation:tools.logger`](https://gwennlbh.github.io/swarpc/docs/types/ProcedureImplementation.html#:~:text=Make%20cancellable%20requests-,logger,-:%20RequestBoundLogger)
@@ -50,7 +52,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - support for transferable objects via a new [`autotransfer` property on procedure declarations](https://gwennlbh.github.io/swarpc/docs/types/types.Procedure.html#autotransfer)
 
-[Unreleased]: https://github.com/gwennlbh/swarpc/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/gwennlbh/swarpc/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/gwennlbh/swarpc/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/gwennlbh/swarpc/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/gwennlbh/swarpc/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/gwennlbh/swarpc/compare/v0.6.0...v0.6.1
