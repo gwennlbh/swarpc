@@ -7,18 +7,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-### BREAKING CHANGES
+### Changed
 
-- `Server#start` is now asynchronous, but does not take an argument anymore.
-- `Server:options.worker` has been renamed to `Server:options.scope`
+- **BREAKING:** `Server#start` is now asynchronous, but does not take an argument anymore.
+- **BREAKING:** `Server:options.worker` has been renamed to `Server:options.scope`
+- sw&rpc now handles [Shared Workers](https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker) correctly
 
 ### Fixed
 
 - `Server:options.worker` is correctly typed
-
-### Changed
-
-- sw&rpc now handles [Shared Workers](https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker) correctly
 
 ## [0.9.0] - 2025-08-03
 
