@@ -15,7 +15,7 @@ server.helloWithProgress(async (input, onProgress) => {
   return `Hello with progress ${input}`
 })
 
-server.cancellable(async (input, onProgress, abortSignal) => {
+server.cancellable(async (input, onProgress, { abortSignal }) => {
   let aborted = false
   abortSignal?.addEventListener("abort", () => {
     aborted = true
