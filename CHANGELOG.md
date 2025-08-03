@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- [`Client:options.restartListener`](https://gwennlbh.github.io/swarpc/docs/functions/Client.html), mostly for testing purposes
+
 ### Fixed
 
 - A undefined-valued result message was sent after a thrown implementation error, resulting in a internal 'No pending request handlers' error

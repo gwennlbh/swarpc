@@ -1,5 +1,5 @@
 /**
- * @module 
+ * @module
  * @mergeModuleWith <project>
  */
 
@@ -47,8 +47,9 @@ let _clientListenerStarted = false
  * @param options various options
  * @param options.worker if provided, the client will use this worker to post messages.
  * @param options.hooks hooks to run on messages received from the server
+ * @param options.restartListener if true, will force the listener to restart even if it has already been started
  * @returns a sw&rpc client instance. Each property of the procedures map will be a method, that accepts an input and an optional onProgress callback, see {@link ClientMethod}
- * 
+ *
  * An example of defining and using a client:
  * {@includeCode ../example/src/routes/+page.svelte}
  */
@@ -57,10 +58,18 @@ export function Client<Procedures extends ProceduresMap>(
   {
     worker,
     loglevel = "debug",
+    restartListener = false,
     hooks = {},
-  }: { worker?: Worker; hooks?: Hooks<Procedures>; loglevel?: LogLevel } = {}
+  }: {
+    worker?: Worker
+    hooks?: Hooks<Procedures>
+    loglevel?: LogLevel
+    restartListener?: boolean
+  } = {}
 ): SwarpcClient<Procedures> {
   const l = createLogger("client", loglevel)
+
+  if (restartListener) _clientListenerStarted = false
 
   // Store procedures on a symbol key, to avoid conflicts with procedure names
   const instance = { [zProcedures]: procedures } as Partial<
@@ -186,9 +195,10 @@ async function postMessage<Procedures extends ProceduresMap>(
 /**
  * Starts the client listener, which listens for messages from the sw&rpc server.
  * @param worker if provided, the client will use this worker to listen for messages, instead of using the service worker
+ * @param force if true, will force the listener to restart even if it has already been started
  * @returns
  */
-async function startClientListener<Procedures extends ProceduresMap>(
+export async function startClientListener<Procedures extends ProceduresMap>(
   l: Logger,
   worker?: Worker,
   hooks: Hooks<Procedures> = {}
@@ -210,7 +220,7 @@ async function startClientListener<Procedures extends ProceduresMap>(
   const w = worker ?? navigator.serviceWorker
 
   // Start listening for messages
-  l.debug("", "Starting client listener on", w)
+  l.debug(null, "Starting client listener", { worker, w, hooks })
   w.addEventListener("message", (event) => {
     // Get the data from the event
     const eventData = (event as MessageEvent).data || {}
@@ -230,7 +240,7 @@ async function startClientListener<Procedures extends ProceduresMap>(
     const handlers = pendingRequests.get(requestId)
     if (!handlers) {
       throw new Error(
-        `[SWARPC Client] ${requestId} has no active request handlers`
+        `[SWARPC Client] ${requestId} has no active request handlers, cannot process ${JSON.stringify(data)}`,
       )
     }
 
@@ -255,7 +265,7 @@ async function startClientListener<Procedures extends ProceduresMap>(
 
 /**
  * Generate a random request ID, used to identify requests between client and server.
- * @source 
+ * @source
  * @returns a 6-character hexadecimal string
  */
 export function makeRequestId(): string {
