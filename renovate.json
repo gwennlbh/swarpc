@@ -5,14 +5,14 @@
   "rangeStrategy": "bump",
   "packageRules": [
     {
-      "groupName": "Tooling updates",
+      "groupName": "dev tooling",
       "description": "Auto-merge updates to dev tooling (linters, formatters, etc)",
       "matchFileNames": ["!example/package.json"],
       "matchDepTypes": ["devDependencies"],
       "automerge": true
     },
     {
-      "groupName": "Example package updates",
+      "groupName": "example package",
       "matchFileNames": ["example/package.json"],
       "automerge": true
     }
