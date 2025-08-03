@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- A undefined-valued result message was sent after a thrown implementation error, resulting in a internal 'No pending request handlers' error
+
 ## [0.8.0] - 2025-08-03
 
 ### Added

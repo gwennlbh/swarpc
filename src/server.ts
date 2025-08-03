@@ -45,7 +45,7 @@ const abortedRequests = new Set<string>()
  * @param options various options
  * @param options.worker if provided, the server will use this worker to post messages, instead of sending it to all clients
  * @returns a SwarpcServer instance. Each property of the procedures map will be a method, that accepts a function implementing the procedure (see {@link ProcedureImplementation}). There is also .start(), to be called after implementing all procedures.
- * 
+ *
  * An example of defining a server:
  * {@includeCode ../example/src/service-worker.ts}
  */
@@ -170,43 +170,42 @@ export function Server<Procedures extends ProceduresMap>(
         return
       }
 
-      // Call the implementation with the input and a progress callback
-      await implementation(
-        payload.input,
-        async (progress: any) => {
-          l.debug(requestId, `Progress for ${functionName}`, progress)
-          await postMsg({ progress })
-        },
-        {
-          abortSignal: abortControllers.get(requestId)?.signal,
-          logger: createLogger("server", loglevel, requestId),
-        }
-      )
-        // Send errors
-        .catch(async (error: any) => {
-          // Handle errors caused by abortions
-          if ("aborted" in error) {
-            l.debug(
-              requestId,
-              `Received abort error for ${functionName}`,
-              error.aborted
-            )
-            abortedRequests.add(requestId)
-            abortControllers.delete(requestId)
-            return
+      try {
+        // Call the implementation with the input and a progress callback
+        const result = await implementation(
+          payload.input,
+          async (progress: any) => {
+            l.debug(requestId, `Progress for ${functionName}`, progress)
+            await postMsg({ progress })
+          },
+          {
+            abortSignal: abortControllers.get(requestId)?.signal,
+            logger: createLogger("server", loglevel, requestId),
           }
+        )
 
-          l.error(requestId, `Error in ${functionName}`, error)
-          await postError(error)
-        })
         // Send results
-        .then(async (result: any) => {
-          l.debug(requestId, `Result for ${functionName}`, result)
-          await postMsg({ result })
-        })
-        .finally(() => {
-          abortedRequests.delete(requestId)
-        })
+        l.debug(requestId, `Result for ${functionName}`, result)
+        await postMsg({ result })
+      } catch (error: any) {
+        // Send errors
+        // Handle errors caused by abortions
+        if ("aborted" in error) {
+          l.debug(
+            requestId,
+            `Received abort error for ${functionName}`,
+            error.aborted
+          )
+          abortedRequests.add(requestId)
+          abortControllers.delete(requestId)
+          return
+        }
+
+        l.info(requestId, `Error in ${functionName}`, error)
+        await postError(error)
+      } finally {
+        abortedRequests.delete(requestId)
+      }
     })
   }
 
