@@ -106,16 +106,21 @@ export function Server(procedures, { worker, loglevel = "debug" } = {}) {
                 await postError("No input provided");
                 return;
             }
-            // Call the implementation with the input and a progress callback
-            await implementation(payload.input, async (progress) => {
-                l.debug(requestId, `Progress for ${functionName}`, progress);
-                await postMsg({ progress });
-            }, {
-                abortSignal: abortControllers.get(requestId)?.signal,
-                logger: createLogger("server", loglevel, requestId),
-            })
+            try {
+                // Call the implementation with the input and a progress callback
+                const result = await implementation(payload.input, async (progress) => {
+                    l.debug(requestId, `Progress for ${functionName}`, progress);
+                    await postMsg({ progress });
+                }, {
+                    abortSignal: abortControllers.get(requestId)?.signal,
+                    logger: createLogger("server", loglevel, requestId),
+                });
+                // Send results
+                l.debug(requestId, `Result for ${functionName}`, result);
+                await postMsg({ result });
+            }
+            catch (error) {
                 // Send errors
-                .catch(async (error) => {
                 // Handle errors caused by abortions
                 if ("aborted" in error) {
                     l.debug(requestId, `Received abort error for ${functionName}`, error.aborted);
@@ -123,17 +128,12 @@ export function Server(procedures, { worker, loglevel = "debug" } = {}) {
                     abortControllers.delete(requestId);
                     return;
                 }
-                l.error(requestId, `Error in ${functionName}`, error);
+                l.info(requestId, `Error in ${functionName}`, error);
                 await postError(error);
-            })
-                // Send results
-                .then(async (result) => {
-                l.debug(requestId, `Result for ${functionName}`, result);
-                await postMsg({ result });
-            })
-                .finally(() => {
+            }
+            finally {
                 abortedRequests.delete(requestId);
-            });
+            }
         });
     };
     return instance;

@@ -19,13 +19,16 @@ let _clientListenerStarted = false;
  * @param options various options
  * @param options.worker if provided, the client will use this worker to post messages.
  * @param options.hooks hooks to run on messages received from the server
+ * @param options.restartListener if true, will force the listener to restart even if it has already been started
  * @returns a sw&rpc client instance. Each property of the procedures map will be a method, that accepts an input and an optional onProgress callback, see {@link ClientMethod}
  *
  * An example of defining and using a client:
  * {@includeCode ../example/src/routes/+page.svelte}
  */
-export function Client(procedures, { worker, loglevel = "debug", hooks = {}, } = {}) {
+export function Client(procedures, { worker, loglevel = "debug", restartListener = false, hooks = {}, } = {}) {
     const l = createLogger("client", loglevel);
+    if (restartListener)
+        _clientListenerStarted = false;
     // Store procedures on a symbol key, to avoid conflicts with procedure names
     const instance = { [zProcedures]: procedures };
     for (const functionName of Object.keys(procedures)) {
@@ -103,9 +106,10 @@ async function postMessage(l, worker, hooks, message, options) {
 /**
  * Starts the client listener, which listens for messages from the sw&rpc server.
  * @param worker if provided, the client will use this worker to listen for messages, instead of using the service worker
+ * @param force if true, will force the listener to restart even if it has already been started
  * @returns
  */
-async function startClientListener(l, worker, hooks = {}) {
+export async function startClientListener(l, worker, hooks = {}) {
     if (_clientListenerStarted)
         return;
     // Get service worker registration if no worker is provided
@@ -120,7 +124,7 @@ async function startClientListener(l, worker, hooks = {}) {
     }
     const w = worker ?? navigator.serviceWorker;
     // Start listening for messages
-    l.debug("", "Starting client listener on", w);
+    l.debug(null, "Starting client listener", { worker, w, hooks });
     w.addEventListener("message", (event) => {
         // Get the data from the event
         const eventData = event.data || {};
@@ -136,7 +140,7 @@ async function startClientListener(l, worker, hooks = {}) {
         // Get the associated pending request handlers
         const handlers = pendingRequests.get(requestId);
         if (!handlers) {
-            throw new Error(`[SWARPC Client] ${requestId} has no active request handlers`);
+            throw new Error(`[SWARPC Client] ${requestId} has no active request handlers, cannot process ${JSON.stringify(data)}`);
         }
         // React to the data received: call hook, call handler,
         // and remove the request from pendingRequests (unless it's a progress update)
