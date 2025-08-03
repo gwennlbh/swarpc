@@ -19,7 +19,7 @@ export type SwarpcServer<Procedures extends ProceduresMap> = {
  * Creates a sw&rpc server instance.
  * @param procedures procedures the server will implement, see {@link ProceduresMap}
  * @param options various options
- * @param options.worker The worker scope to use, defaults to the `self` of the file where Server() is called.
+ * @param options.scope The worker scope to use, defaults to the `self` of the file where Server() is called.
  * @param options.loglevel Maximum log level to use, defaults to "debug" (shows everything). "info" will not show debug messages, "warn" will only show warnings and errors, "error" will only show errors.
  * @param options._scopeType @internal Don't touch, this is used in testing environments because the mock is subpar. Manually overrides worker scope type detection.
  * @returns a SwarpcServer instance. Each property of the procedures map will be a method, that accepts a function implementing the procedure (see {@link ProcedureImplementation}). There is also .start(), to be called after implementing all procedures.
