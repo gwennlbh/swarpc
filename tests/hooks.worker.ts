@@ -1,9 +1,9 @@
 import { Server } from "../src/index.js"
 import { procedures } from "./hooks.procedures.js"
 
-declare const self: Worker
+declare const self: DedicatedWorkerGlobalScope
 
-const server = Server(procedures, { worker: self, loglevel: "warn" })
+const server = Server(procedures, { scope: self, _scopeType: "dedicated", loglevel: "warn" })
 server.echo(async ({ value }) => value)
 server.add(async ({ a, b }) => a + b)
 server.divide(async ({ a, b }, onProgress) => {
@@ -15,4 +15,4 @@ server.divide(async ({ a, b }, onProgress) => {
   return a / b
 })
 
-server.start(self)
+await server.start()

@@ -1,9 +1,9 @@
 import "@vitest/web-worker"
-import { beforeEach, describe, expect, test, vi } from "vitest"
+import { describe, expect, test, vi } from "vitest"
 import { Client } from "../src/index.js"
 import { procedures } from "./hooks.procedures.js"
 // @ts-expect-error
-import Worker from "./hooks.worker.js?worker"
+import Worker from "./hooks.worker.ts?worker"
 
 // Run tests serially because we only have one worker at a time
 describe("Client hooks", { sequential: true }, async () => {

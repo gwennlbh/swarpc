@@ -51,7 +51,7 @@ export type CancelablePromise<T = unknown> = {
    * Abort the request.
    * @param reason The reason for cancelling the request.
    */
-  cancel: (reason: string) => Promise<void>
+  cancel: (reason: string) => void
 }
 
 /**
@@ -87,7 +87,7 @@ export type ProcedureImplementation<
 
 /**
  * Declarations of procedures by name.
- * 
+ *
  * An example of declaring procedures:
  * {@includeCode ../example/src/lib/procedures.ts}
  */

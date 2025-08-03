@@ -1,9 +1,14 @@
 import { Server } from "../src/index.js"
 import { procedures } from "./core.procedures.js"
 
-declare const self: Worker
+declare const self: DedicatedWorkerGlobalScope
 
-const server = Server(procedures, { worker: self, loglevel: "warn" })
+const server = Server(procedures, {
+  scope: self,
+  _scopeType: "dedicated",
+  loglevel: "warn",
+})
+
 server.hello(async (input) => {
   return `Hello ${input}`
 })
@@ -34,4 +39,4 @@ server.complexData(async (input, onProgress) => {
   return { message: `Processed data for ${input.name}`, addr: input.address }
 })
 
-server.start(self)
+await server.start()
