@@ -136,9 +136,9 @@ export function Server<Procedures extends ProceduresMap>(
   instance.start = async () => {
     const port = await new Promise<MessagePort | undefined>((resolve) => {
       if (!scopeIsShared(scope)) return resolve(undefined)
-      console.log("Awaiting shared worker connection...")
+      l.debug(null, "Awaiting shared worker connection...")
       scope.addEventListener("connect", ({ ports: [port] }) => {
-        console.log("Shared worker connected with port", port)
+        l.debug(null, "Shared worker connected with port", port)
         resolve(port)
       })
     })
