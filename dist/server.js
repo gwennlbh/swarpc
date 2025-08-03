@@ -2,31 +2,52 @@
  * @module
  * @mergeModuleWith <project>
  */
+/// <reference lib="webworker" />
 import { type } from "arktype";
 import { createLogger } from "./log.js";
 import { PayloadHeaderSchema, PayloadSchema, zImplementations, zProcedures, } from "./types.js";
 import { findTransferables } from "./utils.js";
+class MockedWorkerGlobalScope {
+    constructor() { }
+}
+const SharedWorkerGlobalScope = globalThis.SharedWorkerGlobalScope ?? MockedWorkerGlobalScope;
+const DedicatedWorkerGlobalScope = globalThis.DedicatedWorkerGlobalScope ?? MockedWorkerGlobalScope;
+const ServiceWorkerGlobalScope = globalThis.ServiceWorkerGlobalScope ?? MockedWorkerGlobalScope;
 const abortControllers = new Map();
 const abortedRequests = new Set();
 /**
  * Creates a sw&rpc server instance.
  * @param procedures procedures the server will implement, see {@link ProceduresMap}
  * @param options various options
- * @param options.worker if provided, the server will use this worker to post messages, instead of sending it to all clients
+ * @param options.worker The worker scope to use, defaults to the `self` of the file where Server() is called.
+ * @param options.loglevel Maximum log level to use, defaults to "debug" (shows everything). "info" will not show debug messages, "warn" will only show warnings and errors, "error" will only show errors.
+ * @param options._scopeType @internal Don't touch, this is used in testing environments because the mock is subpar. Manually overrides worker scope type detection.
  * @returns a SwarpcServer instance. Each property of the procedures map will be a method, that accepts a function implementing the procedure (see {@link ProcedureImplementation}). There is also .start(), to be called after implementing all procedures.
  *
  * An example of defining a server:
  * {@includeCode ../example/src/service-worker.ts}
  */
-export function Server(procedures, { worker, loglevel = "debug" } = {}) {
+export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = {}) {
     const l = createLogger("server", loglevel);
+    // If scope is not provided, use the global scope
+    // This function is meant to be used in a worker, so `self` is a WorkerGlobalScope
+    scope ??= self;
+    function scopeIsShared(scope) {
+        return scope instanceof SharedWorkerGlobalScope || _scopeType === "shared";
+    }
+    function scopeIsDedicated(scope) {
+        return (scope instanceof DedicatedWorkerGlobalScope || _scopeType === "dedicated");
+    }
+    function scopeIsService(scope) {
+        return scope instanceof ServiceWorkerGlobalScope || _scopeType === "service";
+    }
     // Initialize the instance.
     // Procedures and implementations are stored on properties with symbol keys,
     // to avoid any conflicts with procedure names, and also discourage direct access to them.
     const instance = {
         [zProcedures]: procedures,
         [zImplementations]: {},
-        start: (self) => { },
+        start: async () => { },
     };
     // Set all implementation-setter methods
     for (const functionName in procedures) {
@@ -47,21 +68,32 @@ export function Server(procedures, { worker, loglevel = "debug" } = {}) {
             };
         });
     }
-    instance.start = (self) => {
+    instance.start = async () => {
+        const port = await new Promise((resolve) => {
+            if (!scopeIsShared(scope))
+                return resolve(undefined);
+            console.log("Awaiting shared worker connection...");
+            scope.addEventListener("connect", ({ ports: [port] }) => {
+                console.log("Shared worker connected with port", port);
+                resolve(port);
+            });
+        });
         // Used to post messages back to the client
         const postMessage = async (autotransfer, data) => {
             const transfer = autotransfer ? [] : findTransferables(data);
-            if (worker) {
-                self.postMessage(data, { transfer });
+            if (port) {
+                port.postMessage(data, { transfer });
             }
-            else {
-                await self.clients.matchAll().then((clients) => {
+            else if (scopeIsDedicated(scope)) {
+                scope.postMessage(data, { transfer });
+            }
+            else if (scopeIsService(scope)) {
+                await scope.clients.matchAll().then((clients) => {
                     clients.forEach((client) => client.postMessage(data, { transfer }));
                 });
             }
         };
-        // Listen for messages from the client
-        self.addEventListener("message", async (event) => {
+        const listener = async (event) => {
             // Decode the payload
             const { requestId, functionName } = PayloadHeaderSchema(type.enumerated(...Object.keys(procedures))).assert(event.data);
             l.debug(requestId, `Received request for ${functionName}`, event.data);
@@ -134,7 +166,24 @@ export function Server(procedures, { worker, loglevel = "debug" } = {}) {
             finally {
                 abortedRequests.delete(requestId);
             }
-        });
+        };
+        // Listen for messages from the client
+        if (scopeIsShared(scope)) {
+            if (!port)
+                throw new Error("SharedWorker port not initialized");
+            console.log("Listening for shared worker messages on port", port);
+            port.addEventListener("message", listener);
+            port.start();
+        }
+        else if (scopeIsDedicated(scope)) {
+            scope.addEventListener("message", listener);
+        }
+        else if (scopeIsService(scope)) {
+            scope.addEventListener("message", listener);
+        }
+        else {
+            throw new Error(`Unsupported worker scope ${scope}`);
+        }
     };
     return instance;
 }

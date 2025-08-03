@@ -17,9 +17,13 @@ let _clientListenerStarted = false;
  *
  * @param procedures procedures the client will be able to call, see {@link ProceduresMap}
  * @param options various options
- * @param options.worker if provided, the client will use this worker to post messages.
- * @param options.hooks hooks to run on messages received from the server
- * @param options.restartListener if true, will force the listener to restart even if it has already been started
+ * @param options.worker The instantiated worker object. If not provided, the client will use the service worker.
+ * Example: `new Worker("./worker.js")`
+ * See {@link Worker} (used by both dedicated workers and service workers), {@link SharedWorker}, and
+ * the different [worker types](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API#worker_types) that exist
+ * @param options.hooks Hooks to run on messages received from the server. See {@link Hooks}
+ * @param options.loglevel Maximum log level to use, defaults to "debug" (shows everything). "info" will not show debug messages, "warn" will only show warnings and errors, "error" will only show errors.
+ * @param options.restartListener If true, will force the listener to restart even if it has already been started. You should probably leave this to false, unless you are testing and want to reset the client state.
  * @returns a sw&rpc client instance. Each property of the procedures map will be a method, that accepts an input and an optional onProgress callback, see {@link ClientMethod}
  *
  * An example of defining and using a client:
@@ -63,7 +67,7 @@ export function Client(procedures, { worker, loglevel = "debug", restartListener
                     : [];
                 // Post the message to the server
                 l.debug(requestId, `Requesting ${functionName} with`, input);
-                send(requestId, { input }, { transfer })
+                return send(requestId, { input }, { transfer })
                     .then(() => { })
                     .catch(reject);
             });
@@ -74,13 +78,18 @@ export function Client(procedures, { worker, loglevel = "debug", restartListener
             const requestId = makeRequestId();
             return {
                 request: _runProcedure(input, onProgress, requestId),
-                async cancel(reason) {
+                cancel(reason) {
                     if (!pendingRequests.has(requestId)) {
                         l.warn(requestId, `Cannot cancel ${functionName} request, it has already been resolved or rejected`);
                         return;
                     }
                     l.debug(requestId, `Cancelling ${functionName} with`, reason);
-                    await send(requestId, { abort: { reason } });
+                    postMessageSync(l, worker, {
+                        by: "sw&rpc",
+                        requestId,
+                        functionName,
+                        abort: { reason },
+                    });
                     pendingRequests.delete(requestId);
                 },
             };
@@ -97,7 +106,33 @@ async function postMessage(l, worker, hooks, message, options) {
     if (!worker && !navigator.serviceWorker.controller)
         l.warn("", "Service Worker is not controlling the page");
     // If no worker is provided, we use the service worker
-    const w = worker ?? (await navigator.serviceWorker.ready.then((r) => r.active));
+    const w = worker instanceof SharedWorker
+        ? worker.port
+        : worker === undefined
+            ? await navigator.serviceWorker.ready.then((r) => r.active)
+            : worker;
+    if (!w) {
+        throw new Error("[SWARPC Client] No active service worker found");
+    }
+    w.postMessage(message, options);
+}
+/**
+ * A quicker version of postMessage that does not try to start the client listener, await the service worker, etc.
+ * esp. useful for abort logic that needs to not be... put behind everything else on the event loop.
+ * @param l
+ * @param worker
+ * @param message
+ * @param options
+ */
+export function postMessageSync(l, worker, message, options) {
+    if (!worker && !navigator.serviceWorker.controller)
+        l.warn("", "Service Worker is not controlling the page");
+    // If no worker is provided, we use the service worker
+    const w = worker instanceof SharedWorker
+        ? worker.port
+        : worker === undefined
+            ? navigator.serviceWorker.controller
+            : worker;
     if (!w) {
         throw new Error("[SWARPC Client] No active service worker found");
     }
@@ -125,7 +160,7 @@ export async function startClientListener(l, worker, hooks = {}) {
     const w = worker ?? navigator.serviceWorker;
     // Start listening for messages
     l.debug(null, "Starting client listener", { worker, w, hooks });
-    w.addEventListener("message", (event) => {
+    const listener = (event) => {
         // Get the data from the event
         const eventData = event.data || {};
         // Ignore other messages that aren't for us
@@ -158,7 +193,14 @@ export async function startClientListener(l, worker, hooks = {}) {
             handlers.resolve(data.result);
             pendingRequests.delete(requestId);
         }
-    });
+    };
+    if (w instanceof SharedWorker) {
+        w.port.addEventListener("message", listener);
+        w.port.start();
+    }
+    else {
+        w.addEventListener("message", listener);
+    }
     _clientListenerStarted = true;
 }
 /**
