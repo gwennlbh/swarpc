@@ -15,6 +15,24 @@ RPC for Service Workers -- move that heavy computation off of your UI thread!
 npm add swarpc arktype
 ```
 
+### Bleeding edge
+
+If you want to use the latest commit instead of a published version, you can, either by using the Git URL:
+
+```bash
+npm add git+https://github.com/gwennlbh/swarpc.git
+```
+
+Or by straight up cloning the repository and pointing to the local directory (very useful to hack on sw&rpc while testing out your changes on a more substantial project):
+
+```bash
+mkdir -p vendored
+git clone https://github.com/gwennlbh/swarpc.git vendored/swarpc
+npm add file:vendored/swarpc
+```
+
+This works thanks to the fact that `dist/` is published on the repository (and kept up to date with a CI workflow).
+
 ## Usage
 
 ### 1. Declare your procedures in a shared file
