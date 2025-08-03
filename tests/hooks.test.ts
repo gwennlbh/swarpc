@@ -53,8 +53,8 @@ describe("Client hooks", { sequential: true }, async () => {
     await client.divide({ a: 9, b: 3 })
     expect(progress).toHaveBeenCalledTimes(3)
     expect(progress.mock.calls).toStrictEqual([
-      ["divide", { percent: 33 }],
-      ["divide", { percent: 66 }],
+      ["divide", { percent: 33.33333333333333 }],
+      ["divide", { percent: 66.66666666666666 }],
       ["divide", { percent: 100 }],
     ])
   })
