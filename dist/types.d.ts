@@ -3,6 +3,7 @@
  * @mergeModuleWith <project>
  */
 import { type Type } from "arktype";
+import { RequestBoundLogger } from "./log.js";
 /**
  * A procedure declaration
  */
@@ -41,7 +42,7 @@ export type Procedure<I extends Type, P extends Type, S extends Type> = {
  * const result = await request
  * ```
  */
-export type CancelablePromise<T> = {
+export type CancelablePromise<T = unknown> = {
     request: Promise<T>;
     /**
      * Abort the request.
@@ -52,9 +53,33 @@ export type CancelablePromise<T> = {
 /**
  * An implementation of a procedure
  */
-export type ProcedureImplementation<I extends Type, P extends Type, S extends Type> = (input: I["inferOut"], onProgress: (progress: P["inferIn"]) => void, abortSignal?: AbortSignal) => Promise<S["inferIn"]>;
+export type ProcedureImplementation<I extends Type, P extends Type, S extends Type> = (
+/**
+ * Input data for the procedure
+ */
+input: I["inferOut"], 
+/**
+ * Callback to call with progress updates.
+ */
+onProgress: (progress: P["inferIn"]) => void, 
+/**
+ * Additional tools useful when implementing the procedure.
+ */
+tools: {
+    /**
+     * AbortSignal that can be used to handle request cancellation -- see [Make cancellable requests](https://gwennlbh.github.io/swarpc/docs/#make-cancelable-requests)
+     */
+    abortSignal?: AbortSignal;
+    /**
+     * Logger instance to use for logging messages related to this procedure call, using the same format as SWARPC's built-in logging.
+     */
+    logger: RequestBoundLogger;
+}) => Promise<S["inferIn"]>;
 /**
  * Declarations of procedures by name.
+ *
+ * An example of declaring procedures:
+ * {@includeCode ../example/src/lib/procedures.ts}
  */
 export type ProceduresMap = Record<string, Procedure<Type, Type, Type>>;
 /**

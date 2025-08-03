@@ -10,10 +10,13 @@ const abortControllers = new Map();
 const abortedRequests = new Set();
 /**
  * Creates a sw&rpc server instance.
- * @param procedures procedures the server will implement
+ * @param procedures procedures the server will implement, see {@link ProceduresMap}
  * @param options various options
  * @param options.worker if provided, the server will use this worker to post messages, instead of sending it to all clients
- * @returns a SwarpcServer instance. Each property of the procedures map will be a method, that accepts a function implementing the procedure. There is also .start(), to be called after implementing all procedures.
+ * @returns a SwarpcServer instance. Each property of the procedures map will be a method, that accepts a function implementing the procedure (see {@link ProcedureImplementation}). There is also .start(), to be called after implementing all procedures.
+ *
+ * An example of defining a server:
+ * {@includeCode ../example/src/service-worker.ts}
  */
 export function Server(procedures, { worker, loglevel = "debug" } = {}) {
     const l = createLogger("server", loglevel);
@@ -31,17 +34,15 @@ export function Server(procedures, { worker, loglevel = "debug" } = {}) {
             if (!instance[zProcedures][functionName]) {
                 throw new Error(`No procedure found for function name: ${functionName}`);
             }
-            instance[zImplementations][functionName] = (input, onProgress, abortSignal) => {
-                abortSignal?.throwIfAborted();
+            instance[zImplementations][functionName] = (input, onProgress, tools) => {
+                tools.abortSignal?.throwIfAborted();
                 return new Promise((resolve, reject) => {
-                    abortSignal?.addEventListener("abort", () => {
-                        let { requestId, reason } = abortSignal?.reason;
+                    tools.abortSignal?.addEventListener("abort", () => {
+                        let { requestId, reason } = tools.abortSignal?.reason;
                         l.debug(requestId, `Aborted ${functionName} request: ${reason}`);
                         reject({ aborted: reason });
                     });
-                    implementation(input, onProgress, abortSignal)
-                        .then(resolve)
-                        .catch(reject);
+                    implementation(input, onProgress, tools).then(resolve).catch(reject);
                 });
             };
         });
@@ -109,7 +110,10 @@ export function Server(procedures, { worker, loglevel = "debug" } = {}) {
             await implementation(payload.input, async (progress) => {
                 l.debug(requestId, `Progress for ${functionName}`, progress);
                 await postMsg({ progress });
-            }, abortControllers.get(requestId)?.signal)
+            }, {
+                abortSignal: abortControllers.get(requestId)?.signal,
+                logger: createLogger("server", loglevel, requestId),
+            })
                 // Send errors
                 .catch(async (error) => {
                 // Handle errors caused by abortions
