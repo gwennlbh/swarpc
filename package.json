@@ -50,13 +50,13 @@
     "sirv-cli": "^3.0.1",
     "typedoc": "^0.28.10",
     "typedoc-material-theme": "^1.4.0",
-    "typedoc-plugin-dt-links": "^2.0.14",
+    "typedoc-plugin-dt-links": "^2.0.15",
     "typedoc-plugin-extras": "^4.0.1",
     "typedoc-plugin-inline-sources": "^1.3.0",
     "typedoc-plugin-mdn-links": "^5.0.8",
     "typedoc-plugin-redirect": "^1.2.0",
     "typescript": "^5.9.2",
-    "vite": "^7.1.1",
+    "vite": "^7.1.2",
     "vitest": "^3.2.4"
   },
   "volta": {
