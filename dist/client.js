@@ -24,12 +24,13 @@ let _clientListenerStarted = false;
  * @param options.hooks Hooks to run on messages received from the server. See {@link Hooks}
  * @param options.loglevel Maximum log level to use, defaults to "debug" (shows everything). "info" will not show debug messages, "warn" will only show warnings and errors, "error" will only show errors.
  * @param options.restartListener If true, will force the listener to restart even if it has already been started. You should probably leave this to false, unless you are testing and want to reset the client state.
+ * @param options.localStorage Define a in-memory localStorage with the given key-value pairs. Allows code called on the server to access localStorage (even though SharedWorkers don't have access to the browser's real localStorage)
  * @returns a sw&rpc client instance. Each property of the procedures map will be a method, that accepts an input and an optional onProgress callback, see {@link ClientMethod}
  *
  * An example of defining and using a client:
  * {@includeCode ../example/src/routes/+page.svelte}
  */
-export function Client(procedures, { worker, loglevel = "debug", restartListener = false, hooks = {}, } = {}) {
+export function Client(procedures, { worker, loglevel = "debug", restartListener = false, hooks = {}, localStorage = {}, } = {}) {
     const l = createLogger("client", loglevel);
     if (restartListener)
         _clientListenerStarted = false;
@@ -40,7 +41,13 @@ export function Client(procedures, { worker, loglevel = "debug", restartListener
             throw new Error(`[SWARPC Client] Invalid function name, don't use symbols`);
         }
         const send = async (requestId, msg, options) => {
-            return postMessage(l, worker, hooks, {
+            const ctx = {
+                logger: l,
+                worker,
+                hooks,
+                localStorage,
+            };
+            return postMessage(ctx, {
                 ...msg,
                 by: "sw&rpc",
                 requestId,
@@ -101,8 +108,9 @@ export function Client(procedures, { worker, loglevel = "debug", restartListener
  * Warms up the client by starting the listener and getting the worker, then posts a message to the worker.
  * @returns the worker to use
  */
-async function postMessage(l, worker, hooks, message, options) {
-    await startClientListener(l, worker, hooks);
+async function postMessage(ctx, message, options) {
+    await startClientListener(ctx);
+    const { logger: l, worker } = ctx;
     if (!worker && !navigator.serviceWorker.controller)
         l.warn("", "Service Worker is not controlling the page");
     // If no worker is provided, we use the service worker
@@ -140,13 +148,13 @@ export function postMessageSync(l, worker, message, options) {
 }
 /**
  * Starts the client listener, which listens for messages from the sw&rpc server.
- * @param worker if provided, the client will use this worker to listen for messages, instead of using the service worker
- * @param force if true, will force the listener to restart even if it has already been started
+ * @param ctx.worker if provided, the client will use this worker to listen for messages, instead of using the service worker
  * @returns
  */
-export async function startClientListener(l, worker, hooks = {}) {
+export async function startClientListener(ctx) {
     if (_clientListenerStarted)
         return;
+    const { logger: l, worker } = ctx;
     // Get service worker registration if no worker is provided
     if (!worker) {
         const sw = await navigator.serviceWorker.ready;
@@ -159,7 +167,7 @@ export async function startClientListener(l, worker, hooks = {}) {
     }
     const w = worker ?? navigator.serviceWorker;
     // Start listening for messages
-    l.debug(null, "Starting client listener", { worker, w, hooks });
+    l.debug(null, "Starting client listener", { w, ...ctx });
     const listener = (event) => {
         // Get the data from the event
         const eventData = event.data || {};
@@ -167,7 +175,13 @@ export async function startClientListener(l, worker, hooks = {}) {
         if (eventData?.by !== "sw&rpc")
             return;
         // We don't use a arktype schema here, we trust the server to send valid data
-        const { requestId, ...data } = eventData;
+        const payload = eventData;
+        // Ignore #initialize request, it's client->server only
+        if ("localStorageData" in payload) {
+            l.warn(null, "Ignoring unexpected #initialize from server", payload);
+            return;
+        }
+        const { requestId, ...data } = payload;
         // Sanity check in case we somehow receive a message without requestId
         if (!requestId) {
             throw new Error("[SWARPC Client] Message received without requestId");
@@ -180,16 +194,16 @@ export async function startClientListener(l, worker, hooks = {}) {
         // React to the data received: call hook, call handler,
         // and remove the request from pendingRequests (unless it's a progress update)
         if ("error" in data) {
-            hooks.error?.(data.functionName, new Error(data.error.message));
+            ctx.hooks.error?.(data.functionName, new Error(data.error.message));
             handlers.reject(new Error(data.error.message));
             pendingRequests.delete(requestId);
         }
         else if ("progress" in data) {
-            hooks.progress?.(data.functionName, data.progress);
+            ctx.hooks.progress?.(data.functionName, data.progress);
             handlers.onProgress(data.progress);
         }
         else if ("result" in data) {
-            hooks.success?.(data.functionName, data.result);
+            ctx.hooks.success?.(data.functionName, data.result);
             handlers.resolve(data.result);
             pendingRequests.delete(requestId);
         }
@@ -202,6 +216,12 @@ export async function startClientListener(l, worker, hooks = {}) {
         w.addEventListener("message", listener);
     }
     _clientListenerStarted = true;
+    // Recursive terminal case is ensured by calling this *after* _clientListenerStarted is set to true: startClientListener() will therefore not be called in postMessage() again.
+    await postMessage(ctx, {
+        by: "sw&rpc",
+        functionName: "#initialize",
+        localStorageData: ctx.localStorage,
+    });
 }
 /**
  * Generate a random request ID, used to identify requests between client and server.

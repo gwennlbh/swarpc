@@ -3,6 +3,11 @@
  * @mergeModuleWith <project>
  */
 import { type } from "arktype";
+export const PayloadInitializeSchema = type({
+    by: '"sw&rpc"',
+    functionName: '"#initialize"',
+    localStorageData: "Record<string, unknown>",
+});
 /**
  * @source
  */
@@ -25,11 +30,11 @@ export const PayloadCoreSchema = type("<I, P, S>", {
  * @source
  */
 export const PayloadSchema = type
-    .scope({ PayloadCoreSchema, PayloadHeaderSchema })
+    .scope({ PayloadCoreSchema, PayloadHeaderSchema, PayloadInitializeSchema })
     .type("<Name extends string, I, P, S>", [
-    "PayloadHeaderSchema<Name>",
-    "&",
-    "PayloadCoreSchema<I, P, S>",
+    ["PayloadHeaderSchema<Name>", "&", "PayloadCoreSchema<I, P, S>"],
+    "|",
+    "PayloadInitializeSchema",
 ]);
 /**
  * Symbol used as the key for the procedures map on the server instance

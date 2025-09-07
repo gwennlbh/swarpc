@@ -105,6 +105,12 @@ export type Hooks<Procedures extends ProceduresMap> = {
      */
     progress?: <Procedure extends keyof ProceduresMap>(procedure: Procedure, data: Procedures[Procedure]["progress"]["inferOut"]) => void;
 };
+export declare const PayloadInitializeSchema: import("arktype/internal/methods/object.ts").ObjectType<{
+    by: "sw&rpc";
+    functionName: "#initialize";
+    localStorageData: Record<string, unknown>;
+}, {}>;
+export type PayloadInitialize = typeof PayloadInitializeSchema.infer;
 /**
  * @source
  */
@@ -150,7 +156,7 @@ export type PayloadCore<PM extends ProceduresMap, Name extends keyof PM = keyof 
 /**
  * @source
  */
-export declare const PayloadSchema: import("arktype").Generic<[["Name", string], ["I", unknown], ["P", unknown], ["S", unknown]], readonly ["PayloadHeaderSchema<Name>", "&", "PayloadCoreSchema<I, P, S>"], {
+export declare const PayloadSchema: import("arktype").Generic<[["Name", string], ["I", unknown], ["P", unknown], ["S", unknown]], readonly [readonly ["PayloadHeaderSchema<Name>", "&", "PayloadCoreSchema<I, P, S>"], "|", "PayloadInitializeSchema"], {
     PayloadCoreSchema: import("arktype/internal/scope.ts").bindGenericToScope<import("@ark/schema").GenericAst<[["I", unknown], ["P", unknown], ["S", unknown]], {
         readonly "input?": "I";
         readonly "progress?": "P";
@@ -178,6 +184,17 @@ export declare const PayloadSchema: import("arktype").Generic<[["Name", string],
             readonly functionName: "Name";
             readonly requestId: "string >= 1";
         }, {}, {}>;
+        PayloadInitializeSchema: import("arktype/internal/methods/object.ts").ObjectType<{
+            by: "sw&rpc";
+            functionName: "#initialize";
+            localStorageData: Record<string, unknown>;
+        }, {}> & {
+            readonly " brand": [import("arktype/internal/methods/object.ts").ObjectType<{
+                by: "sw&rpc";
+                functionName: "#initialize";
+                localStorageData: Record<string, unknown>;
+            }, {}>, "unparsed"];
+        };
     } & {}>;
     PayloadHeaderSchema: import("arktype/internal/scope.ts").bindGenericToScope<import("@ark/schema").GenericAst<[["Name", string]], {
         readonly by: "\"sw&rpc\"";
@@ -200,7 +217,23 @@ export declare const PayloadSchema: import("arktype").Generic<[["Name", string],
             readonly functionName: "Name";
             readonly requestId: "string >= 1";
         }, {}, {}>;
+        PayloadInitializeSchema: import("arktype/internal/methods/object.ts").ObjectType<{
+            by: "sw&rpc";
+            functionName: "#initialize";
+            localStorageData: Record<string, unknown>;
+        }, {}> & {
+            readonly " brand": [import("arktype/internal/methods/object.ts").ObjectType<{
+                by: "sw&rpc";
+                functionName: "#initialize";
+                localStorageData: Record<string, unknown>;
+            }, {}>, "unparsed"];
+        };
     } & {}>;
+    PayloadInitializeSchema: {
+        by: "sw&rpc";
+        functionName: "#initialize";
+        localStorageData: Record<string, unknown>;
+    };
 }, {
     PayloadCoreSchema: import("arktype/internal/scope.ts").bindGenericToScope<import("@ark/schema").GenericAst<[["I", unknown], ["P", unknown], ["S", unknown]], {
         readonly "input?": "I";
@@ -229,6 +262,17 @@ export declare const PayloadSchema: import("arktype").Generic<[["Name", string],
             readonly functionName: "Name";
             readonly requestId: "string >= 1";
         }, {}, {}>;
+        PayloadInitializeSchema: import("arktype/internal/methods/object.ts").ObjectType<{
+            by: "sw&rpc";
+            functionName: "#initialize";
+            localStorageData: Record<string, unknown>;
+        }, {}> & {
+            readonly " brand": [import("arktype/internal/methods/object.ts").ObjectType<{
+                by: "sw&rpc";
+                functionName: "#initialize";
+                localStorageData: Record<string, unknown>;
+            }, {}>, "unparsed"];
+        };
     } & {}>;
     PayloadHeaderSchema: import("arktype/internal/scope.ts").bindGenericToScope<import("@ark/schema").GenericAst<[["Name", string]], {
         readonly by: "\"sw&rpc\"";
@@ -251,12 +295,28 @@ export declare const PayloadSchema: import("arktype").Generic<[["Name", string],
             readonly functionName: "Name";
             readonly requestId: "string >= 1";
         }, {}, {}>;
+        PayloadInitializeSchema: import("arktype/internal/methods/object.ts").ObjectType<{
+            by: "sw&rpc";
+            functionName: "#initialize";
+            localStorageData: Record<string, unknown>;
+        }, {}> & {
+            readonly " brand": [import("arktype/internal/methods/object.ts").ObjectType<{
+                by: "sw&rpc";
+                functionName: "#initialize";
+                localStorageData: Record<string, unknown>;
+            }, {}>, "unparsed"];
+        };
     } & {}>;
+    PayloadInitializeSchema: {
+        by: "sw&rpc";
+        functionName: "#initialize";
+        localStorageData: Record<string, unknown>;
+    };
 }>;
 /**
  * The effective payload as sent by the server to the client
  */
-export type Payload<PM extends ProceduresMap, Name extends keyof PM = keyof PM> = PayloadHeader<PM, Name> & PayloadCore<PM, Name>;
+export type Payload<PM extends ProceduresMap, Name extends keyof PM = keyof PM> = (PayloadHeader<PM, Name> & PayloadCore<PM, Name>) | PayloadInitialize;
 /**
  * A procedure's corresponding method on the client instance -- used to call the procedure. If you want to be able to cancel the request, you can use the `cancelable` method instead of running the procedure directly.
  */
