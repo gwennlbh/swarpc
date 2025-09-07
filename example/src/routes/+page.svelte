@@ -39,7 +39,7 @@
 {#if cancel}
   <button
     onclick={async () => {
-      await cancel("User cancelled")
+      cancel?.("User cancelled")
       loading = false
     }}
   >
