@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest"
 import { Client } from "../src/index.js"
 import { procedures } from "./core.procedures.js"
 // @ts-ignore
+// oxlint-disable-next-line import/default
 import Worker from "./core.worker.js?worker"
 
 const client = Client(procedures, {
