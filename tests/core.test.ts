@@ -7,7 +7,8 @@ import { procedures } from "./core.procedures.js";
 import Worker from "./core.worker.js?worker";
 
 const client = Client(procedures, {
-  worker: new Worker(),
+  worker: Worker,
+  nodes: 1,
   loglevel: "warn",
   localStorage: {
     a: 67,

@@ -237,3 +237,9 @@ export const zImplementations = Symbol("SWARPC implementations");
  * @source
  */
 export const zProcedures = Symbol("SWARPC procedures");
+
+export type WorkerConstructor<
+  T extends Worker | SharedWorker = Worker | SharedWorker,
+> = {
+  new (opts?: { name?: string }): T;
+};
