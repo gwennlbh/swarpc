@@ -169,3 +169,36 @@ const { request, cancel } = swarpc.searchIMDb.cancelable({ query })
 setTimeout(() => cancel().then(() => console.warn("Took too long!!")), 5_000)
 await request
 ```
+
+### Polyfill a `localStorage` for the Server to access
+
+You might call third-party code that accesses on `localStorage` from within your procedures.
+
+Some workers don't have access to the browser's `localStorage`, so you'll get an error.
+
+You can work around this by specifying to swarpc localStorage items to define on the Server, and it'll create a polyfilled `localStorage` with your data.
+
+An example use case is using Paraglide, a i18n library, with [the `localStorage` strategy](https://inlang.com/m/gerre34r/library-inlang-paraglideJs/strategy#localstorage):
+
+```js
+// In the client
+import { getLocale } from './paraglide/runtime.js';
+
+const swarpc = Client(procedures, {
+  localStorage: {
+    PARAGLIDE_LOCALE: getLocale()
+  }
+})
+
+await swarpc.myProcedure(1, 0)
+
+// In the server
+import { m } from './paraglide/runtime.js';
+const swarpc = Server(procedures)
+
+swarpc.myProcedure(async (a, b) => {
+  if (a === 0 && b === 0) return 1
+  if (b === 0) throw new Error(m.cannot_divide_by_zero())
+  return a/b
+})
+```
