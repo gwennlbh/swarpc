@@ -60,7 +60,7 @@ export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = 
                 tools.abortSignal?.throwIfAborted();
                 return new Promise((resolve, reject) => {
                     tools.abortSignal?.addEventListener("abort", () => {
-                        let { requestId, reason } = tools.abortSignal?.reason;
+                        let { requestId, reason } = tools.abortSignal.reason;
                         l.debug(requestId, `Aborted ${functionName} request: ${reason}`);
                         reject({ aborted: reason });
                     });
@@ -180,7 +180,7 @@ export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = 
         if (scopeIsShared(scope)) {
             if (!port)
                 throw new Error("SharedWorker port not initialized");
-            console.log("Listening for shared worker messages on port", port);
+            l.info(null, "Listening for shared worker messages on port", port);
             port.addEventListener("message", listener);
             port.start();
         }
