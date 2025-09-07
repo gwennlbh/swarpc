@@ -41,7 +41,7 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "arktype": "^2.1.20"
+    "arktype": "^2.1.22"
   },
   "devDependencies": {
     "@8hobbies/typedoc-plugin-plausible": "^2.2.0",
