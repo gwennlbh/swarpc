@@ -20,7 +20,7 @@ export function createLogger(side, level = "debug", rqid) {
     };
 }
 /** @source */
-export const LOG_LEVELS = ["debug", "info", "warn", "error"];
+const LOG_LEVELS = ["debug", "info", "warn", "error"];
 function logger(severity, side, rqid) {
     if (rqid === undefined) {
         return (rqid, message, ...args) => log(severity, side, rqid, message, ...args);

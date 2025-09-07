@@ -40,7 +40,7 @@ export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = 
         return (scope instanceof DedicatedWorkerGlobalScope || _scopeType === "dedicated");
     }
     function scopeIsService(scope) {
-        return scope instanceof ServiceWorkerGlobalScope || _scopeType === "service";
+        return (scope instanceof ServiceWorkerGlobalScope || _scopeType === "service");
     }
     // Initialize the instance.
     // Procedures and implementations are stored on properties with symbol keys,

@@ -23,6 +23,7 @@ export type RequestBoundLogger = {
     error: (message: string, ...args: any[]) => void;
 };
 /** @source */
-export declare const LOG_LEVELS: readonly ["debug", "info", "warn", "error"];
+declare const LOG_LEVELS: readonly ["debug", "info", "warn", "error"];
 export type LogLevel = (typeof LOG_LEVELS)[number];
+export {};
 //# sourceMappingURL=log.d.ts.map
