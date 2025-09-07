@@ -38,8 +38,8 @@ This works thanks to the fact that `dist/` is published on the repository (and k
 ### 1. Declare your procedures in a shared file
 
 ```typescript
-import type { ProceduresMap } from "swarpc"
-import { type } from "arktype"
+import type { ProceduresMap } from "swarpc";
+import { type } from "arktype";
 
 export const procedures = {
   searchIMDb: {
@@ -54,7 +54,7 @@ export const procedures = {
       genres: "string[]",
     }).array(),
   },
-} as const satisfies ProceduresMap
+} as const satisfies ProceduresMap;
 ```
 
 ### 2. Register your procedures in the service worker
@@ -162,12 +162,12 @@ Example:
 
 ```js
 // Normal call:
-const result = await swarpc.searchIMDb({ query })
+const result = await swarpc.searchIMDb({ query });
 
 // Cancelable call:
-const { request, cancel } = swarpc.searchIMDb.cancelable({ query })
-setTimeout(() => cancel().then(() => console.warn("Took too long!!")), 5_000)
-await request
+const { request, cancel } = swarpc.searchIMDb.cancelable({ query });
+setTimeout(() => cancel().then(() => console.warn("Took too long!!")), 5_000);
+await request;
 ```
 
 ### Polyfill a `localStorage` for the Server to access
@@ -182,23 +182,23 @@ An example use case is using Paraglide, a i18n library, with [the `localStorage`
 
 ```js
 // In the client
-import { getLocale } from './paraglide/runtime.js';
+import { getLocale } from "./paraglide/runtime.js";
 
 const swarpc = Client(procedures, {
   localStorage: {
-    PARAGLIDE_LOCALE: getLocale()
-  }
-})
+    PARAGLIDE_LOCALE: getLocale(),
+  },
+});
 
-await swarpc.myProcedure(1, 0)
+await swarpc.myProcedure(1, 0);
 
 // In the server
-import { m } from './paraglide/runtime.js';
-const swarpc = Server(procedures)
+import { m } from "./paraglide/runtime.js";
+const swarpc = Server(procedures);
 
 swarpc.myProcedure(async (a, b) => {
-  if (a === 0 && b === 0) return 1
-  if (b === 0) throw new Error(m.cannot_divide_by_zero())
-  return a/b
-})
+  if (a === 0 && b === 0) return 1;
+  if (b === 0) throw new Error(m.cannot_divide_by_zero());
+  return a / b;
+});
 ```

@@ -3,8 +3,8 @@
  * @mergeModuleWith <project>
  */
 
-import { type, type Type } from "arktype"
-import { RequestBoundLogger } from "./log.js"
+import { type, type Type } from "arktype";
+import { RequestBoundLogger } from "./log.js";
 
 /**
  * A procedure declaration
@@ -13,16 +13,16 @@ export type Procedure<I extends Type, P extends Type, S extends Type> = {
   /**
    * ArkType type for the input (first argument) of the procedure, when calling it from the client.
    */
-  input: I
+  input: I;
   /**
    * ArkType type for the data as the first argument given to the `onProgress` callback
    * when calling the procedure from the client.
    */
-  progress: P
+  progress: P;
   /**
    * ArkType type for the output (return value) of the procedure, when calling it from the client.
    */
-  success: S
+  success: S;
   /**
    * When should the procedure automatically add ArrayBuffers and other transferable objects
    * to the [transfer list](https://developer.mozilla.org/en-US/docs/Web/API/DedicatedWorkerGlobalScope/postMessage#transfer)
@@ -33,8 +33,8 @@ export type Procedure<I extends Type, P extends Type, S extends Type> = {
    *
    * 'output-only' by default: only transferables sent from the server to the client will be transferred.
    */
-  autotransfer?: "always" | "never" | "output-only"
-}
+  autotransfer?: "always" | "never" | "output-only";
+};
 
 /**
  * A promise that you can cancel by calling `.cancel(reason)` on it:
@@ -46,13 +46,13 @@ export type Procedure<I extends Type, P extends Type, S extends Type> = {
  * ```
  */
 export type CancelablePromise<T = unknown> = {
-  request: Promise<T>
+  request: Promise<T>;
   /**
    * Abort the request.
    * @param reason The reason for cancelling the request.
    */
-  cancel: (reason: string) => void
-}
+  cancel: (reason: string) => void;
+};
 
 /**
  * An implementation of a procedure
@@ -77,13 +77,13 @@ export type ProcedureImplementation<
     /**
      * AbortSignal that can be used to handle request cancellation -- see [Make cancellable requests](https://gwennlbh.github.io/swarpc/docs/#make-cancelable-requests)
      */
-    abortSignal?: AbortSignal
+    abortSignal?: AbortSignal;
     /**
      * Logger instance to use for logging messages related to this procedure call, using the same format as SWARPC's built-in logging.
      */
-    logger: RequestBoundLogger
-  }
-) => Promise<S["inferIn"]>
+    logger: RequestBoundLogger;
+  },
+) => Promise<S["inferIn"]>;
 
 /**
  * Declarations of procedures by name.
@@ -91,7 +91,7 @@ export type ProcedureImplementation<
  * An example of declaring procedures:
  * {@includeCode ../example/src/lib/procedures.ts}
  */
-export type ProceduresMap = Record<string, Procedure<Type, Type, Type>>
+export type ProceduresMap = Record<string, Procedure<Type, Type, Type>>;
 
 /**
  * Implementations of procedures by name
@@ -101,8 +101,8 @@ export type ImplementationsMap<Procedures extends ProceduresMap> = {
     Procedures[F]["input"],
     Procedures[F]["progress"],
     Procedures[F]["success"]
-  >
-}
+  >;
+};
 
 /**
  * Declaration of hooks to run on messages received from the server
@@ -113,31 +113,31 @@ export type Hooks<Procedures extends ProceduresMap> = {
    */
   success?: <Procedure extends keyof ProceduresMap>(
     procedure: Procedure,
-    data: Procedures[Procedure]["success"]["inferOut"]
-  ) => void
+    data: Procedures[Procedure]["success"]["inferOut"],
+  ) => void;
   /**
    * Called when a procedure call has failed.
    */
   error?: <Procedure extends keyof ProceduresMap>(
     procedure: Procedure,
-    error: Error
-  ) => void
+    error: Error,
+  ) => void;
   /**
    * Called when a procedure call sends progress updates.
    */
   progress?: <Procedure extends keyof ProceduresMap>(
     procedure: Procedure,
-    data: Procedures[Procedure]["progress"]["inferOut"]
-  ) => void
-}
+    data: Procedures[Procedure]["progress"]["inferOut"],
+  ) => void;
+};
 
 export const PayloadInitializeSchema = type({
   by: '"sw&rpc"',
   functionName: '"#initialize"',
   localStorageData: "Record<string, unknown>",
-})
+});
 
-export type PayloadInitialize = typeof PayloadInitializeSchema.infer
+export type PayloadInitialize = typeof PayloadInitializeSchema.infer;
 
 /**
  * @source
@@ -146,16 +146,16 @@ export const PayloadHeaderSchema = type("<Name extends string>", {
   by: '"sw&rpc"',
   functionName: "Name",
   requestId: "string >= 1",
-})
+});
 
 export type PayloadHeader<
   PM extends ProceduresMap,
   Name extends keyof PM = keyof PM,
 > = {
-  by: "sw&rpc"
-  functionName: Name & string
-  requestId: string
-}
+  by: "sw&rpc";
+  functionName: Name & string;
+  requestId: string;
+};
 
 /**
  * @source
@@ -166,27 +166,27 @@ export const PayloadCoreSchema = type("<I, P, S>", {
   "result?": "S",
   "abort?": { reason: "string" },
   "error?": { message: "string" },
-})
+});
 
 export type PayloadCore<
   PM extends ProceduresMap,
   Name extends keyof PM = keyof PM,
 > =
   | {
-      input: PM[Name]["input"]["inferOut"]
+      input: PM[Name]["input"]["inferOut"];
     }
   | {
-      progress: PM[Name]["progress"]["inferOut"]
+      progress: PM[Name]["progress"]["inferOut"];
     }
   | {
-      result: PM[Name]["success"]["inferOut"]
+      result: PM[Name]["success"]["inferOut"];
     }
   | {
-      abort: { reason: string }
+      abort: { reason: string };
     }
   | {
-      error: { message: string }
-    }
+      error: { message: string };
+    };
 
 /**
  * @source
@@ -197,7 +197,7 @@ export const PayloadSchema = type
     ["PayloadHeaderSchema<Name>", "&", "PayloadCoreSchema<I, P, S>"],
     "|",
     "PayloadInitializeSchema",
-  ])
+  ]);
 
 /**
  * The effective payload as sent by the server to the client
@@ -205,14 +205,14 @@ export const PayloadSchema = type
 export type Payload<
   PM extends ProceduresMap,
   Name extends keyof PM = keyof PM,
-> = (PayloadHeader<PM, Name> & PayloadCore<PM, Name>) | PayloadInitialize
+> = (PayloadHeader<PM, Name> & PayloadCore<PM, Name>) | PayloadInitialize;
 
 /**
  * A procedure's corresponding method on the client instance -- used to call the procedure. If you want to be able to cancel the request, you can use the `cancelable` method instead of running the procedure directly.
  */
 export type ClientMethod<P extends Procedure<Type, Type, Type>> = ((
   input: P["input"]["inferIn"],
-  onProgress?: (progress: P["progress"]["inferOut"]) => void
+  onProgress?: (progress: P["progress"]["inferOut"]) => void,
 ) => Promise<P["success"]["inferOut"]>) & {
   /**
    * A method that returns a `CancelablePromise`. Cancel it by calling `.cancel(reason)` on it, and wait for the request to resolve by awaiting the `request` property on the returned object.
@@ -220,20 +220,20 @@ export type ClientMethod<P extends Procedure<Type, Type, Type>> = ((
   cancelable: (
     input: P["input"]["inferIn"],
     onProgress?: (progress: P["progress"]["inferOut"]) => void,
-    requestId?: string
-  ) => CancelablePromise<P["success"]["inferOut"]>
-}
+    requestId?: string,
+  ) => CancelablePromise<P["success"]["inferOut"]>;
+};
 
 /**
  * Symbol used as the key for the procedures map on the server instance
  * @internal
  * @source
  */
-export const zImplementations = Symbol("SWARPC implementations")
+export const zImplementations = Symbol("SWARPC implementations");
 
 /**
  * Symbol used as the key for the procedures map on instances
  * @internal
  * @source
  */
-export const zProcedures = Symbol("SWARPC procedures")
+export const zProcedures = Symbol("SWARPC procedures");

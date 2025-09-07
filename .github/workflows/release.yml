@@ -8,7 +8,7 @@ on:
       - "package.json"
   workflow_dispatch:
 
-permissions: 
+permissions:
   id-token: write
 
 jobs:
@@ -38,6 +38,6 @@ jobs:
 
       - name: Publish release
         if: steps.check.outputs.changed  == 'true'
-        run: npm publish --provenance 
+        run: npm publish --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

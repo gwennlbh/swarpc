@@ -8,7 +8,7 @@ on:
       - main
 
 jobs:
-  lint: 
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -17,7 +17,7 @@ jobs:
         with:
           node-version-file: package.json
           cache: npm
-      - run: npm install
+      - run: npm ci
       - run: npm run check
 
   typecheck:
@@ -29,7 +29,7 @@ jobs:
         with:
           node-version-file: package.json
           cache: npm
-      - run: npm install
+      - run: npm ci
       - run: npm run typecheck
 
   test:
@@ -42,5 +42,29 @@ jobs:
         with:
           node-version-file: package.json
           cache: npm
-      - run: npm install
+      - run: npm ci
       - run: npm test
+
+  knip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: npm
+      - run: npm ci
+      - run: npx knip
+
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: npm
+      - run: npm ci
+      - run: npx prettier --check .

@@ -6,18 +6,21 @@
 /**
  * @ignore
  */
-export function createLogger(side: "server" | "client", level: LogLevel): Logger
 export function createLogger(
   side: "server" | "client",
   level: LogLevel,
-  rqid: string
-): RequestBoundLogger
+): Logger;
+export function createLogger(
+  side: "server" | "client",
+  level: LogLevel,
+  rqid: string,
+): RequestBoundLogger;
 export function createLogger(
   side: "server" | "client",
   level: LogLevel = "debug",
-  rqid?: string
+  rqid?: string,
 ) {
-  const lvls = LOG_LEVELS.slice(LOG_LEVELS.indexOf(level))
+  const lvls = LOG_LEVELS.slice(LOG_LEVELS.indexOf(level));
 
   if (rqid) {
     return {
@@ -25,7 +28,7 @@ export function createLogger(
       info: lvls.includes("info") ? logger("info", side, rqid) : () => {},
       warn: lvls.includes("warn") ? logger("warn", side, rqid) : () => {},
       error: lvls.includes("error") ? logger("error", side, rqid) : () => {},
-    } as RequestBoundLogger
+    } as RequestBoundLogger;
   }
 
   return {
@@ -33,30 +36,30 @@ export function createLogger(
     info: lvls.includes("info") ? logger("info", side) : () => {},
     warn: lvls.includes("warn") ? logger("warn", side) : () => {},
     error: lvls.includes("error") ? logger("error", side) : () => {},
-  }
+  };
 }
 
 /**
  * @ignore
  */
 export type Logger = {
-  debug: (rqid: string | null, message: string, ...args: any[]) => void
-  info: (rqid: string | null, message: string, ...args: any[]) => void
-  warn: (rqid: string | null, message: string, ...args: any[]) => void
-  error: (rqid: string | null, message: string, ...args: any[]) => void
-}
+  debug: (rqid: string | null, message: string, ...args: any[]) => void;
+  info: (rqid: string | null, message: string, ...args: any[]) => void;
+  warn: (rqid: string | null, message: string, ...args: any[]) => void;
+  error: (rqid: string | null, message: string, ...args: any[]) => void;
+};
 
 export type RequestBoundLogger = {
-  debug: (message: string, ...args: any[]) => void
-  info: (message: string, ...args: any[]) => void
-  warn: (message: string, ...args: any[]) => void
-  error: (message: string, ...args: any[]) => void
-}
+  debug: (message: string, ...args: any[]) => void;
+  info: (message: string, ...args: any[]) => void;
+  warn: (message: string, ...args: any[]) => void;
+  error: (message: string, ...args: any[]) => void;
+};
 
 /** @source */
-export const LOG_LEVELS = ["debug", "info", "warn", "error"] as const
+const LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
 
-export type LogLevel = (typeof LOG_LEVELS)[number]
+export type LogLevel = (typeof LOG_LEVELS)[number];
 
 /**
  * Creates partially-applied logging functions given the first 2 or 3 args
@@ -68,20 +71,20 @@ export type LogLevel = (typeof LOG_LEVELS)[number]
 function logger(
   severity: LogLevel,
   side: "server" | "client",
-  rqid: string
-): (message: string, ...args: any[]) => void
+  rqid: string,
+): (message: string, ...args: any[]) => void;
 function logger(
   severity: LogLevel,
-  side: "server" | "client"
-): (rqid: string | null, message: string, ...args: any[]) => void
+  side: "server" | "client",
+): (rqid: string | null, message: string, ...args: any[]) => void;
 function logger(severity: LogLevel, side: "server" | "client", rqid?: string) {
   if (rqid === undefined) {
     return (rqid: string | null, message: string, ...args: any[]) =>
-      log(severity, side, rqid, message, ...args)
+      log(severity, side, rqid, message, ...args);
   }
 
   return (message: string, ...args: any[]) =>
-    log(severity, side, rqid, message, ...args)
+    log(severity, side, rqid, message, ...args);
 }
 
 /**
@@ -102,17 +105,17 @@ function log(
   const prefix =
     "[" +
     ["SWARPC", side, rqid ? `%c${rqid}%c` : ""].filter(Boolean).join(" ") +
-    "]"
+    "]";
 
-  const prefixStyles = rqid ? ["color: cyan;", "color: inherit;"] : []
+  const prefixStyles = rqid ? ["color: cyan;", "color: inherit;"] : [];
 
   if (severity === "debug") {
-    console.debug(prefix, ...prefixStyles, message, ...args)
+    console.debug(prefix, ...prefixStyles, message, ...args);
   } else if (severity === "info") {
-    console.info(prefix, ...prefixStyles, message, ...args)
+    console.info(prefix, ...prefixStyles, message, ...args);
   } else if (severity === "warn") {
-    console.warn(prefix, ...prefixStyles, message, ...args)
+    console.warn(prefix, ...prefixStyles, message, ...args);
   } else if (severity === "error") {
-    console.error(prefix, ...prefixStyles, message, ...args)
+    console.error(prefix, ...prefixStyles, message, ...args);
   }
 }

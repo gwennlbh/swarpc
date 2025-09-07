@@ -46,6 +46,7 @@
     "@8hobbies/typedoc-plugin-plausible": "^2.2.0",
     "@vitest/web-worker": "^3.2.4",
     "kacl": "^1.1.1",
+    "knip": "^5.63.1",
     "nodemon": "^3.1.10",
     "oxlint": "^1.14.0",
     "prettier": "^3.6.2",

@@ -1,5 +1,5 @@
-import { type } from "arktype"
-import type { ProceduresMap } from "../src/index.js"
+import { type } from "arktype";
+import type { ProceduresMap } from "../src/index.js";
 
 export const procedures = {
   echo: {
@@ -17,4 +17,4 @@ export const procedures = {
     progress: type({ percent: ["number", "=>", Math.floor] }),
     success: type("number"),
   },
-} as const satisfies ProceduresMap
+} as const satisfies ProceduresMap;

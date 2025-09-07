@@ -1,5 +1,5 @@
-import { type } from "arktype"
-import { ProceduresMap } from "../src/index.js"
+import { type } from "arktype";
+import { ProceduresMap } from "../src/index.js";
 
 export const procedures = {
   hello: {
@@ -57,4 +57,4 @@ export const procedures = {
       allKeys: "string[]",
     }),
   },
-} as const satisfies ProceduresMap
+} as const satisfies ProceduresMap;

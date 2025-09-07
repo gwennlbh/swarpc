@@ -3,7 +3,7 @@
  * @mergeModuleWith <project>
  */
 
-import { createLogger, type Logger, type LogLevel } from "./log.js"
+import { createLogger, type Logger, type LogLevel } from "./log.js";
 import {
   ClientMethod,
   Hooks,
@@ -11,8 +11,8 @@ import {
   PayloadCore,
   zProcedures,
   type ProceduresMap,
-} from "./types.js"
-import { findTransferables } from "./utils.js"
+} from "./types.js";
+import { findTransferables } from "./utils.js";
 
 /**
  * The sw&rpc client instance, which provides {@link ClientMethod | methods to call procedures}.
@@ -20,40 +20,40 @@ import { findTransferables } from "./utils.js"
  * If you want to be able to cancel the request, you can set the request's ID yourself, and call `.abort(requestId, reason)` on the client instance to cancel it.
  */
 export type SwarpcClient<Procedures extends ProceduresMap> = {
-  [zProcedures]: Procedures
+  [zProcedures]: Procedures;
 } & {
-  [F in keyof Procedures]: ClientMethod<Procedures[F]>
-}
+  [F in keyof Procedures]: ClientMethod<Procedures[F]>;
+};
 
 /**
  * Context for passing around data useful for requests
  */
 type Context<Procedures extends ProceduresMap> = {
   /** A logger, bound to the client */
-  logger: Logger
+  logger: Logger;
   /** The worker instance to use */
-  worker: Worker | SharedWorker | undefined
+  worker: Worker | SharedWorker | undefined;
   /** Hooks defined by the client */
-  hooks: Hooks<Procedures>
+  hooks: Hooks<Procedures>;
   /** Local storage data defined by the client for the faux local storage */
-  localStorage: Record<string, any>
-}
+  localStorage: Record<string, any>;
+};
 
 /**
  * Pending requests are stored in a map, where the key is the request ID.
  * Each request has a set of handlers: resolve, reject, and onProgress.
  * This allows having a single listener for the client, and having multiple in-flight calls to the same procedure.
  */
-const pendingRequests = new Map<string, PendingRequest>()
+const pendingRequests = new Map<string, PendingRequest>();
 type PendingRequest = {
-  functionName: string
-  reject: (err: Error) => void
-  onProgress: (progress: any) => void
-  resolve: (result: any) => void
-}
+  functionName: string;
+  reject: (err: Error) => void;
+  onProgress: (progress: any) => void;
+  resolve: (result: any) => void;
+};
 
 // Have we started the client listener?
-let _clientListenerStarted = false
+let _clientListenerStarted = false;
 
 /**
  *
@@ -81,42 +81,42 @@ export function Client<Procedures extends ProceduresMap>(
     hooks = {},
     localStorage = {},
   }: {
-    worker?: Worker | SharedWorker
-    hooks?: Hooks<Procedures>
-    loglevel?: LogLevel
-    restartListener?: boolean
-    localStorage?: Record<string, any>
-  } = {}
+    worker?: Worker | SharedWorker;
+    hooks?: Hooks<Procedures>;
+    loglevel?: LogLevel;
+    restartListener?: boolean;
+    localStorage?: Record<string, any>;
+  } = {},
 ): SwarpcClient<Procedures> {
-  const l = createLogger("client", loglevel)
+  const l = createLogger("client", loglevel);
 
-  if (restartListener) _clientListenerStarted = false
+  if (restartListener) _clientListenerStarted = false;
 
   // Store procedures on a symbol key, to avoid conflicts with procedure names
   const instance = { [zProcedures]: procedures } as Partial<
     SwarpcClient<Procedures>
-  >
+  >;
 
   for (const functionName of Object.keys(procedures) as Array<
     keyof Procedures
   >) {
     if (typeof functionName !== "string") {
       throw new Error(
-        `[SWARPC Client] Invalid function name, don't use symbols`
-      )
+        `[SWARPC Client] Invalid function name, don't use symbols`,
+      );
     }
 
     const send = async (
       requestId: string,
       msg: PayloadCore<Procedures, typeof functionName>,
-      options?: StructuredSerializeOptions
+      options?: StructuredSerializeOptions,
     ) => {
       const ctx: Context<Procedures> = {
         logger: l,
         worker,
         hooks,
         localStorage,
-      }
+      };
 
       return postMessage(
         ctx,
@@ -126,20 +126,20 @@ export function Client<Procedures extends ProceduresMap>(
           requestId,
           functionName,
         },
-        options
-      )
-    }
+        options,
+      );
+    };
 
     // Set the method on the instance
     const _runProcedure = async (
       input: unknown,
       onProgress: (progress: unknown) => void | Promise<void> = () => {},
-      reqid?: string
+      reqid?: string,
     ) => {
       // Validate the input against the procedure's input schema
-      procedures[functionName].input.assert(input)
+      procedures[functionName].input.assert(input);
 
-      const requestId = reqid ?? makeRequestId()
+      const requestId = reqid ?? makeRequestId();
 
       return new Promise((resolve, reject) => {
         // Store promise handlers (as well as progress updates handler)
@@ -150,50 +150,50 @@ export function Client<Procedures extends ProceduresMap>(
           resolve,
           onProgress,
           reject,
-        })
+        });
 
         const transfer =
           procedures[functionName].autotransfer === "always"
             ? findTransferables(input)
-            : []
+            : [];
 
         // Post the message to the server
-        l.debug(requestId, `Requesting ${functionName} with`, input)
+        l.debug(requestId, `Requesting ${functionName} with`, input);
         return send(requestId, { input }, { transfer })
           .then(() => {})
-          .catch(reject)
-      })
-    }
+          .catch(reject);
+      });
+    };
 
     // @ts-expect-error
-    instance[functionName] = _runProcedure
+    instance[functionName] = _runProcedure;
     instance[functionName]!.cancelable = (input, onProgress) => {
-      const requestId = makeRequestId()
+      const requestId = makeRequestId();
       return {
         request: _runProcedure(input, onProgress, requestId),
         cancel(reason: string) {
           if (!pendingRequests.has(requestId)) {
             l.warn(
               requestId,
-              `Cannot cancel ${functionName} request, it has already been resolved or rejected`
-            )
-            return
+              `Cannot cancel ${functionName} request, it has already been resolved or rejected`,
+            );
+            return;
           }
 
-          l.debug(requestId, `Cancelling ${functionName} with`, reason)
+          l.debug(requestId, `Cancelling ${functionName} with`, reason);
           postMessageSync(l, worker, {
             by: "sw&rpc",
             requestId,
             functionName,
             abort: { reason },
-          })
-          pendingRequests.delete(requestId)
+          });
+          pendingRequests.delete(requestId);
         },
-      }
-    }
+      };
+    };
   }
 
-  return instance as SwarpcClient<Procedures>
+  return instance as SwarpcClient<Procedures>;
 }
 
 /**
@@ -203,14 +203,14 @@ export function Client<Procedures extends ProceduresMap>(
 async function postMessage<Procedures extends ProceduresMap>(
   ctx: Context<Procedures>,
   message: Payload<Procedures>,
-  options?: StructuredSerializeOptions
+  options?: StructuredSerializeOptions,
 ) {
-  await startClientListener(ctx)
+  await startClientListener(ctx);
 
-  const { logger: l, worker } = ctx
+  const { logger: l, worker } = ctx;
 
   if (!worker && !navigator.serviceWorker.controller)
-    l.warn("", "Service Worker is not controlling the page")
+    l.warn("", "Service Worker is not controlling the page");
 
   // If no worker is provided, we use the service worker
   const w =
@@ -218,13 +218,13 @@ async function postMessage<Procedures extends ProceduresMap>(
       ? worker.port
       : worker === undefined
         ? await navigator.serviceWorker.ready.then((r) => r.active)
-        : worker
+        : worker;
 
   if (!w) {
-    throw new Error("[SWARPC Client] No active service worker found")
+    throw new Error("[SWARPC Client] No active service worker found");
   }
 
-  w.postMessage(message, options)
+  w.postMessage(message, options);
 }
 
 /**
@@ -239,10 +239,10 @@ export function postMessageSync<Procedures extends ProceduresMap>(
   l: Logger,
   worker: Worker | SharedWorker | undefined,
   message: Payload<Procedures>,
-  options?: StructuredSerializeOptions
+  options?: StructuredSerializeOptions,
 ): void {
   if (!worker && !navigator.serviceWorker.controller)
-    l.warn("", "Service Worker is not controlling the page")
+    l.warn("", "Service Worker is not controlling the page");
 
   // If no worker is provided, we use the service worker
   const w =
@@ -250,13 +250,13 @@ export function postMessageSync<Procedures extends ProceduresMap>(
       ? worker.port
       : worker === undefined
         ? navigator.serviceWorker.controller
-        : worker
+        : worker;
 
   if (!w) {
-    throw new Error("[SWARPC Client] No active service worker found")
+    throw new Error("[SWARPC Client] No active service worker found");
   }
 
-  w.postMessage(message, options)
+  w.postMessage(message, options);
 }
 
 /**
@@ -265,90 +265,90 @@ export function postMessageSync<Procedures extends ProceduresMap>(
  * @returns
  */
 export async function startClientListener<Procedures extends ProceduresMap>(
-  ctx: Context<Procedures>
+  ctx: Context<Procedures>,
 ) {
-  if (_clientListenerStarted) return
+  if (_clientListenerStarted) return;
 
-  const { logger: l, worker } = ctx
+  const { logger: l, worker } = ctx;
 
   // Get service worker registration if no worker is provided
   if (!worker) {
-    const sw = await navigator.serviceWorker.ready
+    const sw = await navigator.serviceWorker.ready;
     if (!sw?.active) {
-      throw new Error("[SWARPC Client] Service Worker is not active")
+      throw new Error("[SWARPC Client] Service Worker is not active");
     }
 
     if (!navigator.serviceWorker.controller) {
-      l.warn("", "Service Worker is not controlling the page")
+      l.warn("", "Service Worker is not controlling the page");
     }
   }
 
-  const w = worker ?? navigator.serviceWorker
+  const w = worker ?? navigator.serviceWorker;
 
   // Start listening for messages
-  l.debug(null, "Starting client listener", { w, ...ctx })
+  l.debug(null, "Starting client listener", { w, ...ctx });
   const listener = (event: Event): void => {
     // Get the data from the event
-    const eventData = (event as MessageEvent).data || {}
+    const eventData = (event as MessageEvent).data || {};
 
     // Ignore other messages that aren't for us
-    if (eventData?.by !== "sw&rpc") return
+    if (eventData?.by !== "sw&rpc") return;
 
     // We don't use a arktype schema here, we trust the server to send valid data
-    const payload = eventData as Payload<Procedures>
+    const payload = eventData as Payload<Procedures>;
 
     // Ignore #initialize request, it's client->server only
     if ("localStorageData" in payload) {
-      l.warn(null, "Ignoring unexpected #initialize from server", payload)
-      return
+      l.warn(null, "Ignoring unexpected #initialize from server", payload);
+      return;
     }
 
-    const { requestId, ...data } = payload
+    const { requestId, ...data } = payload;
 
     // Sanity check in case we somehow receive a message without requestId
     if (!requestId) {
-      throw new Error("[SWARPC Client] Message received without requestId")
+      throw new Error("[SWARPC Client] Message received without requestId");
     }
 
     // Get the associated pending request handlers
-    const handlers = pendingRequests.get(requestId)
+    const handlers = pendingRequests.get(requestId);
     if (!handlers) {
       throw new Error(
-        `[SWARPC Client] ${requestId} has no active request handlers, cannot process ${JSON.stringify(data)}`
-      )
+        `[SWARPC Client] ${requestId} has no active request handlers, cannot process ${JSON.stringify(data)}`,
+      );
     }
 
     // React to the data received: call hook, call handler,
     // and remove the request from pendingRequests (unless it's a progress update)
     if ("error" in data) {
-      ctx.hooks.error?.(data.functionName, new Error(data.error.message))
-      handlers.reject(new Error(data.error.message))
-      pendingRequests.delete(requestId)
+      ctx.hooks.error?.(data.functionName, new Error(data.error.message));
+      handlers.reject(new Error(data.error.message));
+      pendingRequests.delete(requestId);
     } else if ("progress" in data) {
-      ctx.hooks.progress?.(data.functionName, data.progress)
-      handlers.onProgress(data.progress)
+      ctx.hooks.progress?.(data.functionName, data.progress);
+      handlers.onProgress(data.progress);
     } else if ("result" in data) {
-      ctx.hooks.success?.(data.functionName, data.result)
-      handlers.resolve(data.result)
-      pendingRequests.delete(requestId)
+      ctx.hooks.success?.(data.functionName, data.result);
+      handlers.resolve(data.result);
+      pendingRequests.delete(requestId);
     }
-  }
+  };
 
   if (w instanceof SharedWorker) {
-    w.port.addEventListener("message", listener)
-    w.port.start()
+    w.port.addEventListener("message", listener);
+    w.port.start();
   } else {
-    w.addEventListener("message", listener)
+    w.addEventListener("message", listener);
   }
 
-  _clientListenerStarted = true
+  _clientListenerStarted = true;
 
   // Recursive terminal case is ensured by calling this *after* _clientListenerStarted is set to true: startClientListener() will therefore not be called in postMessage() again.
   await postMessage(ctx, {
     by: "sw&rpc",
     functionName: "#initialize",
     localStorageData: ctx.localStorage,
-  })
+  });
 }
 
 /**
@@ -357,5 +357,5 @@ export async function startClientListener<Procedures extends ProceduresMap>(
  * @returns a 6-character hexadecimal string
  */
 export function makeRequestId(): string {
-  return Math.random().toString(16).substring(2, 8).toUpperCase()
+  return Math.random().toString(16).substring(2, 8).toUpperCase();
 }

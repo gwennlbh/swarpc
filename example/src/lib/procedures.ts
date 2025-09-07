@@ -1,5 +1,5 @@
-import type { ProceduresMap } from "swarpc"
-import { type } from "arktype"
+import type { ProceduresMap } from "swarpc";
+import { type } from "arktype";
 
 export const procedures = {
   getClassmapping: {
@@ -12,4 +12,4 @@ export const procedures = {
     progress: type({ transferred: "number", total: "number" }),
     success: type("string[]"),
   },
-} as const satisfies ProceduresMap
+} as const satisfies ProceduresMap;
