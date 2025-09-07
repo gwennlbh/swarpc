@@ -11,6 +11,7 @@ import {
   Payload,
   PayloadCore,
   PayloadHeaderSchema,
+  PayloadInitializeSchema,
   PayloadSchema,
   ProcedureImplementation,
   zImplementations,
@@ -18,6 +19,7 @@ import {
   type ProceduresMap,
 } from "./types.js"
 import { findTransferables } from "./utils.js"
+import { FauxLocalStorage } from "./localstorage.js"
 
 class MockedWorkerGlobalScope {
   constructor() {}
@@ -164,6 +166,13 @@ export function Server<Procedures extends ProceduresMap>(
     const listener = async (
       event: MessageEvent<any> | ExtendableMessageEvent
     ): Promise<void> => {
+      if (PayloadInitializeSchema.allows(event.data)) {
+        const { localStorageData } = event.data
+        l.debug(null, "Setting up faux localStorage", localStorageData)
+        new FauxLocalStorage(localStorageData).register(scope)
+        return
+      }
+
       // Decode the payload
       const { requestId, functionName } = PayloadHeaderSchema(
         type.enumerated(...Object.keys(procedures))
@@ -210,6 +219,9 @@ export function Server<Procedures extends ProceduresMap>(
         schemas.progress,
         schemas.success
       ).assert(event.data)
+
+      if ("localStorageData" in payload)
+        throw "Unreachable: #initialize request payload should've been handled already"
 
       // Handle abortion requests (pro-choice ftw!!)
       if (payload.abort) {

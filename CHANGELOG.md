@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `Client:options.localStorage` to define a `Server`-accessible polyfilled `localStorage` with data (See #32)
+
 ## [0.10.0] - 2025-08-03
 
 ### Changed

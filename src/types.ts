@@ -4,7 +4,7 @@
  */
 
 import { type, type Type } from "arktype"
-import { Logger, RequestBoundLogger } from "./log.js"
+import { RequestBoundLogger } from "./log.js"
 
 /**
  * A procedure declaration
@@ -131,6 +131,14 @@ export type Hooks<Procedures extends ProceduresMap> = {
   ) => void
 }
 
+export const PayloadInitializeSchema = type({
+  by: '"sw&rpc"',
+  functionName: '"#initialize"',
+  localStorageData: "Record<string, unknown>",
+})
+
+export type PayloadInitialize = typeof PayloadInitializeSchema.infer
+
 /**
  * @source
  */
@@ -184,11 +192,11 @@ export type PayloadCore<
  * @source
  */
 export const PayloadSchema = type
-  .scope({ PayloadCoreSchema, PayloadHeaderSchema })
+  .scope({ PayloadCoreSchema, PayloadHeaderSchema, PayloadInitializeSchema })
   .type("<Name extends string, I, P, S>", [
-    "PayloadHeaderSchema<Name>",
-    "&",
-    "PayloadCoreSchema<I, P, S>",
+    ["PayloadHeaderSchema<Name>", "&", "PayloadCoreSchema<I, P, S>"],
+    "|",
+    "PayloadInitializeSchema",
   ])
 
 /**
@@ -197,7 +205,7 @@ export const PayloadSchema = type
 export type Payload<
   PM extends ProceduresMap,
   Name extends keyof PM = keyof PM,
-> = PayloadHeader<PM, Name> & PayloadCore<PM, Name>
+> = (PayloadHeader<PM, Name> & PayloadCore<PM, Name>) | PayloadInitialize
 
 /**
  * A procedure's corresponding method on the client instance -- used to call the procedure. If you want to be able to cancel the request, you can use the `cancelable` method instead of running the procedure directly.

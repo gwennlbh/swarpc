@@ -26,6 +26,20 @@ export type SwarpcClient<Procedures extends ProceduresMap> = {
 }
 
 /**
+ * Context for passing around data useful for requests
+ */
+type Context<Procedures extends ProceduresMap> = {
+  /** A logger, bound to the client */
+  logger: Logger
+  /** The worker instance to use */
+  worker: Worker | SharedWorker | undefined
+  /** Hooks defined by the client */
+  hooks: Hooks<Procedures>
+  /** Local storage data defined by the client for the faux local storage */
+  localStorage: Record<string, any>
+}
+
+/**
  * Pending requests are stored in a map, where the key is the request ID.
  * Each request has a set of handlers: resolve, reject, and onProgress.
  * This allows having a single listener for the client, and having multiple in-flight calls to the same procedure.
@@ -52,6 +66,7 @@ let _clientListenerStarted = false
  * @param options.hooks Hooks to run on messages received from the server. See {@link Hooks}
  * @param options.loglevel Maximum log level to use, defaults to "debug" (shows everything). "info" will not show debug messages, "warn" will only show warnings and errors, "error" will only show errors.
  * @param options.restartListener If true, will force the listener to restart even if it has already been started. You should probably leave this to false, unless you are testing and want to reset the client state.
+ * @param options.localStorage Define a in-memory localStorage with the given key-value pairs. Allows code called on the server to access localStorage (even though SharedWorkers don't have access to the browser's real localStorage)
  * @returns a sw&rpc client instance. Each property of the procedures map will be a method, that accepts an input and an optional onProgress callback, see {@link ClientMethod}
  *
  * An example of defining and using a client:
@@ -64,11 +79,13 @@ export function Client<Procedures extends ProceduresMap>(
     loglevel = "debug",
     restartListener = false,
     hooks = {},
+    localStorage = {},
   }: {
     worker?: Worker | SharedWorker
     hooks?: Hooks<Procedures>
     loglevel?: LogLevel
     restartListener?: boolean
+    localStorage?: Record<string, any>
   } = {}
 ): SwarpcClient<Procedures> {
   const l = createLogger("client", loglevel)
@@ -94,10 +111,15 @@ export function Client<Procedures extends ProceduresMap>(
       msg: PayloadCore<Procedures, typeof functionName>,
       options?: StructuredSerializeOptions
     ) => {
-      return postMessage(
-        l,
+      const ctx: Context<Procedures> = {
+        logger: l,
         worker,
         hooks,
+        localStorage,
+      }
+
+      return postMessage(
+        ctx,
         {
           ...msg,
           by: "sw&rpc",
@@ -179,13 +201,13 @@ export function Client<Procedures extends ProceduresMap>(
  * @returns the worker to use
  */
 async function postMessage<Procedures extends ProceduresMap>(
-  l: Logger,
-  worker: Worker | SharedWorker | undefined,
-  hooks: Hooks<Procedures>,
+  ctx: Context<Procedures>,
   message: Payload<Procedures>,
   options?: StructuredSerializeOptions
 ) {
-  await startClientListener(l, worker, hooks)
+  await startClientListener(ctx)
+
+  const { logger: l, worker } = ctx
 
   if (!worker && !navigator.serviceWorker.controller)
     l.warn("", "Service Worker is not controlling the page")
@@ -239,16 +261,15 @@ export function postMessageSync<Procedures extends ProceduresMap>(
 
 /**
  * Starts the client listener, which listens for messages from the sw&rpc server.
- * @param worker if provided, the client will use this worker to listen for messages, instead of using the service worker
- * @param force if true, will force the listener to restart even if it has already been started
+ * @param ctx.worker if provided, the client will use this worker to listen for messages, instead of using the service worker
  * @returns
  */
 export async function startClientListener<Procedures extends ProceduresMap>(
-  l: Logger,
-  worker?: Worker | SharedWorker,
-  hooks: Hooks<Procedures> = {}
+  ctx: Context<Procedures>
 ) {
   if (_clientListenerStarted) return
+
+  const { logger: l, worker } = ctx
 
   // Get service worker registration if no worker is provided
   if (!worker) {
@@ -265,7 +286,7 @@ export async function startClientListener<Procedures extends ProceduresMap>(
   const w = worker ?? navigator.serviceWorker
 
   // Start listening for messages
-  l.debug(null, "Starting client listener", { worker, w, hooks })
+  l.debug(null, "Starting client listener", { w, ...ctx })
   const listener = (event: Event): void => {
     // Get the data from the event
     const eventData = (event as MessageEvent).data || {}
@@ -274,7 +295,15 @@ export async function startClientListener<Procedures extends ProceduresMap>(
     if (eventData?.by !== "sw&rpc") return
 
     // We don't use a arktype schema here, we trust the server to send valid data
-    const { requestId, ...data } = eventData as Payload<Procedures>
+    const payload = eventData as Payload<Procedures>
+
+    // Ignore #initialize request, it's client->server only
+    if ("localStorageData" in payload) {
+      l.warn(null, "Ignoring unexpected #initialize from server", payload)
+      return
+    }
+
+    const { requestId, ...data } = payload
 
     // Sanity check in case we somehow receive a message without requestId
     if (!requestId) {
@@ -292,14 +321,14 @@ export async function startClientListener<Procedures extends ProceduresMap>(
     // React to the data received: call hook, call handler,
     // and remove the request from pendingRequests (unless it's a progress update)
     if ("error" in data) {
-      hooks.error?.(data.functionName, new Error(data.error.message))
+      ctx.hooks.error?.(data.functionName, new Error(data.error.message))
       handlers.reject(new Error(data.error.message))
       pendingRequests.delete(requestId)
     } else if ("progress" in data) {
-      hooks.progress?.(data.functionName, data.progress)
+      ctx.hooks.progress?.(data.functionName, data.progress)
       handlers.onProgress(data.progress)
     } else if ("result" in data) {
-      hooks.success?.(data.functionName, data.result)
+      ctx.hooks.success?.(data.functionName, data.result)
       handlers.resolve(data.result)
       pendingRequests.delete(requestId)
     }
@@ -313,6 +342,13 @@ export async function startClientListener<Procedures extends ProceduresMap>(
   }
 
   _clientListenerStarted = true
+
+  // Recursive terminal case is ensured by calling this *after* _clientListenerStarted is set to true: startClientListener() will therefore not be called in postMessage() again.
+  await postMessage(ctx, {
+    by: "sw&rpc",
+    functionName: "#initialize",
+    localStorageData: ctx.localStorage,
+  })
 }
 
 /**

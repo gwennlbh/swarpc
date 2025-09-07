@@ -49,4 +49,12 @@ export const procedures = {
       message: "string",
     }),
   },
+  accessLocalStorage: {
+    input: type("string"),
+    progress: type("undefined"),
+    success: type({
+      value: "string|null",
+      allKeys: "string[]",
+    }),
+  },
 } as const satisfies ProceduresMap

@@ -39,4 +39,13 @@ server.complexData(async (input, onProgress) => {
   return { message: `Processed data for ${input.name}`, addr: input.address }
 })
 
+server.accessLocalStorage(async (key) => {
+  return {
+    value: localStorage.getItem(key),
+    allKeys: new Array({ length: localStorage.length }).map(
+      (_, i) => localStorage.key(i)!
+    ),
+  }
+})
+
 await server.start()

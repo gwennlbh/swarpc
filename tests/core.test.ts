@@ -5,7 +5,14 @@ import { procedures } from "./core.procedures.js"
 // @ts-ignore
 import Worker from "./core.worker.js?worker"
 
-const client = Client(procedures, { worker: new Worker(), loglevel: "warn" })
+const client = Client(procedures, {
+  worker: new Worker(),
+  loglevel: "warn",
+  localStorage: {
+    a: 67,
+    anotherKey: 1312,
+  },
+})
 
 test("Simple exchange", async () => {
   const answer = await client.hello("world")
@@ -112,5 +119,27 @@ describe("Complex data", () => {
     ).rejects.toThrowErrorMatchingInlineSnapshot(
       `[TraversalError: address.houseno must be a number (was a string)]`
     )
+  })
+})
+
+describe.todo("faux localStorage", () => {
+  test("Can access localStorage", async () => {
+    const { value } = await client.accessLocalStorage("a")
+    expect(value).toBe(67)
+  })
+
+  test("Can access another key", async () => {
+    const { value } = await client.accessLocalStorage("anotherKey")
+    expect(value).toBe(1312)
+  })
+
+  test("Returns null for missing keys", async () => {
+    const { value } = await client.accessLocalStorage("missingKey")
+    expect(value).toBeNull()
+  })
+
+  test("Has all expected keys", async () => {
+    const { allKeys } = await client.accessLocalStorage("feur")
+    expect(new Set(allKeys)).toEqual(new Set(["a", "anotherKey"]))
   })
 })
