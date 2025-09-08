@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `Client:options.worker` is now either a string (path to the worker's source code) or a class, not an instance
+- **BREAKING:** When `Client:options.worker` is set, the Client now launches by default `navigator.hardwareConcurrency` nodes (worker instances) and dispatches requests to them in a balanced way.
+
+### Added
+
+- A new option, `Client:option.nodes`, to control the number of nodes (worker instances) to spin up
+
 ## [0.11.0] - 2025-09-07
 
 ### Added
@@ -18,7 +27,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 
 - **BREAKING:** `Server#start` is now asynchronous, but does not take an argument anymore.
-- **BREAKING:** `Server:options.worker` has been renamed to `Server:options.scope`
 - sw&rpc now handles [Shared Workers](https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker) correctly
 
 ### Fixed

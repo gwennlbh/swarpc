@@ -9,6 +9,15 @@ RPC for Service Workers -- move that heavy computation off of your UI thread!
  
 * * *
 
+## Features
+
+- Fully typesafe
+- Cancelable requests
+- Parallelization with multiple worker instances
+- Automatic [transfer](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Transferable_objects) of transferable values from- and to- worker code
+- A way to polyfill a pre-filled `localStorage` to be accessed within the worker code
+- Supports [Service workers](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorker), [Shared workers](https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker) and [Dedicated workers](https://developer.mozilla.org/en-US/docs/Web/API/Worker)
+
 ## Installation
 
 ```bash
@@ -125,6 +134,12 @@ Here's a Svelte example!
     {/each}
 </ul>
 ```
+
+### Configure parallelism
+
+By default, when a `worker` is passed to the `Client`'s options, the client will automatically spin up `navigator.hardwareConcurrency` worker instances and distribute requests among them. You can customize this behavior by setting the `Client:options.nodes` option to control the number of worker instances.
+
+When `Client:options.worker` is not set, the client will use the Service worker (and thus only a single instance).
 
 ### Make cancelable requests
 
