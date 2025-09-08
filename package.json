@@ -37,7 +37,8 @@
     "typedoc:dev": "nodemon --watch src --watch README.md --watch typedoc.json --watch typedoc.css --exec npm run typedoc:withplugins",
     "typedoc:serve": "npx sirv-cli --dev docs",
     "typedoc:plugins": "node -e \"const fs=require('fs');const p=JSON.parse(fs.readFileSync('typedoc.json')).plugin||[];if(p.length)require('child_process').execSync('npm add --legacy-peer-deps -D '+p.join(' '),{stdio:'inherit'});else console.log('No plugins found');\"",
-    "typedoc:withplugins": "npm run typedoc:plugins && npm run typedoc"
+    "typedoc:withplugins": "npm run typedoc:plugins && npm run typedoc",
+    "prepare": "husky"
   },
   "dependencies": {
     "arktype": "^2.1.20"
@@ -45,8 +46,10 @@
   "devDependencies": {
     "@8hobbies/typedoc-plugin-plausible": "^2.2.0",
     "@vitest/web-worker": "^3.2.4",
+    "husky": "^9.1.7",
     "kacl": "^1.1.1",
     "knip": "^5.63.1",
+    "lint-staged": "^16.1.6",
     "nodemon": "^3.1.10",
     "oxlint": "^1.14.0",
     "prettier": "^3.6.2",
@@ -65,5 +68,11 @@
   "volta": {
     "node": "24.7.0",
     "npm": "11.6.0"
+  },
+  "lint-staged": {
+    "*.{ts,js,md,json,yaml,yml}": [
+      "oxlint --fix",
+      "prettier --write"
+    ]
   }
 }
