@@ -7,15 +7,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-### Changed
-
-- **BREAKING:** `Client:options.worker` is now either a string (path to the worker's source code) or a class, not an instance
-- **BREAKING:** When `Client:options.worker` is set, the Client now launches by default `navigator.hardwareConcurrency` nodes (worker instances) and dispatches requests to them in a balanced way.
+## [0.12.0] - 2025-09-10
 
 ### Added
 
 - A new option, `Client:option.nodes`, to control the number of nodes (worker instances) to spin up
 - A way to broadcast requests to multiple (or all) nodes at once with `Client#(method name).broadcast`
+
+### Changed
+
+- **BREAKING:** `Client:options.worker` is now either a string (path to the worker's source code) or a class, not an instance
+- **BREAKING:** When `Client:options.worker` is set, the Client now launches by default `navigator.hardwareConcurrency` nodes (worker instances) and dispatches requests to them in a balanced way.
 
 ## [0.11.0] - 2025-09-07
 
@@ -89,7 +91,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - support for transferable objects via a new [`autotransfer` property on procedure declarations](https://gwennlbh.github.io/swarpc/docs/types/types.Procedure.html#autotransfer)
 
-[Unreleased]: https://github.com/gwennlbh/swarpc/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/gwennlbh/swarpc/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/gwennlbh/swarpc/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/gwennlbh/swarpc/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/gwennlbh/swarpc/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/gwennlbh/swarpc/compare/v0.8.0...v0.9.0
