@@ -35,11 +35,12 @@ swarpc.calculateFactorial(async ({ number, delay }, onProgress, tools) => {
     }
   }
 
-  return {
+  const finalResult = {
     result: result.toString(),
     steps: total,
     inputNumber: number,
   };
+  return finalResult;
 });
 
 swarpc.calculateSumOfSquares(async ({ count, delay }, onProgress, tools) => {
@@ -68,11 +69,12 @@ swarpc.calculateSumOfSquares(async ({ count, delay }, onProgress, tools) => {
     }
   }
 
-  return {
+  const finalResult = {
     result: sum,
     count,
     formula: `1² + 2² + ... + ${count}² = ${sum}`,
   };
+  return finalResult;
 });
 
 swarpc.calculateFibonacci(async ({ terms, delay }, onProgress, tools) => {
@@ -114,11 +116,12 @@ swarpc.calculateFibonacci(async ({ terms, delay }, onProgress, tools) => {
     }
   }
 
-  return {
+  const finalResult = {
     sequence,
     lastValue: sequence[sequence.length - 1],
     terms,
   };
+  return finalResult;
 });
 
 // Start the server

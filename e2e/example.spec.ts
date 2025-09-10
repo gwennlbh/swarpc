@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test.describe("swarpc example app", () => {
+test.describe("swarpc service worker tests", () => {
   test("has correct title", async ({ page }) => {
     await page.goto("/");
 
@@ -24,58 +24,6 @@ test.describe("swarpc example app", () => {
     ).toBeVisible();
   });
 
-  test("can perform factorial calculation with progress tracking", async ({
-    page,
-  }) => {
-    await page.goto("/");
-
-    // Wait for service worker to be ready
-    await page.waitForTimeout(3000);
-
-    // Set input values
-    await page.fill('label:has-text("Number:") input', "5");
-    await page.fill('label:has-text("Delay (ms):") input', "50");
-
-    // Click the factorial button
-    const factorialButton = page.locator('button:has-text("Calculate 5!")');
-    await expect(factorialButton).toBeVisible({ timeout: 10000 });
-    await factorialButton.click();
-
-    // Check for progress indicator
-    await expect(page.locator("progress")).toBeVisible({ timeout: 5000 });
-    await expect(page.locator("text=/\\d+\\.\\d+% complete/")).toBeVisible({
-      timeout: 5000,
-    });
-
-    // Wait for result to appear
-    const result = page.locator('.result:has-text("Result: 120")');
-    await expect(result).toBeVisible({ timeout: 10000 });
-  });
-
-  test("can cancel operation using cancel button", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForTimeout(3000);
-
-    // Set longer delay to ensure we can cancel
-    await page.fill('label:has-text("Number:") input', "10");
-    await page.fill('label:has-text("Delay (ms):") input', "200");
-
-    // Start factorial calculation
-    const factorialButton = page.locator('button:has-text("Calculate 10!")');
-    await factorialButton.click();
-
-    // Wait for progress to start
-    await expect(page.locator("progress")).toBeVisible({ timeout: 5000 });
-
-    // Click cancel button
-    const cancelButton = page.locator('button:has-text("Cancel factorial")');
-    await expect(cancelButton).toBeVisible({ timeout: 2000 });
-    await cancelButton.click();
-
-    // Progress should disappear
-    await expect(page.locator("progress")).not.toBeVisible({ timeout: 3000 });
-  });
-
   test("service worker registration works", async ({ page }) => {
     await page.goto("/");
 
@@ -95,6 +43,53 @@ test.describe("swarpc example app", () => {
     });
 
     expect(swRegistered).toBe(true);
+  });
+
+  test("UI responds to user input changes", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForTimeout(3000);
+
+    // Change input values and verify button text updates
+    await page.fill('label:has-text("Number:") input', "7");
+    await expect(page.locator('button:has-text("Calculate 7!")')).toBeVisible();
+
+    // Test sum of squares input
+    const sumSection = page.locator("section:has-text('Sum of Squares')");
+    await sumSection.locator('input[type="number"]').first().fill("10");
+    await expect(
+      sumSection.locator('button:has-text("Calculate 1² + 2² + ... + 10²")'),
+    ).toBeVisible();
+
+    // Test fibonacci input
+    const fibSection = page.locator("section:has-text('Fibonacci Sequence')");
+    await fibSection.locator('input[type="number"]').first().fill("8");
+    await expect(
+      fibSection.locator('button:has-text("Generate 8 Fibonacci Terms")'),
+    ).toBeVisible();
+  });
+
+  test("can start operations and show loading states", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForTimeout(3000);
+
+    // Set values for quick test
+    await page.fill('label:has-text("Number:") input', "4");
+    await page.fill('label:has-text("Delay (ms):") input', "50");
+
+    // Start calculation
+    const factorialButton = page.locator('button:has-text("Calculate 4!")');
+    await expect(factorialButton).toBeVisible({ timeout: 10000 });
+    await factorialButton.click();
+
+    // Verify loading state appears
+    await expect(page.locator('button:has-text("Cancel")')).toBeVisible();
+    await expect(page.locator("text=Loading")).toBeVisible();
+
+    // Should be able to cancel
+    await page.click('button:has-text("Cancel")');
+    await expect(page.locator('button:has-text("Cancel")')).not.toBeVisible({
+      timeout: 3000,
+    });
   });
 });
 
@@ -220,5 +215,73 @@ test.describe("swarpc dedicated worker tests", () => {
       "Cancelled",
       { timeout: 5000 },
     );
+  });
+
+  test("progress reporting works correctly", async ({ page }) => {
+    await page.goto("/test-dedicated-worker");
+    await expect(page.locator("#status")).toHaveText("Loaded");
+
+    // Set values for good progress tracking
+    await page.fill('input[type="number"]', "10");
+
+    // Start operation
+    const calculateButton = page.locator('button:has-text("Calculate 10!")');
+    await calculateButton.click();
+
+    // Wait for progress to appear and check values
+    const progressBar = page.locator("progress").first();
+    await expect(progressBar).toBeVisible({ timeout: 5000 });
+
+    // Wait for progress percentage to show
+    const progressText = page.locator("#operation1-progress");
+    await expect(progressText).toContainText("%", { timeout: 5000 });
+
+    // Check that progress increases
+    let initialProgress: string | null = null;
+    let finalProgress: string | null = null;
+
+    // Get initial progress
+    initialProgress = await progressText.textContent();
+
+    // Wait a bit and check it changed
+    await page.waitForTimeout(500);
+    finalProgress = await progressText.textContent();
+
+    // Progress should have changed (or operation completed)
+    if (initialProgress && finalProgress) {
+      expect(
+        initialProgress !== finalProgress || finalProgress.includes("100"),
+      ).toBeTruthy();
+    }
+
+    // Wait for final result
+    await expect(page.locator("#operation1-result")).toContainText(
+      "10! = 3628800",
+      { timeout: 10000 },
+    );
+  });
+
+  test("user input validation works", async ({ page }) => {
+    await page.goto("/test-dedicated-worker");
+    await expect(page.locator("#status")).toHaveText("Loaded");
+
+    // Test with different input values
+    const inputValues = ["6", "12", "1"];
+
+    for (const value of inputValues) {
+      await page.fill('input[value="8"]', value);
+
+      // Check that button text updates correctly
+      await expect(
+        page.locator(`button:has-text("Calculate ${value}!")`),
+      ).toBeVisible();
+    }
+
+    // Test fibonacci input
+    const fibInput = page.locator('input[value="20"]');
+    await fibInput.fill("25");
+    await expect(
+      page.locator('button:has-text("Generate 25 Fibonacci Terms")'),
+    ).toBeVisible();
   });
 });

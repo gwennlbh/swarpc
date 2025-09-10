@@ -155,7 +155,7 @@
 {:else if !swarpc}
   <p>Error: swarpc failed to initialize. Check console for details.</p>
 {:else}
-  <div class="operations">
+  <div class="operations" data-testid="operations">
     <section class="operation">
       <h2>Factorial Calculation</h2>
       <div class="inputs">
