@@ -212,7 +212,7 @@
       currentOperation = ""
     }}
   >
-    Cancel {currentOperation}
+    Cancel
   </button>
 {/if}
 

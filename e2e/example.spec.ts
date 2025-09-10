@@ -269,7 +269,7 @@ test.describe("swarpc dedicated worker tests", () => {
     const inputValues = ["6", "12", "1"];
 
     for (const value of inputValues) {
-      await page.fill('input[value="8"]', value);
+      await page.fill('[data-testid="factorial1-input"]', value);
 
       // Check that button text updates correctly
       await expect(
@@ -278,7 +278,7 @@ test.describe("swarpc dedicated worker tests", () => {
     }
 
     // Test fibonacci input
-    const fibInput = page.locator('input[value="20"]');
+    const fibInput = page.locator('[data-testid="fibonacci-input"]');
     await fibInput.fill("25");
     await expect(
       page.locator('button:has-text("Generate 25 Fibonacci Terms")'),

@@ -161,7 +161,7 @@
       <section class="operation">
         <h2>Operation 1: Factorial</h2>
         <div class="inputs">
-          <label>Number: <input type="number" bind:value={factorial1} min="1" max="20" /></label>
+          <label>Number: <input type="number" bind:value={factorial1} min="1" max="20" data-testid="factorial1-input" /></label>
         </div>
         <button onclick={runFactorial1} disabled={operation1State.loading}>
           Calculate {factorial1}!
@@ -172,7 +172,7 @@
         {#if operation1State.loading}
           <div class="progress">
             <progress value={operation1State.progress} max="100"></progress>
-            <span>{operation1State.progress.toFixed(1)}%</span>
+            <span id="operation1-progress">{operation1State.progress.toFixed(1)}%</span>
           </div>
         {/if}
         {#if operation1State.result}
@@ -205,7 +205,7 @@
       <section class="operation">
         <h2>Operation 3: Fibonacci</h2>
         <div class="inputs">
-          <label>Terms: <input type="number" bind:value={fibonacciTerms} min="1" max="50" /></label>
+          <label>Terms: <input type="number" bind:value={fibonacciTerms} min="1" max="50" data-testid="fibonacci-input" /></label>
         </div>
         <button onclick={runFibonacci} disabled={operation3State.loading}>
           Generate {fibonacciTerms} Fibonacci Terms
