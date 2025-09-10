@@ -1,5 +1,5 @@
 {
-  "exclude": ["example/", "dist/", "tests/", "vite.config.ts"],
+  "exclude": ["example/", "dist/", "tests/", "e2e/", "vite.config.ts"],
   "compilerOptions": {
     /* Visit https://aka.ms/tsconfig to read more about this file */
 

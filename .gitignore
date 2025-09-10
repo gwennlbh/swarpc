@@ -144,3 +144,9 @@ out
 # End of https://www.toptal.com/developers/gitignore/api/node
 
 docs
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

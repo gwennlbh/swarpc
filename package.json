@@ -31,6 +31,7 @@
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
+    "test:e2e": "playwright test",
     "check": "oxlint",
     "typedoc": "typedoc",
     "version": "kacl release && prettier -w CHANGELOG.md && git add CHANGELOG.md",
@@ -45,6 +46,8 @@
   },
   "devDependencies": {
     "@8hobbies/typedoc-plugin-plausible": "^2.2.0",
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^24.3.1",
     "@vitest/web-worker": "^3.2.4",
     "husky": "^9.1.7",
     "kacl": "^1.1.1",
