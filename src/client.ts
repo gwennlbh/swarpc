@@ -215,6 +215,23 @@ export function Client<Procedures extends ProceduresMap>(
 
     // @ts-expect-error
     instance[functionName] = _runProcedure;
+    instance[functionName]!.broadcast = async (
+      input,
+      onProgress,
+      nodesCount,
+    ) => {
+      let nodesToUse: Array<string | undefined> = [undefined];
+      if (nodes) nodesToUse = Object.keys(nodes);
+      if (nodesCount) nodesToUse = nodesToUse.slice(0, nodesCount);
+
+      const results = await Promise.allSettled(
+        nodesToUse.map(async (id) =>
+          _runProcedure(input, onProgress, undefined, id),
+        ),
+      );
+
+      return results.map((r, i) => ({ ...r, node: nodesToUse[i] ?? "(SW)" }));
+    };
     instance[functionName]!.cancelable = (input, onProgress) => {
       const requestId = makeRequestId();
       const nodeId = whoToSendTo(nodes, pendingRequests);

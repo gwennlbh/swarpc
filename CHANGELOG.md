@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 
 - A new option, `Client:option.nodes`, to control the number of nodes (worker instances) to spin up
+- A way to broadcast requests to multiple (or all) nodes at once with `Client#(method name).broadcast`
 
 ## [0.11.0] - 2025-09-07
 
