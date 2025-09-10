@@ -211,7 +211,7 @@ export async function startClientListener(ctx) {
         // We don't use a arktype schema here, we trust the server to send valid data
         const payload = eventData;
         // Ignore #initialize request, it's client->server only
-        if ("localStorageData" in payload) {
+        if ("isInitializeRequest" in payload) {
             l.warn(null, "Ignoring unexpected #initialize from server", payload);
             return;
         }
@@ -254,7 +254,9 @@ export async function startClientListener(ctx) {
     await postMessage(ctx, {
         by: "sw&rpc",
         functionName: "#initialize",
+        isInitializeRequest: true,
         localStorageData: ctx.localStorage,
+        nodeId: ctx.nodeId ?? "(SW)",
     });
 }
 /**

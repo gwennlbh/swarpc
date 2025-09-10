@@ -108,7 +108,9 @@ export type Hooks<Procedures extends ProceduresMap> = {
 export declare const PayloadInitializeSchema: import("arktype/internal/methods/object.ts").ObjectType<{
     by: "sw&rpc";
     functionName: "#initialize";
+    isInitializeRequest: true;
     localStorageData: Record<string, unknown>;
+    nodeId: string;
 }, {}>;
 export type PayloadInitialize = typeof PayloadInitializeSchema.infer;
 /**
@@ -187,12 +189,16 @@ export declare const PayloadSchema: import("arktype").Generic<[["Name", string],
         PayloadInitializeSchema: import("arktype/internal/methods/object.ts").ObjectType<{
             by: "sw&rpc";
             functionName: "#initialize";
+            isInitializeRequest: true;
             localStorageData: Record<string, unknown>;
+            nodeId: string;
         }, {}> & {
             readonly " brand": [import("arktype/internal/methods/object.ts").ObjectType<{
                 by: "sw&rpc";
                 functionName: "#initialize";
+                isInitializeRequest: true;
                 localStorageData: Record<string, unknown>;
+                nodeId: string;
             }, {}>, "unparsed"];
         };
     } & {}>;
@@ -220,19 +226,25 @@ export declare const PayloadSchema: import("arktype").Generic<[["Name", string],
         PayloadInitializeSchema: import("arktype/internal/methods/object.ts").ObjectType<{
             by: "sw&rpc";
             functionName: "#initialize";
+            isInitializeRequest: true;
             localStorageData: Record<string, unknown>;
+            nodeId: string;
         }, {}> & {
             readonly " brand": [import("arktype/internal/methods/object.ts").ObjectType<{
                 by: "sw&rpc";
                 functionName: "#initialize";
+                isInitializeRequest: true;
                 localStorageData: Record<string, unknown>;
+                nodeId: string;
             }, {}>, "unparsed"];
         };
     } & {}>;
     PayloadInitializeSchema: {
         by: "sw&rpc";
         functionName: "#initialize";
+        isInitializeRequest: true;
         localStorageData: Record<string, unknown>;
+        nodeId: string;
     };
 }, {
     PayloadCoreSchema: import("arktype/internal/scope.ts").bindGenericToScope<import("@ark/schema").GenericAst<[["I", unknown], ["P", unknown], ["S", unknown]], {
@@ -265,12 +277,16 @@ export declare const PayloadSchema: import("arktype").Generic<[["Name", string],
         PayloadInitializeSchema: import("arktype/internal/methods/object.ts").ObjectType<{
             by: "sw&rpc";
             functionName: "#initialize";
+            isInitializeRequest: true;
             localStorageData: Record<string, unknown>;
+            nodeId: string;
         }, {}> & {
             readonly " brand": [import("arktype/internal/methods/object.ts").ObjectType<{
                 by: "sw&rpc";
                 functionName: "#initialize";
+                isInitializeRequest: true;
                 localStorageData: Record<string, unknown>;
+                nodeId: string;
             }, {}>, "unparsed"];
         };
     } & {}>;
@@ -298,19 +314,25 @@ export declare const PayloadSchema: import("arktype").Generic<[["Name", string],
         PayloadInitializeSchema: import("arktype/internal/methods/object.ts").ObjectType<{
             by: "sw&rpc";
             functionName: "#initialize";
+            isInitializeRequest: true;
             localStorageData: Record<string, unknown>;
+            nodeId: string;
         }, {}> & {
             readonly " brand": [import("arktype/internal/methods/object.ts").ObjectType<{
                 by: "sw&rpc";
                 functionName: "#initialize";
+                isInitializeRequest: true;
                 localStorageData: Record<string, unknown>;
+                nodeId: string;
             }, {}>, "unparsed"];
         };
     } & {}>;
     PayloadInitializeSchema: {
         by: "sw&rpc";
         functionName: "#initialize";
+        isInitializeRequest: true;
         localStorageData: Record<string, unknown>;
+        nodeId: string;
     };
 }>;
 /**

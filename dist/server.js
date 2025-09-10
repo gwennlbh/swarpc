@@ -4,7 +4,7 @@
  */
 /// <reference lib="webworker" />
 import { type } from "arktype";
-import { createLogger } from "./log.js";
+import { createLogger, injectIntoConsoleGlobal } from "./log.js";
 import { PayloadHeaderSchema, PayloadInitializeSchema, PayloadSchema, zImplementations, zProcedures, } from "./types.js";
 import { findTransferables } from "./utils.js";
 import { FauxLocalStorage } from "./localstorage.js";
@@ -85,9 +85,10 @@ export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = 
         };
         const listener = async (event) => {
             if (PayloadInitializeSchema.allows(event.data)) {
-                const { localStorageData } = event.data;
+                const { localStorageData, nodeId } = event.data;
                 l.debug(null, "Setting up faux localStorage", localStorageData);
                 new FauxLocalStorage(localStorageData).register(scope);
+                injectIntoConsoleGlobal(scope, nodeId);
                 return;
             }
             // Decode the payload
@@ -120,7 +121,7 @@ export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = 
             }
             // Define payload schema for incoming messages
             const payload = PayloadSchema(type(`"${functionName}"`), schemas.input, schemas.progress, schemas.success).assert(event.data);
-            if ("localStorageData" in payload)
+            if ("isInitializeRequest" in payload)
                 throw "Unreachable: #initialize request payload should've been handled already";
             // Handle abortion requests (pro-choice ftw!!)
             if (payload.abort) {

@@ -6,7 +6,9 @@ import { type } from "arktype";
 export const PayloadInitializeSchema = type({
     by: '"sw&rpc"',
     functionName: '"#initialize"',
+    isInitializeRequest: "true",
     localStorageData: "Record<string, unknown>",
+    nodeId: "string",
 });
 /**
  * @source

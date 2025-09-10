@@ -25,5 +25,10 @@ export type RequestBoundLogger = {
 /** @source */
 declare const LOG_LEVELS: readonly ["debug", "info", "warn", "error"];
 export type LogLevel = (typeof LOG_LEVELS)[number];
+/**
+ *
+ * @param scope
+ */
+export declare function injectIntoConsoleGlobal(scope: WorkerGlobalScope | SharedWorkerGlobalScope, nodeId: string): void;
 export {};
 //# sourceMappingURL=log.d.ts.map
