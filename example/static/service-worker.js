@@ -1,5 +1,5 @@
 // Service Worker implementation for swarpc testing
-console.log('Service worker loading...');
+console.info('Service worker loading...');
 
 // Import arktype and shared procedures
 importScripts('https://unpkg.com/arktype@2.0.0-rc.18/dist/index.global.js');
@@ -8,17 +8,17 @@ importScripts('./shared-procedures.js');
 // Import swarpc from unpkg for now (in a real app, you'd bundle this)
 importScripts('https://unpkg.com/swarpc@latest/dist/index.js');
 
-console.log('Service worker imports loaded');
+console.info('Service worker imports loaded');
 
 const CACHE_NAME = 'swarpc-v1';
 
 self.addEventListener('install', (event) => {
-  console.log('Service worker installing...');
+  console.info('Service worker installing...');
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  console.log('Service worker activating...');
+  console.info('Service worker activating...');
   event.waitUntil(self.clients.claim());
 });
 
@@ -143,6 +143,6 @@ swarpcServer.calculateFibonacci(async ({ terms, delay }, onProgress, tools) => {
 });
 
 // Start the server
-console.log('Starting swarpc server in service worker...');
+console.info('Starting swarpc server in service worker...');
 swarpcServer.start(self);
-console.log('Service worker ready!');
+console.info('Service worker ready!');

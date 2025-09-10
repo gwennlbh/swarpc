@@ -30,7 +30,7 @@
     if (browser && 'serviceWorker' in navigator) {
       // Wait for service worker to be ready
       try {
-        console.log('Attempting to register and initialize service worker...')
+        console.info('Attempting to register and initialize service worker...')
         // Register service worker if not already registered
         const registration = await navigator.serviceWorker.register('/service-worker.js')
         
@@ -46,17 +46,17 @@
             })
             // If no controller after registration, reload the page
             if (!navigator.serviceWorker.controller) {
-              console.log('No service worker controller, reloading page...')
+              console.info('No service worker controller, reloading page...')
               window.location.reload()
               return
             }
           }
         })
         
-        console.log('Service worker ready, initializing swarpc client...')
+        console.info('Service worker ready, initializing swarpc client...')
         swarpc = Client(sharedProcedures)
         swReady = true
-        console.log('swarpc initialized successfully')
+        console.info('swarpc initialized successfully')
       } catch (error) {
         console.error('Service worker registration or swarpc initialization failed:', error)
         // Set ready to true anyway so we can see the error in the UI

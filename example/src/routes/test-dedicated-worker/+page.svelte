@@ -29,7 +29,7 @@
           nodes: 4,
         })
         ready = true
-        console.log('Dedicated worker client initialized')
+        console.info('Dedicated worker client initialized')
       } catch (error) {
         console.error('Failed to initialize dedicated worker client:', error)
       }
