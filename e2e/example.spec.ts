@@ -64,3 +64,55 @@ test.describe("swarpc example app", () => {
     expect(swRegistered).toBe(true);
   });
 });
+
+test.describe("swarpc dedicated worker tests", () => {
+  test("can create client with dedicated worker configuration", async ({
+    page,
+  }) => {
+    await page.goto("/test-dedicated-worker");
+
+    // Wait for page to load and expose swarpc
+    await expect(page.locator("#status")).toHaveText("Loaded");
+    await page.waitForTimeout(500);
+
+    const result = await page.evaluate(() => {
+      try {
+        // Use the globally exposed swarpc and arktype
+        // @ts-ignore
+        const { Client } = window.swarpc;
+        // @ts-ignore
+        const { type } = window.arktype;
+
+        if (!Client || !type) {
+          return { success: false, error: "Required libraries not available" };
+        }
+
+        // Define simple procedures for dedicated worker
+        const procedures = {
+          echo: {
+            input: type({ message: "string" }),
+            progress: type({}),
+            success: type({ echo: "string" }),
+          },
+        } as const;
+
+        // Test that we can create a client with dedicated worker configuration
+        const swarpcClient = Client(procedures, {
+          worker: "./dedicated-worker.js",
+        });
+
+        return {
+          success: true,
+          hasClient: !!swarpcClient,
+          hasEchoMethod: typeof swarpcClient.echo === "function",
+        };
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.hasClient).toBe(true);
+    expect(result.hasEchoMethod).toBe(true);
+  });
+});

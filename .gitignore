@@ -150,3 +150,7 @@ docs
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Exclude e2e and playwright config from dist builds
+dist/e2e/
+dist/playwright.config.*
