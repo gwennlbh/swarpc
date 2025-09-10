@@ -5,7 +5,7 @@
 
 /// <reference lib="webworker" />
 import { type } from "arktype";
-import { createLogger, type LogLevel } from "./log.js";
+import { createLogger, injectIntoConsoleGlobal, type LogLevel } from "./log.js";
 import {
   ImplementationsMap,
   Payload,
@@ -141,9 +141,10 @@ export function Server<Procedures extends ProceduresMap>(
       event: MessageEvent<any> | ExtendableMessageEvent,
     ): Promise<void> => {
       if (PayloadInitializeSchema.allows(event.data)) {
-        const { localStorageData } = event.data;
+        const { localStorageData, nodeId } = event.data;
         l.debug(null, "Setting up faux localStorage", localStorageData);
         new FauxLocalStorage(localStorageData).register(scope);
+        injectIntoConsoleGlobal(scope, nodeId);
         return;
       }
 
@@ -194,7 +195,7 @@ export function Server<Procedures extends ProceduresMap>(
         schemas.success,
       ).assert(event.data);
 
-      if ("localStorageData" in payload)
+      if ("isInitializeRequest" in payload)
         throw "Unreachable: #initialize request payload should've been handled already";
 
       // Handle abortion requests (pro-choice ftw!!)

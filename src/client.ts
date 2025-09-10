@@ -367,7 +367,7 @@ export async function startClientListener<Procedures extends ProceduresMap>(
     const payload = eventData as Payload<Procedures>;
 
     // Ignore #initialize request, it's client->server only
-    if ("localStorageData" in payload) {
+    if ("isInitializeRequest" in payload) {
       l.warn(null, "Ignoring unexpected #initialize from server", payload);
       return;
     }
@@ -416,7 +416,9 @@ export async function startClientListener<Procedures extends ProceduresMap>(
   await postMessage(ctx, {
     by: "sw&rpc",
     functionName: "#initialize",
+    isInitializeRequest: true,
     localStorageData: ctx.localStorage,
+    nodeId: ctx.nodeId ?? "(SW)",
   });
 }
 

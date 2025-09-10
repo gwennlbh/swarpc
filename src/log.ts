@@ -65,51 +65,65 @@ const LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
 
 export type LogLevel = (typeof LOG_LEVELS)[number];
 
+const PATCHABLE_LOG_METHODS = [
+  "debug",
+  "info",
+  "warn",
+  "error",
+  "log",
+] as const;
+type LogMethod = (typeof PATCHABLE_LOG_METHODS)[number];
+
 /**
  * Creates partially-applied logging functions given the first 2 or 3 args
- * @param severity
+ * @param method
  * @param side
  * @param ids request ID, {reqid, nodeId}, or null to not bind it
  * @returns
  */
 function logger(
-  severity: LogLevel,
+  method: LogMethod,
   side: "server" | "client",
   ids: { rqid: string; nid: string },
-): (message: string, ...args: any[]) => void;
+): (...args: any[]) => void;
 function logger(
-  severity: LogLevel,
+  method: LogMethod,
   side: "server" | "client",
   nid?: string,
-): (rqid: string | null, message: string, ...args: any[]) => void;
+): (rqid: string | null, ...args: any[]) => void;
 function logger(
-  severity: LogLevel,
+  method: LogMethod,
   side: "server" | "client",
   ids?: string | { rqid: string; nid: string },
 ) {
   if (ids === undefined || typeof ids === "string") {
     const nid = ids ?? null;
-    return (rqid: string | null, message: string, ...args: any[]) =>
-      log(severity, side, { nid, rqid }, message, ...args);
+    return (rqid: string | null, ...args: any[]) =>
+      log(method, side, { nid, rqid }, ...args);
   }
 
-  return (message: string, ...args: any[]) =>
-    log(severity, side, ids, message, ...args);
+  return (...args: any[]) => log(method, side, ids, ...args);
 }
+
+const originalConsole = PATCHABLE_LOG_METHODS.reduce(
+  (result, method) => {
+    result[method] = console[method];
+    return result;
+  },
+  {} as Pick<typeof console, LogMethod>,
+);
 
 /**
  * Send log messages to the console, with a helpful prefix.
- * @param severity
+ * @param method
  * @param side
  * @param ids request ID and node ID
- * @param message
  * @param args passed to console methods directly
  */
 function log(
-  severity: "debug" | "info" | "warn" | "error",
+  method: LogMethod,
   side: "server" | "client",
   { rqid, nid }: { rqid: string | null; nid: string | null },
-  message: string,
   ...args: any[]
 ) {
   const prefix = [
@@ -124,13 +138,18 @@ function log(
   if (rqid) prefixStyles.push("color: cyan", "color: inherit");
   if (nid) prefixStyles.push("color: hotpink", "color: inherit");
 
-  if (severity === "debug") {
-    console.debug(prefix, ...prefixStyles, message, ...args);
-  } else if (severity === "info") {
-    console.info(prefix, ...prefixStyles, message, ...args);
-  } else if (severity === "warn") {
-    console.warn(prefix, ...prefixStyles, message, ...args);
-  } else if (severity === "error") {
-    console.error(prefix, ...prefixStyles, message, ...args);
+  return originalConsole[method](prefix, ...prefixStyles, ...args);
+}
+
+/**
+ *
+ * @param scope
+ */
+export function injectIntoConsoleGlobal(
+  scope: WorkerGlobalScope | SharedWorkerGlobalScope,
+  nodeId: string,
+) {
+  for (const method of PATCHABLE_LOG_METHODS) {
+    scope.self.console[method] = logger(method, "server", nodeId);
   }
 }

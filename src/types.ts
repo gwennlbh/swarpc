@@ -134,7 +134,9 @@ export type Hooks<Procedures extends ProceduresMap> = {
 export const PayloadInitializeSchema = type({
   by: '"sw&rpc"',
   functionName: '"#initialize"',
+  isInitializeRequest: "true",
   localStorageData: "Record<string, unknown>",
+  nodeId: "string",
 });
 
 export type PayloadInitialize = typeof PayloadInitializeSchema.infer;
