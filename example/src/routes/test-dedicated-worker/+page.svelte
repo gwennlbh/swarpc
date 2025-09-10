@@ -26,6 +26,7 @@
         // Create the swarpc client with dedicated worker configuration
         swarpcClient = Client(sharedProcedures, {
           worker: DedicatedWorkerScript,
+          nodes: 4,
         })
         ready = true
         console.log('Dedicated worker client initialized')

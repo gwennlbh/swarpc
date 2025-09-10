@@ -69,6 +69,71 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
+  deploy-to-pages:
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, test, e2e]
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: package.json
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install example dependencies
+        run: cd example && npm ci
+
+      - name: Build example app
+        run: cd example && npm run build
+
+      - name: Download Playwright report
+        uses: actions/download-artifact@v4
+        with:
+          name: playwright-report
+          path: ./playwright-report
+        continue-on-error: true
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Prepare Pages content
+        run: |
+          # Create pages directory structure
+          mkdir -p pages
+
+          # Copy example app build to pages root
+          cp -r example/dist/* pages/
+
+          # Copy Playwright report to pages/playwright-report
+          if [ -d "./playwright-report" ]; then
+            cp -r playwright-report pages/playwright-report
+          fi
+
+          # Create simple index redirect if needed
+          if [ ! -f "pages/index.html" ]; then
+            echo '<!DOCTYPE html><html><head><title>swarpc</title></head><body><h1>swarpc Example</h1><p><a href="./playwright-report/">Playwright Report</a></p></body></html>' > pages/index.html
+          fi
+
+      - name: Upload to Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: pages
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
   knip:
     runs-on: ubuntu-latest
     steps:
