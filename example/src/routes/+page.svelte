@@ -5,7 +5,7 @@
   import { browser } from "$app/environment"
 
   // 1. Give yourself a client instance (only in browser)
-  let swarpc: ReturnType<typeof Client<typeof procedures>>
+  let swarpc = $state<ReturnType<typeof Client<typeof procedures>>>()
   let swReady = $state(false)
 
   // 2. Declare some state to hold info
@@ -19,8 +19,9 @@
     if (browser && 'serviceWorker' in navigator) {
       // Wait for service worker to be ready
       try {
+        console.log('Attempting to register and initialize service worker...')
         // Register service worker if not already registered
-        const registration = await navigator.serviceWorker.register('./service-worker.js')
+        const registration = await navigator.serviceWorker.register('/service-worker.js')
         
         // Wait for it to be active and controlling
         await new Promise<void>((resolve) => {
@@ -33,22 +34,31 @@
               }
             })
             // If no controller after registration, reload the page
-            window.location.reload()
+            if (!navigator.serviceWorker.controller) {
+              console.log('No service worker controller, reloading page...')
+              window.location.reload()
+              return
+            }
           }
         })
         
+        console.log('Service worker ready, initializing swarpc client...')
         swarpc = Client(procedures)
         swReady = true
-        console.log('Service worker ready and swarpc initialized')
+        console.log('swarpc initialized successfully')
       } catch (error) {
-        console.error('Service worker registration failed:', error)
+        console.error('Service worker registration or swarpc initialization failed:', error)
+        // Set ready to true anyway so we can see the error in the UI
+        swReady = true
       }
     }
   })
 </script>
 
 {#if !swReady}
-  <p>Initializing service worker...</p>
+  <p>Initializing swarpc...</p>
+{:else if !swarpc}
+  <p>Error: swarpc failed to initialize. Check console for details.</p>
 {:else}
   <search>
     <button
