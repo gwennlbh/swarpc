@@ -222,6 +222,19 @@ export type ClientMethod<P extends Procedure<Type, Type, Type>> = ((
     onProgress?: (progress: P["progress"]["inferOut"]) => void,
     requestId?: string,
   ) => CancelablePromise<P["success"]["inferOut"]>;
+  /**
+   * Send the request to specific nodes, or all nodes.
+   * Returns an array of results, one for each node the request was sent to.
+   * Each result is a {@link PromiseSettledResult}, with also an additional property, the node ID of the request
+   */
+  broadcast: (
+    input: P["input"]["inferIn"],
+    onProgress?: (progress: P["progress"]["inferOut"]) => void,
+    /** Number of nodes to send the request to. Leave undefined to send to all nodes */
+    nodes?: number,
+  ) => Promise<
+    Array<PromiseSettledResult<P["success"]["inferOut"]> & { node: string }>
+  >;
 };
 
 /**
@@ -237,3 +250,9 @@ export const zImplementations = Symbol("SWARPC implementations");
  * @source
  */
 export const zProcedures = Symbol("SWARPC procedures");
+
+export type WorkerConstructor<
+  T extends Worker | SharedWorker = Worker | SharedWorker,
+> = {
+  new (opts?: { name?: string }): T;
+};

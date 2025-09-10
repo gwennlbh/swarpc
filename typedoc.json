@@ -57,6 +57,11 @@
     "variables/types.zImplementations.html": "types/zImplementations.html",
     "variables/types.zProcedures.html": "types/zProcedures.html"
   },
+  "externalSymbolLinkMappings": {
+    "typescript": {
+      "NavigatorConcurrentHardware.hardwareConcurrency": "https://developer.mozilla.org/en-US/docs/Web/API/Navigator/hardwareConcurrency"
+    }
+  },
   "sort": ["documents-first", "kind", "source-order"],
   "customCss": "typedoc.css",
   "highlightLanguages": [

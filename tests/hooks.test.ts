@@ -11,7 +11,8 @@ describe("Client hooks", { sequential: true }, async () => {
   test("success hook is called on successful procedure", async () => {
     const success = vi.fn();
     const client = Client(procedures, {
-      worker: new Worker(),
+      worker: Worker,
+      nodes: 1,
       hooks: { success },
       loglevel: "warn",
       restartListener: true,
@@ -30,7 +31,8 @@ describe("Client hooks", { sequential: true }, async () => {
   test("error hook is called on procedure error (runtime error)", async () => {
     const error = vi.fn();
     const client = Client(procedures, {
-      worker: new Worker(),
+      worker: Worker,
+      nodes: 1,
       hooks: { error },
       loglevel: "debug",
       restartListener: true,
@@ -46,7 +48,8 @@ describe("Client hooks", { sequential: true }, async () => {
   test("progress hook is called on progress update", async () => {
     const progress = vi.fn();
     const client = Client(procedures, {
-      worker: new Worker(),
+      worker: Worker,
+      nodes: 1,
       hooks: { progress },
       loglevel: "warn",
       restartListener: true,
