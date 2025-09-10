@@ -8,39 +8,72 @@ test.describe("swarpc example app", () => {
     await expect(page).toHaveTitle("swarpc Example App");
   });
 
-  test("loads the page and shows the button", async ({ page }) => {
+  test("loads service worker page and shows operations", async ({ page }) => {
     await page.goto("/");
 
-    // Wait for the service worker initialization message to appear or disappear
+    // Wait for the service worker initialization
     await page.waitForTimeout(3000);
 
-    // The button should be visible once SW is ready
+    // Check that all operation sections are visible
     await expect(
-      page.getByRole("button", { name: "Get classmapping" }),
+      page.locator("h2:has-text('Factorial Calculation')"),
     ).toBeVisible({ timeout: 10000 });
+    await expect(page.locator("h2:has-text('Sum of Squares')")).toBeVisible();
+    await expect(
+      page.locator("h2:has-text('Fibonacci Sequence')"),
+    ).toBeVisible();
   });
 
-  test("can click the button and show loading state", async ({ page }) => {
+  test("can perform factorial calculation with progress tracking", async ({
+    page,
+  }) => {
     await page.goto("/");
 
-    // Wait longer for the service worker to be ready
+    // Wait for service worker to be ready
     await page.waitForTimeout(3000);
 
-    // Click the button to make the RPC call only if it's visible
-    const button = page.getByRole("button", { name: "Get classmapping" });
-    await expect(button).toBeVisible({ timeout: 10000 });
-    await button.click();
+    // Set input values
+    await page.fill('label:has-text("Number:") input', "5");
+    await page.fill('label:has-text("Delay (ms):") input', "50");
 
-    // Check if either a loading indicator appears OR cancel button appears
-    // This validates that clicking the button does something even if the RPC doesn't complete
-    const loadingIndicator = page.locator('progress, p:has-text("Loading")');
-    const cancelButton = page.getByRole("button", { name: "Cancel" });
+    // Click the factorial button
+    const factorialButton = page.locator('button:has-text("Calculate 5!")');
+    await expect(factorialButton).toBeVisible({ timeout: 10000 });
+    await factorialButton.click();
 
-    // Wait for either to appear - this proves the button click was handled
-    await Promise.race([
-      expect(loadingIndicator).toBeVisible({ timeout: 5000 }),
-      expect(cancelButton).toBeVisible({ timeout: 5000 }),
-    ]);
+    // Check for progress indicator
+    await expect(page.locator("progress")).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=/\\d+\\.\\d+% complete/")).toBeVisible({
+      timeout: 5000,
+    });
+
+    // Wait for result to appear
+    const result = page.locator('.result:has-text("Result: 120")');
+    await expect(result).toBeVisible({ timeout: 10000 });
+  });
+
+  test("can cancel operation using cancel button", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForTimeout(3000);
+
+    // Set longer delay to ensure we can cancel
+    await page.fill('label:has-text("Number:") input', "10");
+    await page.fill('label:has-text("Delay (ms):") input', "200");
+
+    // Start factorial calculation
+    const factorialButton = page.locator('button:has-text("Calculate 10!")');
+    await factorialButton.click();
+
+    // Wait for progress to start
+    await expect(page.locator("progress")).toBeVisible({ timeout: 5000 });
+
+    // Click cancel button
+    const cancelButton = page.locator('button:has-text("Cancel factorial")');
+    await expect(cancelButton).toBeVisible({ timeout: 2000 });
+    await cancelButton.click();
+
+    // Progress should disappear
+    await expect(page.locator("progress")).not.toBeVisible({ timeout: 3000 });
   });
 
   test("service worker registration works", async ({ page }) => {
@@ -101,5 +134,91 @@ test.describe("swarpc dedicated worker tests", () => {
     expect(result.success).toBe(true);
     expect(result.hasClient).toBe(true);
     expect(result.hasType).toBe(true);
+  });
+
+  test("can run single operation with progress tracking", async ({ page }) => {
+    await page.goto("/test-dedicated-worker");
+    await expect(page.locator("#status")).toHaveText("Loaded");
+
+    // Set input and run factorial calculation
+    await page.fill('input[type="number"]', "8");
+    const calculateButton = page.locator('button:has-text("Calculate 8!")');
+    await calculateButton.click();
+
+    // Check for progress indicator
+    await expect(page.locator("progress").first()).toBeVisible({
+      timeout: 5000,
+    });
+    await expect(page.locator("text=/\\d+\\.\\d+%/").first()).toBeVisible({
+      timeout: 5000,
+    });
+
+    // Wait for result
+    await expect(page.locator("#operation1-result")).toContainText(
+      "8! = 40320",
+      { timeout: 10000 },
+    );
+  });
+
+  test("can run parallel operations", async ({ page }) => {
+    await page.goto("/test-dedicated-worker");
+    await expect(page.locator("#status")).toHaveText("Loaded");
+
+    // Click the parallel button
+    const parallelButton = page.locator("#run-parallel-btn");
+    await parallelButton.click();
+
+    // All three operations should show progress simultaneously
+    await expect(page.locator("progress").nth(0)).toBeVisible({
+      timeout: 5000,
+    });
+    await expect(page.locator("progress").nth(1)).toBeVisible({
+      timeout: 5000,
+    });
+    await expect(page.locator("progress").nth(2)).toBeVisible({
+      timeout: 5000,
+    });
+
+    // Wait for all results
+    await expect(page.locator("#operation1-result")).toContainText(
+      "8! = 40320",
+      { timeout: 15000 },
+    );
+    await expect(page.locator("#operation2-result")).toContainText(
+      "12! = 479001600",
+      { timeout: 15000 },
+    );
+    await expect(page.locator("#operation3-result")).toContainText(
+      "Fibonacci sequence:",
+      { timeout: 15000 },
+    );
+  });
+
+  test("can cancel dedicated worker operations", async ({ page }) => {
+    await page.goto("/test-dedicated-worker");
+    await expect(page.locator("#status")).toHaveText("Loaded");
+
+    // Set a higher number to ensure we have time to cancel
+    await page.fill('input[type="number"]', "15");
+
+    // Start the operation
+    const calculateButton = page.locator('button:has-text("Calculate 15!")');
+    await calculateButton.click();
+
+    // Wait for progress to start
+    await expect(page.locator("progress").first()).toBeVisible({
+      timeout: 5000,
+    });
+
+    // Click cancel
+    const cancelButton = page.locator('.cancel-btn:has-text("Cancel")').first();
+    await expect(cancelButton).toBeVisible({ timeout: 2000 });
+    await cancelButton.click();
+
+    // Should show cancelled result
+    await expect(page.locator("#operation1-result")).toContainText(
+      "Cancelled",
+      { timeout: 5000 },
+    );
   });
 });
