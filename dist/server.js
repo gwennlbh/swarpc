@@ -8,12 +8,8 @@ import { createLogger } from "./log.js";
 import { PayloadHeaderSchema, PayloadInitializeSchema, PayloadSchema, zImplementations, zProcedures, } from "./types.js";
 import { findTransferables } from "./utils.js";
 import { FauxLocalStorage } from "./localstorage.js";
-class MockedWorkerGlobalScope {
-    constructor() { }
-}
-const SharedWorkerGlobalScope = globalThis.SharedWorkerGlobalScope ?? MockedWorkerGlobalScope;
-const DedicatedWorkerGlobalScope = globalThis.DedicatedWorkerGlobalScope ?? MockedWorkerGlobalScope;
-const ServiceWorkerGlobalScope = globalThis.ServiceWorkerGlobalScope ?? MockedWorkerGlobalScope;
+import { scopeIsDedicated, scopeIsShared, scopeIsService } from "./scopes.js";
+import { nodeIdFromScope } from "./nodes.js";
 const abortControllers = new Map();
 const abortedRequests = new Set();
 /**
@@ -29,19 +25,12 @@ const abortedRequests = new Set();
  * {@includeCode ../example/src/service-worker.ts}
  */
 export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = {}) {
-    const l = createLogger("server", loglevel);
     // If scope is not provided, use the global scope
     // This function is meant to be used in a worker, so `self` is a WorkerGlobalScope
     scope ??= self;
-    function scopeIsShared(scope) {
-        return scope instanceof SharedWorkerGlobalScope || _scopeType === "shared";
-    }
-    function scopeIsDedicated(scope) {
-        return (scope instanceof DedicatedWorkerGlobalScope || _scopeType === "dedicated");
-    }
-    function scopeIsService(scope) {
-        return (scope instanceof ServiceWorkerGlobalScope || _scopeType === "service");
-    }
+    // Service workers don't have a name, but it's fine anyways cuz we don't have multiple nodes when running with a SW
+    const nodeId = nodeIdFromScope(scope, _scopeType);
+    const l = createLogger("server", loglevel, nodeId);
     // Initialize the instance.
     // Procedures and implementations are stored on properties with symbol keys,
     // to avoid any conflicts with procedure names, and also discourage direct access to them.
@@ -71,7 +60,7 @@ export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = 
     }
     instance.start = async () => {
         const port = await new Promise((resolve) => {
-            if (!scopeIsShared(scope))
+            if (!scopeIsShared(scope, _scopeType))
                 return resolve(undefined);
             l.debug(null, "Awaiting shared worker connection...");
             scope.addEventListener("connect", ({ ports: [port] }) => {
@@ -85,10 +74,10 @@ export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = 
             if (port) {
                 port.postMessage(data, { transfer });
             }
-            else if (scopeIsDedicated(scope)) {
+            else if (scopeIsDedicated(scope, _scopeType)) {
                 scope.postMessage(data, { transfer });
             }
-            else if (scopeIsService(scope)) {
+            else if (scopeIsService(scope, _scopeType)) {
                 await scope.clients.matchAll().then((clients) => {
                     clients.forEach((client) => client.postMessage(data, { transfer }));
                 });
@@ -150,11 +139,11 @@ export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = 
             try {
                 // Call the implementation with the input and a progress callback
                 const result = await implementation(payload.input, async (progress) => {
-                    l.debug(requestId, `Progress for ${functionName}`, progress);
+                    // l.debug(requestId, `Progress for ${functionName}`, progress);
                     await postMsg({ progress });
                 }, {
                     abortSignal: abortControllers.get(requestId)?.signal,
-                    logger: createLogger("server", loglevel, requestId),
+                    logger: createLogger("server", loglevel, nodeId, requestId),
                 });
                 // Send results
                 l.debug(requestId, `Result for ${functionName}`, result);
@@ -177,17 +166,17 @@ export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = 
             }
         };
         // Listen for messages from the client
-        if (scopeIsShared(scope)) {
+        if (scopeIsShared(scope, _scopeType)) {
             if (!port)
                 throw new Error("SharedWorker port not initialized");
             l.info(null, "Listening for shared worker messages on port", port);
             port.addEventListener("message", listener);
             port.start();
         }
-        else if (scopeIsDedicated(scope)) {
+        else if (scopeIsDedicated(scope, _scopeType)) {
             scope.addEventListener("message", listener);
         }
-        else if (scopeIsService(scope)) {
+        else if (scopeIsService(scope, _scopeType)) {
             scope.addEventListener("message", listener);
         }
         else {

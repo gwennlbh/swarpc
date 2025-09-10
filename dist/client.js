@@ -2,7 +2,8 @@
  * @module
  * @mergeModuleWith <project>
  */
-import { createLogger } from "./log.js";
+import { createLogger, } from "./log.js";
+import { makeNodeId, whoToSendTo } from "./nodes.js";
 import { zProcedures, } from "./types.js";
 import { findTransferables } from "./utils.js";
 /**
@@ -12,38 +13,55 @@ import { findTransferables } from "./utils.js";
  */
 const pendingRequests = new Map();
 // Have we started the client listener?
-let _clientListenerStarted = false;
+let _clientListenerStarted = new Set();
 /**
  *
  * @param procedures procedures the client will be able to call, see {@link ProceduresMap}
  * @param options various options
- * @param options.worker The instantiated worker object. If not provided, the client will use the service worker.
- * Example: `new Worker("./worker.js")`
+ * @param options.worker The worker class, **not instantiated**, or a path to the source code. If not provided, the client will use the service worker. If a string is provided, it'll instantiate a regular `Worker`, not a `SharedWorker`.
+ * Example: `"./worker.js"`
  * See {@link Worker} (used by both dedicated workers and service workers), {@link SharedWorker}, and
  * the different [worker types](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API#worker_types) that exist
  * @param options.hooks Hooks to run on messages received from the server. See {@link Hooks}
  * @param options.loglevel Maximum log level to use, defaults to "debug" (shows everything). "info" will not show debug messages, "warn" will only show warnings and errors, "error" will only show errors.
  * @param options.restartListener If true, will force the listener to restart even if it has already been started. You should probably leave this to false, unless you are testing and want to reset the client state.
  * @param options.localStorage Define a in-memory localStorage with the given key-value pairs. Allows code called on the server to access localStorage (even though SharedWorkers don't have access to the browser's real localStorage)
+ * @param options.nodes the number of workers to use for the server, defaults to {@link navigator.hardwareConcurrency}.
  * @returns a sw&rpc client instance. Each property of the procedures map will be a method, that accepts an input and an optional onProgress callback, see {@link ClientMethod}
  *
  * An example of defining and using a client:
  * {@includeCode ../example/src/routes/+page.svelte}
  */
-export function Client(procedures, { worker, loglevel = "debug", restartListener = false, hooks = {}, localStorage = {}, } = {}) {
+export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug", restartListener = false, hooks = {}, localStorage = {}, } = {}) {
     const l = createLogger("client", loglevel);
     if (restartListener)
-        _clientListenerStarted = false;
+        _clientListenerStarted.clear();
     // Store procedures on a symbol key, to avoid conflicts with procedure names
     const instance = { [zProcedures]: procedures };
+    nodeCount ??= navigator.hardwareConcurrency || 1;
+    let nodes;
+    if (worker) {
+        nodes = {};
+        for (const _ of Array.from({ length: nodeCount })) {
+            const id = makeNodeId();
+            if (typeof worker === "string") {
+                nodes[id] = new Worker(worker, { name: id });
+            }
+            else {
+                nodes[id] = new worker({ name: id });
+            }
+        }
+        l.info(null, `Started ${nodeCount} node${nodeCount > 1 ? "s" : ""}`, Object.keys(nodes));
+    }
     for (const functionName of Object.keys(procedures)) {
         if (typeof functionName !== "string") {
             throw new Error(`[SWARPC Client] Invalid function name, don't use symbols`);
         }
-        const send = async (requestId, msg, options) => {
+        const send = async (node, nodeId, requestId, msg, options) => {
             const ctx = {
                 logger: l,
-                worker,
+                node,
+                nodeId,
                 hooks,
                 localStorage,
             };
@@ -55,15 +73,20 @@ export function Client(procedures, { worker, loglevel = "debug", restartListener
             }, options);
         };
         // Set the method on the instance
-        const _runProcedure = async (input, onProgress = () => { }, reqid) => {
+        const _runProcedure = async (input, onProgress = () => { }, reqid, nodeId) => {
             // Validate the input against the procedure's input schema
             procedures[functionName].input.assert(input);
             const requestId = reqid ?? makeRequestId();
+            // Choose which node to use
+            nodeId ??= whoToSendTo(nodes, pendingRequests);
+            const node = nodes && nodeId ? nodes[nodeId] : undefined;
+            const l = createLogger("client", loglevel, nodeId ?? "(SW)", requestId);
             return new Promise((resolve, reject) => {
                 // Store promise handlers (as well as progress updates handler)
                 // so the client listener can resolve/reject the promise (and react to progress updates)
                 // when the server sends messages back
                 pendingRequests.set(requestId, {
+                    nodeId,
                     functionName,
                     resolve,
                     onProgress,
@@ -73,25 +96,36 @@ export function Client(procedures, { worker, loglevel = "debug", restartListener
                     ? findTransferables(input)
                     : [];
                 // Post the message to the server
-                l.debug(requestId, `Requesting ${functionName} with`, input);
-                return send(requestId, { input }, { transfer })
+                l.debug(`Requesting ${functionName} with`, input);
+                return send(node, nodeId, requestId, { input }, { transfer })
                     .then(() => { })
                     .catch(reject);
             });
         };
         // @ts-expect-error
         instance[functionName] = _runProcedure;
+        instance[functionName].broadcast = async (input, onProgress, nodesCount) => {
+            let nodesToUse = [undefined];
+            if (nodes)
+                nodesToUse = Object.keys(nodes);
+            if (nodesCount)
+                nodesToUse = nodesToUse.slice(0, nodesCount);
+            const results = await Promise.allSettled(nodesToUse.map(async (id) => _runProcedure(input, onProgress, undefined, id)));
+            return results.map((r, i) => ({ ...r, node: nodesToUse[i] ?? "(SW)" }));
+        };
         instance[functionName].cancelable = (input, onProgress) => {
             const requestId = makeRequestId();
+            const nodeId = whoToSendTo(nodes, pendingRequests);
+            const l = createLogger("client", loglevel, nodeId ?? "(SW)", requestId);
             return {
-                request: _runProcedure(input, onProgress, requestId),
+                request: _runProcedure(input, onProgress, requestId, nodeId),
                 cancel(reason) {
                     if (!pendingRequests.has(requestId)) {
                         l.warn(requestId, `Cannot cancel ${functionName} request, it has already been resolved or rejected`);
                         return;
                     }
                     l.debug(requestId, `Cancelling ${functionName} with`, reason);
-                    postMessageSync(l, worker, {
+                    postMessageSync(l, nodeId ? nodes?.[nodeId] : undefined, {
                         by: "sw&rpc",
                         requestId,
                         functionName,
@@ -110,7 +144,7 @@ export function Client(procedures, { worker, loglevel = "debug", restartListener
  */
 async function postMessage(ctx, message, options) {
     await startClientListener(ctx);
-    const { logger: l, worker } = ctx;
+    const { logger: l, node: worker } = ctx;
     if (!worker && !navigator.serviceWorker.controller)
         l.warn("", "Service Worker is not controlling the page");
     // If no worker is provided, we use the service worker
@@ -134,7 +168,7 @@ async function postMessage(ctx, message, options) {
  */
 export function postMessageSync(l, worker, message, options) {
     if (!worker && !navigator.serviceWorker.controller)
-        l.warn("", "Service Worker is not controlling the page");
+        l.warn("Service Worker is not controlling the page");
     // If no worker is provided, we use the service worker
     const w = worker instanceof SharedWorker
         ? worker.port
@@ -152,9 +186,9 @@ export function postMessageSync(l, worker, message, options) {
  * @returns
  */
 export async function startClientListener(ctx) {
-    if (_clientListenerStarted)
+    if (_clientListenerStarted.has(ctx.nodeId ?? "(SW)"))
         return;
-    const { logger: l, worker } = ctx;
+    const { logger: l, node: worker } = ctx;
     // Get service worker registration if no worker is provided
     if (!worker) {
         const sw = await navigator.serviceWorker.ready;
@@ -215,7 +249,7 @@ export async function startClientListener(ctx) {
     else {
         w.addEventListener("message", listener);
     }
-    _clientListenerStarted = true;
+    _clientListenerStarted.add(ctx.nodeId ?? "(SW)");
     // Recursive terminal case is ensured by calling this *after* _clientListenerStarted is set to true: startClientListener() will therefore not be called in postMessage() again.
     await postMessage(ctx, {
         by: "sw&rpc",

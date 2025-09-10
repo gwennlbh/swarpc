@@ -5,8 +5,8 @@
 /**
  * @ignore
  */
-export declare function createLogger(side: "server" | "client", level: LogLevel): Logger;
-export declare function createLogger(side: "server" | "client", level: LogLevel, rqid: string): RequestBoundLogger;
+export declare function createLogger(side: "server" | "client", level: LogLevel, nid?: string): Logger;
+export declare function createLogger(side: "server" | "client", level: LogLevel, nid: string, rqid: string): RequestBoundLogger;
 /**
  * @ignore
  */

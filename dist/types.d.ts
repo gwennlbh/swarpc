@@ -325,6 +325,16 @@ export type ClientMethod<P extends Procedure<Type, Type, Type>> = ((input: P["in
      * A method that returns a `CancelablePromise`. Cancel it by calling `.cancel(reason)` on it, and wait for the request to resolve by awaiting the `request` property on the returned object.
      */
     cancelable: (input: P["input"]["inferIn"], onProgress?: (progress: P["progress"]["inferOut"]) => void, requestId?: string) => CancelablePromise<P["success"]["inferOut"]>;
+    /**
+     * Send the request to specific nodes, or all nodes.
+     * Returns an array of results, one for each node the request was sent to.
+     * Each result is a {@link PromiseSettledResult}, with also an additional property, the node ID of the request
+     */
+    broadcast: (input: P["input"]["inferIn"], onProgress?: (progress: P["progress"]["inferOut"]) => void, 
+    /** Number of nodes to send the request to. Leave undefined to send to all nodes */
+    nodes?: number) => Promise<Array<PromiseSettledResult<P["success"]["inferOut"]> & {
+        node: string;
+    }>>;
 };
 /**
  * Symbol used as the key for the procedures map on the server instance
@@ -338,4 +348,9 @@ export declare const zImplementations: unique symbol;
  * @source
  */
 export declare const zProcedures: unique symbol;
+export type WorkerConstructor<T extends Worker | SharedWorker = Worker | SharedWorker> = {
+    new (opts?: {
+        name?: string;
+    }): T;
+};
 //# sourceMappingURL=types.d.ts.map
