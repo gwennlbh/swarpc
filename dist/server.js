@@ -143,6 +143,7 @@ export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = 
                     // l.debug(requestId, `Progress for ${functionName}`, progress);
                     await postMsg({ progress });
                 }, {
+                    nodeId,
                     abortSignal: abortControllers.get(requestId)?.signal,
                     logger: createLogger("server", loglevel, nodeId, requestId),
                 });
