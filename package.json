@@ -40,12 +40,14 @@
     "typedoc:withplugins": "npm run typedoc:plugins && npm run typedoc",
     "prepare": "husky"
   },
-  "dependencies": {
+  "peerDependencies": {
     "arktype": "^2.1.22"
   },
   "devDependencies": {
     "@8hobbies/typedoc-plugin-plausible": "^2.2.0",
+    "@playwright/test": "^1.55.0",
     "@vitest/web-worker": "^3.2.4",
+    "date-fns": "^4.1.0",
     "husky": "^9.1.7",
     "kacl": "^1.1.1",
     "knip": "^5.63.1",

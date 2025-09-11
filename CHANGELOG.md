@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Procedure implementations now have access to `nodeId`, the ID of the node executing the request, in the `tools` argument.
+
 ## [0.12.0] - 2025-09-10
 
 ### Added
