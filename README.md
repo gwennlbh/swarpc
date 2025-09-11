@@ -26,8 +26,7 @@ npm add swarpc arktype
 
  <details>
 <summary>
-
-### Bleeding edge
+Bleeding edge
 
 </summary>
 
