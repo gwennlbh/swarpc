@@ -136,8 +136,10 @@ test.describe("swarpc dedicated worker tests", () => {
     await expect(page.locator("#status")).toHaveText("Loaded");
 
     // Set input and run factorial calculation
-    await page.fill('input[type="number"]', "8");
-    const calculateButton = page.locator('button:has-text("Calculate 8!")');
+    await page.fill('[data-testid="factorial1-input"]', "8");
+    const calculateButton = page
+      .locator('button:has-text("Calculate 8!")')
+      .first();
     await calculateButton.click();
 
     // Check for progress indicator
@@ -194,10 +196,12 @@ test.describe("swarpc dedicated worker tests", () => {
     await expect(page.locator("#status")).toHaveText("Loaded");
 
     // Set a higher number to ensure we have time to cancel
-    await page.fill('input[type="number"]', "15");
+    await page.fill('[data-testid="factorial1-input"]', "15");
 
     // Start the operation
-    const calculateButton = page.locator('button:has-text("Calculate 15!")');
+    const calculateButton = page
+      .locator('button:has-text("Calculate 15!")')
+      .first();
     await calculateButton.click();
 
     // Wait for progress to start
@@ -222,10 +226,12 @@ test.describe("swarpc dedicated worker tests", () => {
     await expect(page.locator("#status")).toHaveText("Loaded");
 
     // Set values for good progress tracking
-    await page.fill('input[type="number"]', "10");
+    await page.fill('[data-testid="factorial1-input"]', "10");
 
     // Start operation
-    const calculateButton = page.locator('button:has-text("Calculate 10!")');
+    const calculateButton = page
+      .locator('button:has-text("Calculate 10!")')
+      .first();
     await calculateButton.click();
 
     // Wait for progress to appear and check values

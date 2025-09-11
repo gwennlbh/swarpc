@@ -183,7 +183,7 @@
       <section class="operation">
         <h2>Operation 2: Another Factorial</h2>
         <div class="inputs">
-          <label>Number: <input type="number" bind:value={factorial2} min="1" max="20" /></label>
+          <label>Number: <input type="number" bind:value={factorial2} min="1" max="20" data-testid="factorial2-input" /></label>
         </div>
         <button onclick={runFactorial2} disabled={operation2State.loading}>
           Calculate {factorial2}!
