@@ -428,7 +428,7 @@ var root_1 = from_html(`<p><code class="svelte-17mw0ni"> <br/> </code></p>`);
 var root = from_html(`<input type="number" min="0" max="10"/> <button>Compute</button> <div id="result"></div>`, 1);
 function _page($$anchor, $$props) {
   const swarpc = user_derived(() => $$props.data.swarpc);
-  let results = proxy(Array.from({ length: 11 }, () => ({ result: 0, node: "?", progress: "(waiting)" })));
+  let results = proxy(Array.from({ length: 11 }, () => ({ result: 0, node: "?", progress: "waiting" })));
   let tableOf = state(0);
   var fragment = root();
   var input = first_child(fragment);
