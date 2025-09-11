@@ -1,5 +1,10 @@
-name: Publish Any Commit
-on: [push, pull_request]
+name: Publish preview package
+on:
+  workflow_call:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 permissions: {}
 
@@ -14,5 +19,5 @@ jobs:
           node-version-file: package.json
           cache: npm
       - run: npm ci
-      - run: npm run check
+      - run: npm run build
       - run: npx pkg-pr-new publish

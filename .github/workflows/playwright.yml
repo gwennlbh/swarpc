@@ -1,0 +1,118 @@
+name: End-to-end tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  make-package:
+    uses: ./.github/workflows/preview-packages.yml
+  prepare:
+    needs: make-package
+    runs-on: ubuntu-latest
+    name: Prepare
+    steps:
+      - id: package-specifier
+        name: Determine package specifier
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            SPECIFIER=${{ github.event.pull_request.number }} 
+          else
+            SPECIFIER=${{ github.sha }}
+          fi
+
+          echo "PACKAGE_SPECIFIER=https://pkg.pr.new/gwennlbh/swarpc@$SPECIFIER" >> $GITHUB_OUTPUT
+
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: package.json
+          cache: npm
+
+      - name: Build test site
+        run: |
+          npm add ${{ steps.package-specifier.outputs.PACKAGE_SPECIFIER }}
+          npm install 
+          npm run build
+        working-directory: ./example
+      - name: Upload build as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build
+          include-hidden-files: true
+          path: |
+            dist/
+            example/build
+            example/.svelte-kit
+  test:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    name: Test (shard ${{ matrix.shard-index }} of ${{ matrix.shard-count }})
+    needs: prepare
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.0-noble
+      options: --user 1001
+    strategy:
+      fail-fast: false
+      matrix:
+        shard-index: [1, 2, 3, 4]
+        shard-count: [4]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: package.json
+          cache: npm
+      - name: Install dependencies
+        run: npm ci && cd example && npm ci
+      - name: Download built app
+        uses: actions/download-artifact@v5
+        with:
+          name: build
+          path: ./
+      - name: Run Playwright tests
+        run: npx playwright test --shard=${{ matrix.shard-index}}/${{ matrix.shard-count }}
+        env:
+          SHARDING: "1"
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-shard-${{ matrix.shard-index }}
+          path: blob-report/
+          retention-days: 30
+
+  combine-reports:
+    runs-on: ubuntu-latest
+    needs: test
+    # run even if tests fail
+    if: always()
+    environment:
+      name: "#${{ github.event.number }}: End-to-end tests report"
+      url: ${{ steps.deploy-preview.outputs.preview-url }}
+    name: Combine reports
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v5
+        with:
+          path: ./playwright-report-shards
+          pattern: playwright-report-shard-*
+          merge-multiple: true
+
+      - name: Merge sharded reports into HTML
+        run: npx playwright merge-reports --reporter html ./playwright-report-shards
+
+      - name: Deploy results on github pages
+        if: ${{ !cancelled() }}
+        id: deploy-preview
+        uses: rossjrw/pr-preview-action@v1
+        with:
+          source-dir: ./playwright-report
+          umbrella-dir: _playwright
+          comment: false

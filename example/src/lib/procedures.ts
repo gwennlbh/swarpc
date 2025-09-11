@@ -2,14 +2,9 @@ import type { ProceduresMap } from "swarpc";
 import { type } from "arktype";
 
 export const procedures = {
-  getClassmapping: {
-    input: type({
-      ref: "string = 'main'",
-      delay: type("number")
-        .describe("Delay in seconds before starting the request")
-        .default(0),
-    }),
-    progress: type({ transferred: "number", total: "number" }),
-    success: type("string[]"),
+  multiply: {
+    input: type({ a: "number", b: "number" }),
+    progress: type({ progress: "0 <= number <= 1", node: "string" }),
+    success: type({ result: "number", node: "string" }),
   },
 } as const satisfies ProceduresMap;

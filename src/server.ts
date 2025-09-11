@@ -226,6 +226,7 @@ export function Server<Procedures extends ProceduresMap>(
             await postMsg({ progress });
           },
           {
+            nodeId,
             abortSignal: abortControllers.get(requestId)?.signal,
             logger: createLogger("server", loglevel, nodeId, requestId),
           },
