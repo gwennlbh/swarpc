@@ -24,7 +24,12 @@ RPC for Service Workers -- move that heavy computation off of your UI thread!
 npm add swarpc arktype
 ```
 
+ <details>
+<summary>
+
 ### Bleeding edge
+
+</summary>
 
 If you want to use the latest commit instead of a published version, you can, either by using the Git URL:
 
@@ -41,6 +46,8 @@ npm add file:vendored/swarpc
 ```
 
 This works thanks to the fact that `dist/` is published on the repository (and kept up to date with a CI workflow).
+
+</details>
 
 ## Usage
 
