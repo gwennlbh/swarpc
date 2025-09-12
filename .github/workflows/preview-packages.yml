@@ -11,6 +11,8 @@ permissions: {}
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      package-filename: ${{ steps.pack.outputs.filename }}
     steps:
       - uses: actions/checkout@v5
       - name: Install Node.js
@@ -20,4 +22,14 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: npx pkg-pr-new publish
+      - name: Pack package
+        id: pack
+        run: |
+          FILENAME=$(npm pack)
+          echo "filename=$FILENAME" >> $GITHUB_OUTPUT
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: package
+          path: ${{ steps.pack.outputs.filename }}
+          retention-days: 1

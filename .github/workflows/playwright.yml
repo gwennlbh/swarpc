@@ -18,17 +18,6 @@ jobs:
     runs-on: ubuntu-latest
     name: Prepare
     steps:
-      - id: package-specifier
-        name: Determine package specifier
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            SPECIFIER=${{ github.event.pull_request.number }} 
-          else
-            SPECIFIER=${{ github.sha }}
-          fi
-
-          echo "PACKAGE_SPECIFIER=https://pkg.pr.new/gwennlbh/swarpc@$SPECIFIER" >> $GITHUB_OUTPUT
-
       - uses: actions/checkout@v5
 
       - uses: actions/setup-node@v5
@@ -36,9 +25,15 @@ jobs:
           node-version-file: package.json
           cache: npm
 
+      - name: Download package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: package
+          path: ./
+
       - name: Build test site
         run: |
-          npm add ${{ steps.package-specifier.outputs.PACKAGE_SPECIFIER }}
+          npm add ../swarpc-*.tgz
           npm install 
           npm run build
         working-directory: ./example
