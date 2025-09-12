@@ -7,10 +7,7 @@ on:
 concurrency: preview-${{ github.ref }}
 
 jobs:
-  make-package:
-    uses: ./.github/workflows/preview-packages.yml
   deploy-preview:
-    needs: make-package
     runs-on: ubuntu-latest
     environment:
       name: "#${{ github.event.number }}: Example site preview"
@@ -25,13 +22,18 @@ jobs:
           node-version-file: package.json
           cache: npm
 
-      - name: Install and Build
-        if: github.event.action != 'closed' # You might want to skip the build if the PR has been closed
+      - name: Build and pack package
+        if: github.event.action != 'closed'
         run: |
           npm ci
           npm run build
+          npm pack
+
+      - name: Install and Build
+        if: github.event.action != 'closed' # You might want to skip the build if the PR has been closed
+        run: |
           cd example
-          npm add https://pkg.pr.new/gwennlbh/swarpc@${{ github.event.pull_request.number }}
+          npm add ../swarpc-*.tgz
           npm install 
           BUILD_COMMIT=${{ github.sha }} BASE_PATH=/cigale/_pullrequests/pr-$PR_NUMBER npm run build
         env:
