@@ -54,6 +54,7 @@
     "lint-staged": "^16.1.6",
     "nodemon": "^3.1.10",
     "oxlint": "^1.14.0",
+    "pkg-pr-new": "^0.0.59",
     "prettier": "^3.6.2",
     "sirv-cli": "^3.0.1",
     "typedoc": "^0.28.12",

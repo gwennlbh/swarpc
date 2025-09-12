@@ -7,10 +7,7 @@ on:
 concurrency: preview-${{ github.ref }}
 
 jobs:
-  make-package:
-    uses: ./.github/workflows/preview-packages.yml
   deploy-preview:
-    needs: make-package
     runs-on: ubuntu-latest
     environment:
       name: "#${{ github.event.number }}: Example site preview"
@@ -25,18 +22,16 @@ jobs:
           node-version-file: package.json
           cache: npm
 
-      - name: Download package artifact
+      - name: Build and pack package
         if: github.event.action != 'closed'
-        uses: actions/download-artifact@v4
-        with:
-          name: package
-          path: ./
+        run: |
+          npm ci
+          npm run build
+          npm pack
 
       - name: Install and Build
         if: github.event.action != 'closed' # You might want to skip the build if the PR has been closed
         run: |
-          npm ci
-          npm run build
           cd example
           npm add ../swarpc-*.tgz
           npm install 

@@ -11,10 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  make-package:
-    uses: ./.github/workflows/preview-packages.yml
   prepare:
-    needs: make-package
     runs-on: ubuntu-latest
     name: Prepare
     steps:
@@ -25,11 +22,11 @@ jobs:
           node-version-file: package.json
           cache: npm
 
-      - name: Download package artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: package
-          path: ./
+      - name: Build and pack package
+        run: |
+          npm ci
+          npm run build
+          npm pack
 
       - name: Build test site
         run: |
