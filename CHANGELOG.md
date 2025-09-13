@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.14.0] - 2025-09-13
+
 ### Changed
 
 - **BREAKING:** `Client#(method name).broadcast:onProgress` now receives a _map_ of `nodeId` to progress values, which makes aggregating individual nodes' progress data into a single coherent progress value easier:
@@ -109,7 +111,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - support for transferable objects via a new [`autotransfer` property on procedure declarations](https://gwennlbh.github.io/swarpc/docs/types/types.Procedure.html#autotransfer)
 
-[Unreleased]: https://github.com/gwennlbh/swarpc/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/gwennlbh/swarpc/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/gwennlbh/swarpc/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/gwennlbh/swarpc/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/gwennlbh/swarpc/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/gwennlbh/swarpc/compare/v0.10.0...v0.11.0
