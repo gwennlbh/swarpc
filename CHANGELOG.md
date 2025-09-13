@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `Client#(method name).broadcast:onProgress` now receives a _map_ of `nodeId` to progress values, which makes aggregating individual nodes' progress data into a single coherent progress value easier:
+
+  ```ts
+  import { sum } from "./utils";
+
+  await client.thing.broadcast(67, (ps) => sum(ps.values()) / ps.size);
+  ```
+
 ## [0.13.0] - 2025-09-13
 
 ### Added

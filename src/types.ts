@@ -235,7 +235,10 @@ export type ClientMethod<P extends Procedure<Type, Type, Type>> = ((
    */
   broadcast: (
     input: P["input"]["inferIn"],
-    onProgress?: (progress: P["progress"]["inferOut"]) => void,
+    onProgress?: (
+      /** Map of node IDs to their progress updates */
+      progresses: Map<string, P["progress"]["inferOut"]>,
+    ) => void,
     /** Number of nodes to send the request to. Leave undefined to send to all nodes */
     nodes?: number,
   ) => Promise<

@@ -217,16 +217,29 @@ export function Client<Procedures extends ProceduresMap>(
     instance[functionName] = _runProcedure;
     instance[functionName]!.broadcast = async (
       input,
-      onProgress,
+      onProgresses,
       nodesCount,
     ) => {
       let nodesToUse: Array<string | undefined> = [undefined];
       if (nodes) nodesToUse = Object.keys(nodes);
       if (nodesCount) nodesToUse = nodesToUse.slice(0, nodesCount);
 
+      const progresses = new Map<string, unknown>();
+
+      function onProgress(nodeId: string | undefined) {
+        if (!onProgresses) return (_: unknown) => {};
+
+        if (!nodeId) nodeId = "(SW)";
+
+        return (progress: unknown) => {
+          progresses.set(nodeId, progress);
+          onProgresses(progresses);
+        };
+      }
+
       const results = await Promise.allSettled(
         nodesToUse.map(async (id) =>
-          _runProcedure(input, onProgress, undefined, id),
+          _runProcedure(input, onProgress(id), undefined, id),
         ),
       );
 
