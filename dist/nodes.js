@@ -34,3 +34,10 @@ export function nodeIdFromScope(scope, _scopeType) {
 export function makeNodeId() {
     return "N" + Math.random().toString(16).substring(2, 5).toUpperCase();
 }
+export const serviceWorkerNodeId = "(SW)"; // Fixed ID for the service worker, as there's only one
+export function isServiceWorkerNodeId(id) {
+    return id === serviceWorkerNodeId;
+}
+export function nodeIdOrSW(id) {
+    return id ?? serviceWorkerNodeId;
+}

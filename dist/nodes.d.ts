@@ -9,4 +9,7 @@ export declare function nodeIdFromScope(scope: WorkerGlobalScope, _scopeType?: "
  * @source
  */
 export declare function makeNodeId(): string;
+export declare const serviceWorkerNodeId: "(SW)";
+export declare function isServiceWorkerNodeId(id: string): id is "(SW)";
+export declare function nodeIdOrSW(id: string | undefined): string | typeof serviceWorkerNodeId;
 //# sourceMappingURL=nodes.d.ts.map

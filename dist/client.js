@@ -3,7 +3,7 @@
  * @mergeModuleWith <project>
  */
 import { createLogger, } from "./log.js";
-import { makeNodeId, whoToSendTo } from "./nodes.js";
+import { makeNodeId, nodeIdOrSW, whoToSendTo } from "./nodes.js";
 import { zProcedures, } from "./types.js";
 import { findTransferables } from "./utils.js";
 /**
@@ -80,7 +80,7 @@ export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug
             // Choose which node to use
             nodeId ??= whoToSendTo(nodes, pendingRequests);
             const node = nodes && nodeId ? nodes[nodeId] : undefined;
-            const l = createLogger("client", loglevel, nodeId ?? "(SW)", requestId);
+            const l = createLogger("client", loglevel, nodeIdOrSW(nodeId), requestId);
             return new Promise((resolve, reject) => {
                 // Store promise handlers (as well as progress updates handler)
                 // so the client listener can resolve/reject the promise (and react to progress updates)
@@ -114,20 +114,18 @@ export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug
             function onProgress(nodeId) {
                 if (!onProgresses)
                     return (_) => { };
-                if (!nodeId)
-                    nodeId = "(SW)";
                 return (progress) => {
-                    progresses.set(nodeId, progress);
+                    progresses.set(nodeIdOrSW(nodeId), progress);
                     onProgresses(progresses);
                 };
             }
             const results = await Promise.allSettled(nodesToUse.map(async (id) => _runProcedure(input, onProgress(id), undefined, id)));
-            return results.map((r, i) => ({ ...r, node: nodesToUse[i] ?? "(SW)" }));
+            return results.map((r, i) => ({ ...r, node: nodeIdOrSW(nodesToUse[i]) }));
         };
         instance[functionName].cancelable = (input, onProgress) => {
             const requestId = makeRequestId();
             const nodeId = whoToSendTo(nodes, pendingRequests);
-            const l = createLogger("client", loglevel, nodeId ?? "(SW)", requestId);
+            const l = createLogger("client", loglevel, nodeIdOrSW(nodeId), requestId);
             return {
                 request: _runProcedure(input, onProgress, requestId, nodeId),
                 cancel(reason) {
@@ -197,7 +195,7 @@ export function postMessageSync(l, worker, message, options) {
  * @returns
  */
 export async function startClientListener(ctx) {
-    if (_clientListenerStarted.has(ctx.nodeId ?? "(SW)"))
+    if (_clientListenerStarted.has(nodeIdOrSW(ctx.nodeId)))
         return;
     const { logger: l, node: worker } = ctx;
     // Get service worker registration if no worker is provided
@@ -260,14 +258,14 @@ export async function startClientListener(ctx) {
     else {
         w.addEventListener("message", listener);
     }
-    _clientListenerStarted.add(ctx.nodeId ?? "(SW)");
+    _clientListenerStarted.add(nodeIdOrSW(ctx.nodeId));
     // Recursive terminal case is ensured by calling this *after* _clientListenerStarted is set to true: startClientListener() will therefore not be called in postMessage() again.
     await postMessage(ctx, {
         by: "sw&rpc",
         functionName: "#initialize",
         isInitializeRequest: true,
         localStorageData: ctx.localStorage,
-        nodeId: ctx.nodeId ?? "(SW)",
+        nodeId: nodeIdOrSW(ctx.nodeId),
     });
 }
 /**
