@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.13.0] - 2025-09-13
+
 ### Added
 
 - Procedure implementations now have access to `nodeId`, the ID of the node executing the request, in the `tools` argument.
@@ -95,7 +97,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - support for transferable objects via a new [`autotransfer` property on procedure declarations](https://gwennlbh.github.io/swarpc/docs/types/types.Procedure.html#autotransfer)
 
-[Unreleased]: https://github.com/gwennlbh/swarpc/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/gwennlbh/swarpc/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/gwennlbh/swarpc/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/gwennlbh/swarpc/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/gwennlbh/swarpc/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/gwennlbh/swarpc/compare/v0.9.0...v0.10.0
