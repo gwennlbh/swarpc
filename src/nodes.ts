@@ -53,3 +53,15 @@ export function nodeIdFromScope(
 export function makeNodeId(): string {
   return "N" + Math.random().toString(16).substring(2, 5).toUpperCase();
 }
+
+export const serviceWorkerNodeId = "(SW)" as const; // Fixed ID for the service worker, as there's only one
+
+export function isServiceWorkerNodeId(id: string) {
+  return id === serviceWorkerNodeId;
+}
+
+export function nodeIdOrSW(
+  id: string | undefined,
+): string | typeof serviceWorkerNodeId {
+  return id ?? serviceWorkerNodeId;
+}

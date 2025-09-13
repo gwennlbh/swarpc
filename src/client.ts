@@ -9,7 +9,7 @@ import {
   type Logger,
   type LogLevel,
 } from "./log.js";
-import { makeNodeId, whoToSendTo } from "./nodes.js";
+import { makeNodeId, nodeIdOrSW, whoToSendTo } from "./nodes.js";
 import {
   ClientMethod,
   Hooks,
@@ -186,7 +186,7 @@ export function Client<Procedures extends ProceduresMap>(
       nodeId ??= whoToSendTo(nodes, pendingRequests);
       const node = nodes && nodeId ? nodes[nodeId] : undefined;
 
-      const l = createLogger("client", loglevel, nodeId ?? "(SW)", requestId);
+      const l = createLogger("client", loglevel, nodeIdOrSW(nodeId), requestId);
 
       return new Promise((resolve, reject) => {
         // Store promise handlers (as well as progress updates handler)
@@ -229,10 +229,8 @@ export function Client<Procedures extends ProceduresMap>(
       function onProgress(nodeId: string | undefined) {
         if (!onProgresses) return (_: unknown) => {};
 
-        if (!nodeId) nodeId = "(SW)";
-
         return (progress: unknown) => {
-          progresses.set(nodeId, progress);
+          progresses.set(nodeIdOrSW(nodeId), progress);
           onProgresses(progresses);
         };
       }
@@ -243,13 +241,13 @@ export function Client<Procedures extends ProceduresMap>(
         ),
       );
 
-      return results.map((r, i) => ({ ...r, node: nodesToUse[i] ?? "(SW)" }));
+      return results.map((r, i) => ({ ...r, node: nodeIdOrSW(nodesToUse[i]) }));
     };
     instance[functionName]!.cancelable = (input, onProgress) => {
       const requestId = makeRequestId();
       const nodeId = whoToSendTo(nodes, pendingRequests);
 
-      const l = createLogger("client", loglevel, nodeId ?? "(SW)", requestId);
+      const l = createLogger("client", loglevel, nodeIdOrSW(nodeId), requestId);
 
       return {
         request: _runProcedure(input, onProgress, requestId, nodeId),
@@ -349,7 +347,7 @@ export function postMessageSync<Procedures extends ProceduresMap>(
 export async function startClientListener<Procedures extends ProceduresMap>(
   ctx: Context<Procedures>,
 ) {
-  if (_clientListenerStarted.has(ctx.nodeId ?? "(SW)")) return;
+  if (_clientListenerStarted.has(nodeIdOrSW(ctx.nodeId))) return;
 
   const { logger: l, node: worker } = ctx;
 
@@ -423,7 +421,7 @@ export async function startClientListener<Procedures extends ProceduresMap>(
     w.addEventListener("message", listener);
   }
 
-  _clientListenerStarted.add(ctx.nodeId ?? "(SW)");
+  _clientListenerStarted.add(nodeIdOrSW(ctx.nodeId));
 
   // Recursive terminal case is ensured by calling this *after* _clientListenerStarted is set to true: startClientListener() will therefore not be called in postMessage() again.
   await postMessage(ctx, {
@@ -431,7 +429,7 @@ export async function startClientListener<Procedures extends ProceduresMap>(
     functionName: "#initialize",
     isInitializeRequest: true,
     localStorageData: ctx.localStorage,
-    nodeId: ctx.nodeId ?? "(SW)",
+    nodeId: nodeIdOrSW(ctx.nodeId),
   });
 }
 
