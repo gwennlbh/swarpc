@@ -14,7 +14,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   ```ts
   import { sum } from "./utils";
 
-  await client.thing.broadcast(67, (ps) => sum(ps.values()) / ps.size);
+  await client.thing.broadcast(67, (ps) =>
+    console.log((sum(ps.values()) / ps.size) * 100 + "% done"),
+  );
   ```
 
 ## [0.13.0] - 2025-09-13
