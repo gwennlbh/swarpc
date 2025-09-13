@@ -356,7 +356,9 @@ export type ClientMethod<P extends Procedure<Type, Type, Type>> = ((input: P["in
      * Returns an array of results, one for each node the request was sent to.
      * Each result is a {@link PromiseSettledResult}, with also an additional property, the node ID of the request
      */
-    broadcast: (input: P["input"]["inferIn"], onProgress?: (progress: P["progress"]["inferOut"]) => void, 
+    broadcast: (input: P["input"]["inferIn"], onProgress?: (
+    /** Map of node IDs to their progress updates */
+    progresses: Map<string, P["progress"]["inferOut"]>) => void, 
     /** Number of nodes to send the request to. Leave undefined to send to all nodes */
     nodes?: number) => Promise<Array<PromiseSettledResult<P["success"]["inferOut"]> & {
         node: string;

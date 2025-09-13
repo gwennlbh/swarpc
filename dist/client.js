@@ -104,13 +104,24 @@ export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug
         };
         // @ts-expect-error
         instance[functionName] = _runProcedure;
-        instance[functionName].broadcast = async (input, onProgress, nodesCount) => {
+        instance[functionName].broadcast = async (input, onProgresses, nodesCount) => {
             let nodesToUse = [undefined];
             if (nodes)
                 nodesToUse = Object.keys(nodes);
             if (nodesCount)
                 nodesToUse = nodesToUse.slice(0, nodesCount);
-            const results = await Promise.allSettled(nodesToUse.map(async (id) => _runProcedure(input, onProgress, undefined, id)));
+            const progresses = new Map();
+            function onProgress(nodeId) {
+                if (!onProgresses)
+                    return (_) => { };
+                if (!nodeId)
+                    nodeId = "(SW)";
+                return (progress) => {
+                    progresses.set(nodeId, progress);
+                    onProgresses(progresses);
+                };
+            }
+            const results = await Promise.allSettled(nodesToUse.map(async (id) => _runProcedure(input, onProgress(id), undefined, id)));
             return results.map((r, i) => ({ ...r, node: nodesToUse[i] ?? "(SW)" }));
         };
         instance[functionName].cancelable = (input, onProgress) => {
