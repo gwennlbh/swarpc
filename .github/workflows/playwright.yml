@@ -17,22 +17,22 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v5
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version-file: package.json
-          cache: npm
+          bun-version-file: .bun-version
 
       - name: Build and pack package
         run: |
-          npm ci
-          npm run build
-          npm pack
+          bun install
+          bun run build
+          bun pm pack
 
       - name: Build test site
         run: |
-          npm add ../swarpc-*.tgz
-          npm install 
-          npm run build
+          bun add ../swarpc-*.tgz
+          bun install 
+          bun run build
         working-directory: ./example
       - name: Upload build as artifact
         uses: actions/upload-artifact@v4
@@ -58,19 +58,19 @@ jobs:
         shard-count: [4]
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version-file: package.json
-          cache: npm
+          bun-version-file: .bun-version
       - name: Install dependencies
-        run: npm ci && cd example && npm ci
+        run: bun install && cd example && bun install
       - name: Download built app
         uses: actions/download-artifact@v5
         with:
           name: build
           path: ./
       - name: Run Playwright tests
-        run: npx playwright test --shard=${{ matrix.shard-index}}/${{ matrix.shard-count }}
+        run: bunx playwright test --shard=${{ matrix.shard-index}}/${{ matrix.shard-count }}
         env:
           SHARDING: "1"
       - uses: actions/upload-artifact@v4
@@ -98,7 +98,7 @@ jobs:
           merge-multiple: true
 
       - name: Merge sharded reports into HTML
-        run: npx playwright merge-reports --reporter html ./playwright-report-shards
+        run: bunx playwright merge-reports --reporter html ./playwright-report-shards
 
       - name: Deploy results on github pages
         if: ${{ !cancelled() }}

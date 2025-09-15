@@ -20,15 +20,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v5
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version-file: package.json
-          cache: npm
-          registry-url: https://registry.npmjs.org
+          bun-version-file: .bun-version
 
       - name: Install dependencies
-        run: npm ci
+        run: bun install
 
       - id: check # This will be the reference for getting the outputs.
         uses: EndBug/version-check@v2 # You can choose the version/branch you prefer.
@@ -38,6 +36,6 @@ jobs:
 
       - name: Publish release
         if: steps.check.outputs.changed  == 'true'
-        run: npm publish --provenance
+        run: bunx npm publish --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

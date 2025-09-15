@@ -12,59 +12,54 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Install Node.js
-        uses: actions/setup-node@v5
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version-file: package.json
-          cache: npm
-      - run: npm ci
-      - run: npm run check
+          bun-version-file: .bun-version
+      - run: bun install
+      - run: bun run check
 
   typecheck:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Install Node.js
-        uses: actions/setup-node@v5
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version-file: package.json
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck
+          bun-version-file: .bun-version
+      - run: bun install
+      - run: bun run typecheck
 
   test:
     runs-on: ubuntu-latest
     needs: typecheck
     steps:
       - uses: actions/checkout@v5
-      - name: Install Node.js
-        uses: actions/setup-node@v5
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version-file: package.json
-          cache: npm
-      - run: npm ci
-      - run: npm test
+          bun-version-file: .bun-version
+      - run: bun install
+      - run: bun run test
 
   knip:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Install Node.js
-        uses: actions/setup-node@v5
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version-file: package.json
-          cache: npm
-      - run: npm ci
-      - run: npx knip
+          bun-version-file: .bun-version
+      - run: bun install
+      - run: bunx knip
 
   format:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Install Node.js
-        uses: actions/setup-node@v5
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version-file: package.json
-          cache: npm
-      - run: npm ci
-      - run: npx prettier --check .
+          bun-version-file: .bun-version
+      - run: bun install
+      - run: bunx prettier --check .

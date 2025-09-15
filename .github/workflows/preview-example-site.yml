@@ -16,26 +16,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Setup Node
-        uses: actions/setup-node@v5
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version-file: package.json
-          cache: npm
+          bun-version-file: .bun-version
 
       - name: Build and pack package
         if: github.event.action != 'closed'
         run: |
-          npm ci
-          npm run build
-          npm pack
+          bun install
+          bun run build
+          bun pm pack
 
       - name: Install and Build
         if: github.event.action != 'closed' # You might want to skip the build if the PR has been closed
         run: |
           cd example
-          npm add ../swarpc-*.tgz
-          npm install 
-          BUILD_COMMIT=${{ github.sha }} BASE_PATH=/cigale/_pullrequests/pr-$PR_NUMBER npm run build
+          bun add ../swarpc-*.tgz
+          bun install 
+          BUILD_COMMIT=${{ github.sha }} BASE_PATH=/cigale/_pullrequests/pr-$PR_NUMBER bun run build
         env:
           PR_NUMBER: ${{ github.event.number }}
 
