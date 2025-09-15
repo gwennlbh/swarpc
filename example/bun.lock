@@ -6,16 +6,15 @@
       "dependencies": {
         "@sveltejs/adapter-static": "^3.0.9",
         "arktype": "^2.1.22",
-        "json": "^11.0.0",
         "swarpc": "file:..",
       },
       "devDependencies": {
-        "@sveltejs/kit": "^2.37.1",
-        "@sveltejs/vite-plugin-svelte": "^6.1.4",
-        "svelte": "^5.38.7",
+        "@sveltejs/kit": "^2.39.1",
+        "@sveltejs/vite-plugin-svelte": "^6.2.0",
+        "svelte": "^5.38.10",
         "svelte-check": "^4.3.1",
         "typescript": "^5.9.2",
-        "vite": "^7.1.4",
+        "vite": "^7.1.5",
       },
     },
   },
@@ -444,8 +443,6 @@
 
     "js-yaml": ["js-yaml@4.1.0", "", { "dependencies": { "argparse": "^2.0.1" }, "bin": { "js-yaml": "bin/js-yaml.js" } }, "sha512-wpxZs9NoxZaJESJGIZTyDEaYpl0FKSA+FB9aJiyemKhMwkxQg63h4T1KJgUGHpTqPDNRcmmYLugrRjJlBtWvRA=="],
 
-    "json": ["json@11.0.0", "", { "bin": { "json": "lib/json.js" } }, "sha512-N/ITv3Yw9Za8cGxuQqSqrq6RHnlaHWZkAFavcfpH/R52522c26EbihMxnY7A1chxfXJ4d+cEFIsyTgfi9GihrA=="],
-
     "kacl": ["kacl@1.1.1", "", { "bin": { "kacl": "bin/kacl" } }, "sha512-qA2xJP0A+BZpNPnfSNJfJvBT7WWkK614gxlhOfodSR+hbOEEnBzfx8h7Zt2HauV79JOSKCMjdqt4SbDUJ2vtWQ=="],
 
     "kleur": ["kleur@4.1.5", "", {}, "sha512-o+NO+8WrRiQEE4/7nwRJhN1HWpVmJm511pBHUxPLtp0BUISzlBplORYSmTclCnJvQq2tKu/sgl3xVpkc7ZWuQQ=="],
@@ -524,7 +521,7 @@
 
     "pidtree": ["pidtree@0.6.0", "", { "bin": { "pidtree": "bin/pidtree.js" } }, "sha512-eG2dWTVw5bzqGRztnHExczNxt5VGsE6OwTeCG3fdUf9KBsZzO3R5OIIIzWR+iZA0NtZ+RDVdaoE2dK1cn6jH4g=="],
 
-    "pkg-pr-new": ["pkg-pr-new@0.0.59", "", { "dependencies": { "@actions/core": "^1.11.1", "@jsdevtools/ez-spawn": "^3.0.4", "@octokit/action": "^6.1.0", "ignore": "^5.3.1", "isbinaryfile": "^5.0.2", "pkg-types": "^1.1.1", "query-registry": "^3.0.1", "tinyglobby": "^0.2.9" }, "bin": { "pkg-pr-new": "bin/cli.js" } }, "sha512-dnSddkZUs5Qz6JhMmHTyYZuscwYRw8XbANazk0uObR89XS2N0AC0gtKMqWxYhgG14BT29kUHGy8aAOYFL1wfeg=="],
+    "pkg-pr-new": ["pkg-pr-new@0.0.60", "", { "dependencies": { "@actions/core": "^1.11.1", "@jsdevtools/ez-spawn": "^3.0.4", "@octokit/action": "^6.1.0", "ignore": "^5.3.1", "isbinaryfile": "^5.0.2", "pkg-types": "^1.1.1", "query-registry": "^3.0.1", "tinyglobby": "^0.2.9" }, "bin": { "pkg-pr-new": "bin/cli.js" } }, "sha512-eblxPNSgv0AO18OrfpHq+YrNHfEqeePWWvlKkPvcHByddGsGDOK25z41C1RDjZ+K8zUHDk5IGN+6n0WZa4T2Pg=="],
 
     "pkg-types": ["pkg-types@1.3.1", "", { "dependencies": { "confbox": "^0.1.8", "mlly": "^1.7.4", "pathe": "^2.0.1" } }, "sha512-/Jm5M4RvtBFVkKWRu2BLUTNP8/M2a+UwuAX+ae4770q1qVGtfjG+WTCupoZixokjmHiry8uI+dlY8KXYV5HVVQ=="],
 
@@ -610,7 +607,7 @@
 
     "svelte-check": ["svelte-check@4.3.1", "", { "dependencies": { "@jridgewell/trace-mapping": "^0.3.25", "chokidar": "^4.0.1", "fdir": "^6.2.0", "picocolors": "^1.0.0", "sade": "^1.7.4" }, "peerDependencies": { "svelte": "^4.0.0 || ^5.0.0-next.0", "typescript": ">=5.0.0" }, "bin": { "svelte-check": "bin/svelte-check" } }, "sha512-lkh8gff5gpHLjxIV+IaApMxQhTGnir2pNUAqcNgeKkvK5bT/30Ey/nzBxNLDlkztCH4dP7PixkMt9SWEKFPBWg=="],
 
-    "swarpc": ["swarpc@file:..", { "devDependencies": { "@8hobbies/typedoc-plugin-plausible": "^2.2.0", "@playwright/test": "^1.55.0", "@vitest/web-worker": "^3.2.4", "date-fns": "^4.1.0", "husky": "^9.1.7", "kacl": "^1.1.1", "knip": "^5.63.1", "lint-staged": "^16.1.6", "nodemon": "^3.1.10", "oxlint": "^1.14.0", "pkg-pr-new": "^0.0.59", "prettier": "^3.6.2", "sirv-cli": "^3.0.1", "typedoc": "^0.28.12", "typedoc-material-theme": "^1.4.0", "typedoc-plugin-dt-links": "^2.0.18", "typedoc-plugin-extras": "^4.0.1", "typedoc-plugin-inline-sources": "^1.3.0", "typedoc-plugin-mdn-links": "^5.0.9", "typedoc-plugin-redirect": "^1.2.0", "typescript": "^5.9.2", "vite": "^7.1.4", "vitest": "^3.2.4" }, "peerDependencies": { "arktype": "^2.1.22" } }],
+    "swarpc": ["swarpc@file:..", { "devDependencies": { "@8hobbies/typedoc-plugin-plausible": "^2.2.0", "@playwright/test": "^1.55.0", "@vitest/web-worker": "^3.2.4", "date-fns": "^4.1.0", "husky": "^9.1.7", "kacl": "^1.1.1", "knip": "^5.63.1", "lint-staged": "^16.1.6", "nodemon": "^3.1.10", "oxlint": "^1.15.0", "pkg-pr-new": "^0.0.60", "prettier": "^3.6.2", "sirv-cli": "^3.0.1", "typedoc": "^0.28.13", "typedoc-material-theme": "^1.4.0", "typedoc-plugin-dt-links": "^2.0.19", "typedoc-plugin-extras": "^4.0.1", "typedoc-plugin-inline-sources": "^1.3.0", "typedoc-plugin-mdn-links": "^5.0.9", "typedoc-plugin-redirect": "^1.2.0", "typescript": "^5.9.2", "vite": "^7.1.5", "vitest": "^3.2.4" }, "peerDependencies": { "arktype": "^2.1.22" } }],
 
     "tinybench": ["tinybench@2.9.0", "", {}, "sha512-0+DUvqWMValLmha6lr4kD8iAMK1HzV0/aKnCtWb9v9641TnP/MFb7Pc2bxoxQjTXAErryXVgUOfv2YqNllqGeg=="],
 

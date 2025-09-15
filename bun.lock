@@ -13,19 +13,19 @@
         "knip": "^5.63.1",
         "lint-staged": "^16.1.6",
         "nodemon": "^3.1.10",
-        "oxlint": "^1.14.0",
-        "pkg-pr-new": "^0.0.59",
+        "oxlint": "^1.15.0",
+        "pkg-pr-new": "^0.0.60",
         "prettier": "^3.6.2",
         "sirv-cli": "^3.0.1",
-        "typedoc": "^0.28.12",
+        "typedoc": "^0.28.13",
         "typedoc-material-theme": "^1.4.0",
-        "typedoc-plugin-dt-links": "^2.0.18",
+        "typedoc-plugin-dt-links": "^2.0.19",
         "typedoc-plugin-extras": "^4.0.1",
         "typedoc-plugin-inline-sources": "^1.3.0",
         "typedoc-plugin-mdn-links": "^5.0.9",
         "typedoc-plugin-redirect": "^1.2.0",
         "typescript": "^5.9.2",
-        "vite": "^7.1.4",
+        "vite": "^7.1.5",
         "vitest": "^3.2.4",
       },
       "peerDependencies": {
@@ -494,7 +494,7 @@
 
     "pidtree": ["pidtree@0.6.0", "", { "bin": { "pidtree": "bin/pidtree.js" } }, "sha512-eG2dWTVw5bzqGRztnHExczNxt5VGsE6OwTeCG3fdUf9KBsZzO3R5OIIIzWR+iZA0NtZ+RDVdaoE2dK1cn6jH4g=="],
 
-    "pkg-pr-new": ["pkg-pr-new@0.0.59", "", { "dependencies": { "@actions/core": "^1.11.1", "@jsdevtools/ez-spawn": "^3.0.4", "@octokit/action": "^6.1.0", "ignore": "^5.3.1", "isbinaryfile": "^5.0.2", "pkg-types": "^1.1.1", "query-registry": "^3.0.1", "tinyglobby": "^0.2.9" }, "bin": { "pkg-pr-new": "bin/cli.js" } }, "sha512-dnSddkZUs5Qz6JhMmHTyYZuscwYRw8XbANazk0uObR89XS2N0AC0gtKMqWxYhgG14BT29kUHGy8aAOYFL1wfeg=="],
+    "pkg-pr-new": ["pkg-pr-new@0.0.60", "", { "dependencies": { "@actions/core": "^1.11.1", "@jsdevtools/ez-spawn": "^3.0.4", "@octokit/action": "^6.1.0", "ignore": "^5.3.1", "isbinaryfile": "^5.0.2", "pkg-types": "^1.1.1", "query-registry": "^3.0.1", "tinyglobby": "^0.2.9" }, "bin": { "pkg-pr-new": "bin/cli.js" } }, "sha512-eblxPNSgv0AO18OrfpHq+YrNHfEqeePWWvlKkPvcHByddGsGDOK25z41C1RDjZ+K8zUHDk5IGN+6n0WZa4T2Pg=="],
 
     "pkg-types": ["pkg-types@1.3.1", "", { "dependencies": { "confbox": "^0.1.8", "mlly": "^1.7.4", "pathe": "^2.0.1" } }, "sha512-/Jm5M4RvtBFVkKWRu2BLUTNP8/M2a+UwuAX+ae4770q1qVGtfjG+WTCupoZixokjmHiry8uI+dlY8KXYV5HVVQ=="],
 
