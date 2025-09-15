@@ -4,12 +4,12 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
-    "build": "vite build",
-    "preview": "vite preview",
-    "prepare": "svelte-kit sync || echo ''",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+    "dev": "bunx vite dev",
+    "build": "bunx vite build",
+    "preview": "bunx vite preview",
+    "prepare": "bunx svelte-kit sync || echo ''",
+    "check": "bunx svelte-kit sync && bunx svelte-check --tsconfig ./tsconfig.json",
+    "check:watch": "bunx svelte-kit sync && bunx svelte-check --tsconfig ./tsconfig.json --watch"
   },
   "devDependencies": {
     "@sveltejs/kit": "^2.37.1",
@@ -22,6 +22,7 @@
   "dependencies": {
     "@sveltejs/adapter-static": "^3.0.9",
     "arktype": "^2.1.22",
+    "json": "^11.0.0",
     "swarpc": "file:.."
   }
 }

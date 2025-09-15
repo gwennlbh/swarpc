@@ -27,8 +27,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "bun run build.mjs",
-    "dev": "bun run build.mjs --watch",
+    "build": "bun build src/index.ts --outfile dist/index.js --target node --format esm && bunx tsc --emitDeclarationOnly",
+    "dev": "bun build src/index.ts --outfile dist/index.js --target node --format esm --watch",
     "typecheck": "bunx tsc --noEmit",
     "test": "bunx vitest",
     "check": "bunx oxlint",
