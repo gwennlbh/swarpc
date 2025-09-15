@@ -2,7 +2,7 @@ import "../chunks/CKOwlSI2.js";
 import { i as init } from "../chunks/DX4U7z4p.js";
 import { a7 as push, F as from_html, O as template_effect, p as append, a8 as pop, I as sibling, K as child, M as reset } from "../chunks/BpqigZiD.js";
 import { s as set_attribute } from "../chunks/C4mqSnix.js";
-import { b as base, r as resolve_route } from "../chunks/B39LPMuU.js";
+import { b as base, r as resolve_route } from "../chunks/Ctr-besl.js";
 function resolve(id, params) {
   return base + resolve_route(
     id,
