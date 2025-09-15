@@ -27,11 +27,11 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest",
-    "check": "oxlint",
+    "build": "bunx tsc",
+    "dev": "bunx tsc --watch",
+    "typecheck": "bunx tsc --noEmit",
+    "test": "bunx vitest",
+    "check": "bunx oxlint",
     "typedoc": "typedoc",
     "version": "kacl release && prettier -w CHANGELOG.md && git add CHANGELOG.md",
     "typedoc:dev": "nodemon --watch src --watch README.md --watch typedoc.json --watch typedoc.css --exec npm run typedoc:withplugins",
@@ -67,10 +67,6 @@
     "typescript": "^5.9.2",
     "vite": "^7.1.4",
     "vitest": "^3.2.4"
-  },
-  "volta": {
-    "node": "24.7.0",
-    "npm": "11.6.0"
   },
   "lint-staged": {
     "*.{ts,js,md,json,yaml,yml}": [
