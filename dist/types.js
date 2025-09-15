@@ -1,52 +1,27 @@
-/**
- * @module
- * @mergeModuleWith <project>
- */
 import { type } from "arktype";
 export const PayloadInitializeSchema = type({
-    by: '"sw&rpc"',
-    functionName: '"#initialize"',
-    isInitializeRequest: "true",
-    localStorageData: "Record<string, unknown>",
-    nodeId: "string",
+  by: '"sw&rpc"',
+  functionName: '"#initialize"',
+  isInitializeRequest: "true",
+  localStorageData: "Record<string, unknown>",
+  nodeId: "string"
 });
-/**
- * @source
- */
 export const PayloadHeaderSchema = type("<Name extends string>", {
-    by: '"sw&rpc"',
-    functionName: "Name",
-    requestId: "string >= 1",
+  by: '"sw&rpc"',
+  functionName: "Name",
+  requestId: "string >= 1"
 });
-/**
- * @source
- */
 export const PayloadCoreSchema = type("<I, P, S>", {
-    "input?": "I",
-    "progress?": "P",
-    "result?": "S",
-    "abort?": { reason: "string" },
-    "error?": { message: "string" },
+  "input?": "I",
+  "progress?": "P",
+  "result?": "S",
+  "abort?": { reason: "string" },
+  "error?": { message: "string" }
 });
-/**
- * @source
- */
-export const PayloadSchema = type
-    .scope({ PayloadCoreSchema, PayloadHeaderSchema, PayloadInitializeSchema })
-    .type("<Name extends string, I, P, S>", [
-    ["PayloadHeaderSchema<Name>", "&", "PayloadCoreSchema<I, P, S>"],
-    "|",
-    "PayloadInitializeSchema",
+export const PayloadSchema = type.scope({ PayloadCoreSchema, PayloadHeaderSchema, PayloadInitializeSchema }).type("<Name extends string, I, P, S>", [
+  ["PayloadHeaderSchema<Name>", "&", "PayloadCoreSchema<I, P, S>"],
+  "|",
+  "PayloadInitializeSchema"
 ]);
-/**
- * Symbol used as the key for the procedures map on the server instance
- * @internal
- * @source
- */
 export const zImplementations = Symbol("SWARPC implementations");
-/**
- * Symbol used as the key for the procedures map on instances
- * @internal
- * @source
- */
 export const zProcedures = Symbol("SWARPC procedures");

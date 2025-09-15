@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["import", "jsdoc", "node", "promise", "vitest"],
-  "ignorePatterns": ["dist/**"],
+  "ignorePatterns": ["dist/**", "build.mjs"],
   "rules": {
     "jest/valid-describe-callback": "off",
     "jsdoc/check-tag-names": "off",

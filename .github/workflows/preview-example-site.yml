@@ -24,7 +24,7 @@ jobs:
       - name: Build and pack package
         if: github.event.action != 'closed'
         run: |
-          bun install
+          bun install --frozen-lockfile
           bun run build
           bun pm pack
 
@@ -33,7 +33,7 @@ jobs:
         run: |
           cd example
           bun add ../swarpc-*.tgz
-          bun install 
+          bun install --frozen-lockfile
           BUILD_COMMIT=${{ github.sha }} BASE_PATH=/cigale/_pullrequests/pr-$PR_NUMBER bun run build
         env:
           PR_NUMBER: ${{ github.event.number }}

@@ -27,8 +27,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "bunx tsc",
-    "dev": "bunx tsc --watch",
+    "build": "bun run build.mjs",
+    "dev": "bun run build.mjs --watch",
     "typecheck": "bunx tsc --noEmit",
     "test": "bunx vitest",
     "check": "bunx oxlint",
