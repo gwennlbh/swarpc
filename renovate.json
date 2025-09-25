@@ -9,7 +9,16 @@
       "description": "Auto-merge updates to dev tooling (linters, formatters, etc)",
       "matchFileNames": ["!example/package.json"],
       "matchDepTypes": ["devDependencies"],
+      "matchPackageNames": ["!@playwright/test"],
       "automerge": true
+    },
+    {
+      "groupName": "playwright",
+      "matchPackageNames": [
+        "@playwright/test",
+        "mcr.microsoft.com/playwright",
+        "ghcr.io/gwennlbh/playwright-bun"
+      ]
     },
     {
       "groupName": "example package",
