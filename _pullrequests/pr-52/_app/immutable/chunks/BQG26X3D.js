@@ -1,7 +1,7 @@
-import { o as onMount, s as svelte } from "./D2wgfOQM.js";
+import { o as onMount, s as svelte } from "./cV7YrHUQ.js";
 import { b as base64_decode, H as HttpError, S as SvelteKitError, R as Redirect, t as text_decoder } from "./BSsBU_Uh.js";
-import { p as parse_route_id, e as exec, a as assets, b as base } from "./Cj7UeMgh.js";
-import { A as noop$1, b2 as safe_not_equal, H as state, J as get$1, L as set$1, t as tick$1 } from "./IgMcu7UN.js";
+import { p as parse_route_id, e as exec, a as assets, b as base } from "./Drwl538T.js";
+import { A as noop$1, b1 as safe_not_equal, H as state, J as get$1, L as set$1, t as tick$1 } from "./Dpq-lT5A.js";
 const subscriber_queue = [];
 function writable(value, start2 = noop$1) {
   let stop = null;
@@ -220,7 +220,7 @@ function set(key, value, stringify = JSON.stringify) {
   } catch {
   }
 }
-const version = "1759716171313";
+const version = "1759716380193";
 const SNAPSHOT_KEY = "sveltekit:snapshot";
 const SCROLL_KEY = "sveltekit:scroll";
 const STATES_KEY = "sveltekit:states";
@@ -843,8 +843,8 @@ let token;
 const preload_tokens = /* @__PURE__ */ new Set();
 const query_map = /* @__PURE__ */ new Map();
 async function start(_app, _target, hydrate) {
-  if (globalThis.__sveltekit_1uhqod5.data) {
-    globalThis.__sveltekit_1uhqod5?.data;
+  if (globalThis.__sveltekit_tmzwsf?.data) {
+    globalThis.__sveltekit_tmzwsf.data;
   }
   if (document.URL !== location.href) {
     location.href = location.href;
@@ -1719,13 +1719,18 @@ async function navigate({
   }
   const { activeElement } = document;
   await tick();
-  const scroll = popped ? popped.scroll : noscroll ? scroll_state() : null;
+  let scroll = popped ? popped.scroll : noscroll ? scroll_state() : null;
   if (autoscroll) {
     const deep_linked = url.hash && document.getElementById(get_id(url));
     if (scroll) {
       scrollTo(scroll.x, scroll.y);
     } else if (deep_linked) {
       deep_linked.scrollIntoView();
+      const { top, left } = deep_linked.getBoundingClientRect();
+      scroll = {
+        x: pageXOffset + left,
+        y: pageYOffset + top
+      };
     } else {
       scrollTo(0, 0);
     }
@@ -1737,7 +1742,7 @@ async function navigate({
     document.activeElement !== document.body
   );
   if (!keepfocus && !changed_focus) {
-    reset_focus(url);
+    reset_focus(url, scroll);
   }
   autoscroll = true;
   if (navigation_result.props.page) {
@@ -1937,7 +1942,7 @@ function _start_router() {
       if (current_hash === hash2) {
         event.preventDefault();
         if (hash2 === "" || hash2 === "top" && a.ownerDocument.getElementById("top") === null) {
-          window.scrollTo({ top: 0 });
+          scrollTo({ top: 0 });
         } else {
           const element = a.ownerDocument.getElementById(decodeURIComponent(hash2));
           if (element) {
@@ -1995,11 +2000,7 @@ function _start_router() {
     if (options.reload) return;
     event.preventDefault();
     event.stopPropagation();
-    const data = new FormData(event_form);
-    const submitter_name = submitter?.getAttribute("name");
-    if (submitter_name) {
-      data.append(submitter_name, submitter?.getAttribute("value") ?? "");
-    }
+    const data = new FormData(event_form, submitter);
     url.search = new URLSearchParams(data).toString();
     void navigate({
       type: "form",
@@ -2248,14 +2249,14 @@ function deserialize_uses(uses) {
   };
 }
 let resetting_focus = false;
-function reset_focus(url) {
+function reset_focus(url, scroll = null) {
   const autofocus = document.querySelector("[autofocus]");
   if (autofocus) {
     autofocus.focus();
   } else {
     const id = get_id(url);
     if (id && document.getElementById(id)) {
-      const { x, y } = scroll_state();
+      const { x, y } = scroll ?? scroll_state();
       setTimeout(() => {
         const history_state = history.state;
         resetting_focus = true;

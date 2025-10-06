@@ -1,4 +1,4 @@
-import { q as block, r as hydrating, v as hydrate_next, w as create_fragment_from_html, x as assign_nodes, y as teardown, E as EFFECT_TRANSPARENT, z as branch, A as noop, B as destroy_effect, C as hydrate_node, D as get_first_child } from "./IgMcu7UN.js";
+import { q as block, r as hydrating, v as hydrate_next, w as create_fragment_from_html, x as assign_nodes, y as teardown, E as EFFECT_TRANSPARENT, z as branch, A as noop, B as destroy_effect, C as hydrate_node, D as get_first_child } from "./Dpq-lT5A.js";
 function snippet(node, get_snippet, ...args) {
   var anchor = node;
   var snippet2 = noop;

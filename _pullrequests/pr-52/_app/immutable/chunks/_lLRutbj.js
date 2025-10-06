@@ -1,4 +1,4 @@
-import { a1 as NAMESPACE_HTML, a2 as get_prototype_of, r as hydrating, a3 as get_descriptors, a4 as queue_idle_task, a5 as add_form_reset_listener, a6 as LOADING_ATTR_SYMBOL } from "./IgMcu7UN.js";
+import { a1 as NAMESPACE_HTML, a2 as get_prototype_of, r as hydrating, a3 as get_descriptors, a4 as queue_micro_task, a5 as add_form_reset_listener, a6 as LOADING_ATTR_SYMBOL } from "./Dpq-lT5A.js";
 const IS_CUSTOM_ELEMENT = Symbol("is custom element");
 const IS_HTML = Symbol("is html");
 function remove_input_defaults(input) {
@@ -19,7 +19,7 @@ function remove_input_defaults(input) {
     }
   };
   input.__on_r = remove_defaults;
-  queue_idle_task(remove_defaults);
+  queue_micro_task(remove_defaults);
   add_form_reset_listener();
 }
 function set_attribute(element, attribute, value, skip_warning) {

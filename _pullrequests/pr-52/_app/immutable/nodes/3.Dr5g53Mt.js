@@ -1,13 +1,13 @@
 import "../chunks/CKOwlSI2.js";
-import { i as init } from "../chunks/D00NUfsB.js";
-import { a7 as push, F as from_html, O as template_effect, p as append, a8 as pop, I as sibling, K as child, M as reset } from "../chunks/IgMcu7UN.js";
-import { s as set_attribute } from "../chunks/BiyNjEwP.js";
-import { b as base, r as resolve_route } from "../chunks/Cj7UeMgh.js";
-function resolve(id, params) {
+import { i as init } from "../chunks/DAYzHi1C.js";
+import { a7 as push, F as from_html, O as template_effect, p as append, a8 as pop, I as sibling, K as child, M as reset } from "../chunks/Dpq-lT5A.js";
+import { s as set_attribute } from "../chunks/_lLRutbj.js";
+import { b as base, r as resolve_route } from "../chunks/Drwl538T.js";
+function resolve(...args) {
   return base + resolve_route(
-    id,
+    args[0],
     /** @type {Record<string, string>} */
-    params
+    args[1]
   );
 }
 var root = from_html(`<nav><p>Single-node tests</p> <ul><li><a>Using a service worker</a></li> <li><a>Using a dedicated worker</a></li> <li><a>Using a shared worker</a></li></ul> <p>Multi-node tests</p> <ul><li><a>Using a service worker</a></li> <li><a>Using a dedicated worker</a></li> <li><a>Using a shared worker</a></li></ul></nav>`);
