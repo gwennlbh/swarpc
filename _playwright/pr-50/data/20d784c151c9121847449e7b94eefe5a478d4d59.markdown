@@ -8,45 +8,45 @@
     - paragraph [ref=e6]:
       - code [ref=e7]:
         - text: 4 · 0 = 0
-        - text: 50% from N46D
+        - text: 50% from NF01
     - paragraph [ref=e8]:
       - code [ref=e9]:
         - text: 4 · 1 = 0
-        - text: 75% from N709
+        - text: 50% from N646
     - paragraph [ref=e10]:
       - code [ref=e11]:
         - text: 4 · 2 = 0
-        - text: 50% from NEF3
+        - text: 50% from N4EE
     - paragraph [ref=e12]:
       - code [ref=e13]:
         - text: 4 · 3 = 0
-        - text: 50% from N7D3
+        - text: 50% from N4B6
     - paragraph [ref=e14]:
       - code [ref=e15]:
         - text: 4 · 4 = 0
-        - text: 50% from N7F9
+        - text: 75% from N5FA
     - paragraph [ref=e16]:
       - code [ref=e17]:
         - text: 4 · 5 = 0
-        - text: 50% from N728
+        - text: 50% from N56E
     - paragraph [ref=e18]:
       - code [ref=e19]:
         - text: 4 · 6 = 0
-        - text: 50% from NC87
+        - text: 50% from N7E6
     - paragraph [ref=e20]:
       - code [ref=e21]:
         - text: 4 · 7 = 0
-        - text: 75% from NDD4
+        - text: 50% from N322
     - paragraph [ref=e22]:
       - code [ref=e23]:
         - text: 4 · 8 = 0
-        - text: 50% from N1AF
+        - text: 75% from N584
     - paragraph [ref=e24]:
       - code [ref=e25]:
         - text: 4 · 9 = 0
-        - text: 50% from NE31
+        - text: 50% from NFAE
     - paragraph [ref=e26]:
       - code [ref=e27]:
         - text: 4 · 10 = 0
-        - text: 75% from N46D
+        - text: 50% from NF01
 ```
