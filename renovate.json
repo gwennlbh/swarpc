@@ -1,8 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended", "schedule:weekly"],
-  "commitMessagePrefix": "⬆️ ",
-  "rangeStrategy": "bump",
+  "extends": ["github>gwennlbh/renovate"],
   "packageRules": [
     {
       "groupName": "dev tooling",
@@ -11,14 +9,6 @@
       "matchDepTypes": ["devDependencies"],
       "matchPackageNames": ["!@playwright/test"],
       "automerge": true
-    },
-    {
-      "groupName": "playwright",
-      "matchPackageNames": [
-        "@playwright/test",
-        "mcr.microsoft.com/playwright",
-        "ghcr.io/gwennlbh/playwright-bun"
-      ]
     },
     {
       "groupName": "example package",
