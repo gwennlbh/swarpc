@@ -65,6 +65,11 @@ function lifecycle_outside_component(name) {
     throw new Error(`https://svelte.dev/e/lifecycle_outside_component`);
   }
 }
+function missing_context() {
+  {
+    throw new Error(`https://svelte.dev/e/missing_context`);
+  }
+}
 function async_derived_orphan() {
   {
     throw new Error(`https://svelte.dev/e/async_derived_orphan`);
@@ -245,6 +250,18 @@ let component_context = null;
 function set_component_context(context) {
   component_context = context;
 }
+function createContext() {
+  const key = {};
+  return [
+    () => {
+      if (!hasContext(key)) {
+        missing_context();
+      }
+      return getContext(key);
+    },
+    (context) => setContext(key, context)
+  ];
+}
 function getContext(key) {
   const context_map = get_or_init_context_map();
   const result = (
@@ -387,6 +404,7 @@ function apply_adjustments(error) {
 const batches = /* @__PURE__ */ new Set();
 let current_batch = null;
 let previous_batch = null;
+let batch_values = null;
 let effect_pending_updates = /* @__PURE__ */ new Set();
 let queued_root_effects = [];
 let last_scheduled_effect = null;
@@ -421,12 +439,6 @@ class Batch {
    * @type {{ promise: Promise<void>, resolve: (value?: any) => void, reject: (reason: unknown) => void } | null}
    */
   #deferred = null;
-  /**
-   * Async effects inside a newly-created `<svelte:boundary>`
-   * — these do not prevent the batch from committing
-   * @type {Effect[]}
-   */
-  #boundary_async_effects = [];
   /**
    * Template effects and `$effect.pre` effects, which run when
    * a batch is committed
@@ -467,11 +479,12 @@ class Batch {
   process(root_effects) {
     queued_root_effects = [];
     previous_batch = null;
-    var revert = Batch.apply(this);
+    this.apply();
     for (const root of root_effects) {
       this.#traverse_effect_tree(root);
     }
     if (this.#pending === 0) {
+      var previous_batch_sources = batch_values;
       this.#commit();
       var render_effects = this.#render_effects;
       var effects = this.#effects;
@@ -480,19 +493,17 @@ class Batch {
       this.#block_effects = [];
       previous_batch = this;
       current_batch = null;
+      batch_values = previous_batch_sources;
       flush_queued_effects(render_effects);
       flush_queued_effects(effects);
+      previous_batch = null;
       this.#deferred?.resolve();
     } else {
       this.#defer_effects(this.#render_effects);
       this.#defer_effects(this.#effects);
       this.#defer_effects(this.#block_effects);
     }
-    revert();
-    for (const effect2 of this.#boundary_async_effects) {
-      update_effect(effect2);
-    }
-    this.#boundary_async_effects = [];
+    batch_values = null;
   }
   /**
    * Traverse the effect tree, executing effects or stashing
@@ -512,13 +523,9 @@ class Batch {
           effect2.f ^= CLEAN;
         } else if ((flags & EFFECT) !== 0) {
           this.#effects.push(effect2);
-        } else if ((flags & CLEAN) === 0) {
-          if ((flags & ASYNC) !== 0 && effect2.b?.is_pending()) {
-            this.#boundary_async_effects.push(effect2);
-          } else if (is_dirty(effect2)) {
-            if ((effect2.f & BLOCK_EFFECT) !== 0) this.#block_effects.push(effect2);
-            update_effect(effect2);
-          }
+        } else if (is_dirty(effect2)) {
+          if ((effect2.f & BLOCK_EFFECT) !== 0) this.#block_effects.push(effect2);
+          update_effect(effect2);
         }
         var child2 = effect2.first;
         if (child2 !== null) {
@@ -556,20 +563,14 @@ class Batch {
       this.#previous.set(source2, value);
     }
     this.current.set(source2, source2.v);
+    batch_values?.set(source2, source2.v);
   }
   activate() {
     current_batch = this;
   }
   deactivate() {
     current_batch = null;
-    previous_batch = null;
-    for (const update of effect_pending_updates) {
-      effect_pending_updates.delete(update);
-      update();
-      if (current_batch !== null) {
-        break;
-      }
-    }
+    batch_values = null;
   }
   flush() {
     if (queued_root_effects.length > 0) {
@@ -582,6 +583,13 @@ class Batch {
       this.#commit();
     }
     this.deactivate();
+    for (const update of effect_pending_updates) {
+      effect_pending_updates.delete(update);
+      update();
+      if (current_batch !== null) {
+        break;
+      }
+    }
   }
   /**
    * Append and remove branches to/from the DOM
@@ -599,24 +607,34 @@ class Batch {
           is_earlier = false;
           continue;
         }
+        const sources = [];
         for (const [source2, value] of this.current) {
           if (batch.current.has(source2)) {
-            if (is_earlier) {
+            if (is_earlier && value !== batch.current.get(source2)) {
               batch.current.set(source2, value);
             } else {
               continue;
             }
           }
-          mark_effects(source2);
+          sources.push(source2);
         }
-        if (queued_root_effects.length > 0) {
-          current_batch = batch;
-          const revert = Batch.apply(batch);
-          for (const root of queued_root_effects) {
-            batch.#traverse_effect_tree(root);
+        if (sources.length === 0) {
+          continue;
+        }
+        const others = [...batch.current.keys()].filter((s) => !this.current.has(s));
+        if (others.length > 0) {
+          for (const source2 of sources) {
+            mark_effects(source2, others);
           }
-          queued_root_effects = [];
-          revert();
+          if (queued_root_effects.length > 0) {
+            current_batch = batch;
+            batch.apply();
+            for (const root of queued_root_effects) {
+              batch.#traverse_effect_tree(root);
+            }
+            queued_root_effects = [];
+            batch.deactivate();
+          }
         }
       }
       current_batch = null;
@@ -628,19 +646,15 @@ class Batch {
   }
   decrement() {
     this.#pending -= 1;
-    if (this.#pending === 0) {
-      for (const e of this.#dirty_effects) {
-        set_signal_status(e, DIRTY);
-        schedule_effect(e);
-      }
-      for (const e of this.#maybe_dirty_effects) {
-        set_signal_status(e, MAYBE_DIRTY);
-        schedule_effect(e);
-      }
-      this.flush();
-    } else {
-      this.deactivate();
+    for (const e of this.#dirty_effects) {
+      set_signal_status(e, DIRTY);
+      schedule_effect(e);
     }
+    for (const e of this.#maybe_dirty_effects) {
+      set_signal_status(e, MAYBE_DIRTY);
+      schedule_effect(e);
+    }
+    this.flush();
   }
   /** @param {() => void} fn */
   add_callback(fn) {
@@ -668,13 +682,8 @@ class Batch {
   static enqueue(task) {
     queue_micro_task(task);
   }
-  /**
-   * @param {Batch} current_batch
-   */
-  static apply(current_batch2) {
-    {
-      return noop;
-    }
+  apply() {
+    return;
   }
 }
 function flushSync(fn) {
@@ -763,16 +772,17 @@ function flush_queued_effects(effects) {
   }
   eager_block_effects = null;
 }
-function mark_effects(value) {
+function mark_effects(value, sources) {
   if (value.reactions !== null) {
     for (const reaction of value.reactions) {
       const flags = reaction.f;
       if ((flags & DERIVED) !== 0) {
         mark_effects(
           /** @type {Derived} */
-          reaction
+          reaction,
+          sources
         );
-      } else if ((flags & (ASYNC | BLOCK_EFFECT)) !== 0) {
+      } else if ((flags & (ASYNC | BLOCK_EFFECT)) !== 0 && depends_on(reaction, sources)) {
         set_signal_status(reaction, DIRTY);
         schedule_effect(
           /** @type {Effect} */
@@ -781,6 +791,23 @@ function mark_effects(value) {
       }
     }
   }
+}
+function depends_on(reaction, sources) {
+  if (reaction.deps !== null) {
+    for (const dep of reaction.deps) {
+      if (sources.includes(dep)) {
+        return true;
+      }
+      if ((dep.f & DERIVED) !== 0 && depends_on(
+        /** @type {Derived} */
+        dep,
+        sources
+      )) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 function schedule_effect(signal) {
   var effect2 = last_scheduled_effect = signal;
@@ -811,7 +838,6 @@ function flatten(sync, async, fn) {
   var restore = capture();
   var was_hydrating = hydrating;
   Promise.all(async.map((expression) => /* @__PURE__ */ async_derived(expression))).then((result) => {
-    batch?.activate();
     restore();
     try {
       fn([...sync.map(d), ...result]);
@@ -913,9 +939,10 @@ function async_derived(fn, location) {
     var d = deferred();
     promise = d.promise;
     try {
-      Promise.resolve(fn()).then(d.resolve, d.reject);
+      Promise.resolve(fn()).then(d.resolve, d.reject).then(unset_context);
     } catch (error) {
       d.reject(error);
+      unset_context();
     }
     var batch = (
       /** @type {Batch} */
@@ -927,6 +954,7 @@ function async_derived(fn, location) {
       if (!pending) {
         batch.increment();
         deferreds.get(batch)?.reject(STALE_REACTION);
+        deferreds.delete(batch);
         deferreds.set(batch, d);
       }
     }
@@ -942,12 +970,16 @@ function async_derived(fn, location) {
           signal.f ^= ERROR_VALUE;
         }
         internal_set(signal, value);
+        for (const [b, d2] of deferreds) {
+          deferreds.delete(b);
+          if (b === batch) break;
+          d2.reject(STALE_REACTION);
+        }
       }
       if (should_suspend) {
         boundary.update_pending_count(-1);
         if (!pending) batch.decrement();
       }
-      unset_context();
     };
     d.promise.then(handler, (e) => handler(null, e || "unknown"));
   });
@@ -1030,7 +1062,9 @@ function update_derived(derived2) {
   if (is_destroying_effect) {
     return;
   }
-  {
+  if (batch_values !== null) {
+    batch_values.set(derived2, derived2.v);
+  } else {
     var status = (skip_reaction || (derived2.f & UNOWNED) !== 0) && derived2.deps !== null ? MAYBE_DIRTY : CLEAN;
     set_signal_status(derived2, status);
   }
@@ -2147,9 +2181,15 @@ function get(signal) {
   } else if (is_derived) {
     derived2 = /** @type {Derived} */
     signal;
+    if (batch_values?.has(derived2)) {
+      return batch_values.get(derived2);
+    }
     if (is_dirty(derived2)) {
       update_derived(derived2);
     }
+  }
+  if (batch_values?.has(signal)) {
+    return batch_values.get(signal);
   }
   if ((signal.f & ERROR_VALUE) !== 0) {
     throw signal.v;
@@ -2320,124 +2360,125 @@ function append(anchor, dom) {
   );
 }
 export {
-  render_effect as $,
-  noop as A,
-  destroy_effect as B,
-  hydrate_node as C,
-  get_first_child as D,
+  listen_to_event_and_reset_event as $,
+  branch as A,
+  noop as B,
+  destroy_effect as C,
+  hydrate_node as D,
   EFFECT_TRANSPARENT as E,
-  from_html as F,
-  user_derived as G,
-  state as H,
-  sibling as I,
-  get as J,
-  child as K,
-  set as L,
-  reset as M,
-  text as N,
-  template_effect as O,
-  read_hydration_instruction as P,
-  HYDRATION_START_ELSE as Q,
-  skip_nodes as R,
-  set_hydrate_node as S,
-  set_hydrating as T,
-  create_text as U,
-  current_batch as V,
-  UNINITIALIZED as W,
-  should_defer_append as X,
-  resume_effect as Y,
-  pause_effect as Z,
-  listen_to_event_and_reset_event as _,
+  get_first_child as F,
+  from_html as G,
+  user_derived as H,
+  state as I,
+  sibling as J,
+  get as K,
+  child as L,
+  set as M,
+  reset as N,
+  text as O,
+  template_effect as P,
+  read_hydration_instruction as Q,
+  HYDRATION_START_ELSE as R,
+  skip_nodes as S,
+  set_hydrate_node as T,
+  set_hydrating as U,
+  create_text as V,
+  current_batch as W,
+  UNINITIALIZED as X,
+  should_defer_append as Y,
+  resume_effect as Z,
+  pause_effect as _,
   active_reaction as a,
-  PROPS_IS_LAZY_INITIAL as a$,
-  previous_batch as a0,
-  NAMESPACE_HTML as a1,
-  get_prototype_of as a2,
-  get_descriptors as a3,
-  queue_micro_task as a4,
-  add_form_reset_listener as a5,
-  LOADING_ATTR_SYMBOL as a6,
-  push as a7,
-  pop as a8,
-  user_pre_effect as a9,
-  set_active_reaction as aA,
-  set_component_context as aB,
-  handle_error as aC,
-  effect_pending_updates as aD,
-  next as aE,
-  invoke_error_boundary as aF,
-  svelte_boundary_reset_onerror as aG,
-  EFFECT_PRESERVED as aH,
-  BOUNDARY_EFFECT as aI,
-  svelte_boundary_reset_noop as aJ,
-  define_property as aK,
-  init_operations as aL,
-  HYDRATION_START as aM,
-  HYDRATION_ERROR as aN,
-  hydration_failed as aO,
-  component_root as aP,
-  hydration_mismatch as aQ,
-  effect as aR,
-  STATE_SYMBOL as aS,
-  get_descriptor as aT,
-  props_invalid_value as aU,
-  PROPS_IS_UPDATED as aV,
-  is_destroying_effect as aW,
-  DESTROYED as aX,
-  PROPS_IS_BINDABLE as aY,
-  PROPS_IS_RUNES as aZ,
-  PROPS_IS_IMMUTABLE as a_,
-  run_all as aa,
-  run as ab,
-  deep_read_state as ac,
-  derived as ad,
-  enable_legacy_mode_flag as ae,
-  derived_safe_equal as af,
-  COMMENT_NODE as ag,
-  HYDRATION_END as ah,
-  internal_set as ai,
-  mutable_source as aj,
-  source as ak,
-  array_from as al,
-  EACH_INDEX_REACTIVE as am,
-  EACH_ITEM_REACTIVE as an,
-  EACH_ITEM_IMMUTABLE as ao,
-  INERT as ap,
-  get_next_sibling as aq,
-  pause_children as ar,
-  clear_text_content as as,
-  run_out_transitions as at,
-  active_effect as au,
-  proxy as av,
-  effect_tracking as aw,
-  increment as ax,
-  Batch as ay,
-  set_active_effect as az,
+  PROPS_IS_IMMUTABLE as a$,
+  render_effect as a0,
+  previous_batch as a1,
+  NAMESPACE_HTML as a2,
+  get_prototype_of as a3,
+  get_descriptors as a4,
+  queue_micro_task as a5,
+  add_form_reset_listener as a6,
+  LOADING_ATTR_SYMBOL as a7,
+  push as a8,
+  pop as a9,
+  set_active_effect as aA,
+  set_active_reaction as aB,
+  set_component_context as aC,
+  handle_error as aD,
+  effect_pending_updates as aE,
+  next as aF,
+  invoke_error_boundary as aG,
+  svelte_boundary_reset_onerror as aH,
+  EFFECT_PRESERVED as aI,
+  BOUNDARY_EFFECT as aJ,
+  svelte_boundary_reset_noop as aK,
+  define_property as aL,
+  init_operations as aM,
+  HYDRATION_START as aN,
+  HYDRATION_ERROR as aO,
+  hydration_failed as aP,
+  component_root as aQ,
+  hydration_mismatch as aR,
+  effect as aS,
+  STATE_SYMBOL as aT,
+  get_descriptor as aU,
+  props_invalid_value as aV,
+  PROPS_IS_UPDATED as aW,
+  is_destroying_effect as aX,
+  DESTROYED as aY,
+  PROPS_IS_BINDABLE as aZ,
+  PROPS_IS_RUNES as a_,
+  user_pre_effect as aa,
+  run_all as ab,
+  run as ac,
+  deep_read_state as ad,
+  derived as ae,
+  enable_legacy_mode_flag as af,
+  derived_safe_equal as ag,
+  COMMENT_NODE as ah,
+  HYDRATION_END as ai,
+  internal_set as aj,
+  mutable_source as ak,
+  source as al,
+  array_from as am,
+  EACH_INDEX_REACTIVE as an,
+  EACH_ITEM_REACTIVE as ao,
+  EACH_ITEM_IMMUTABLE as ap,
+  INERT as aq,
+  get_next_sibling as ar,
+  pause_children as as,
+  clear_text_content as at,
+  run_out_transitions as au,
+  active_effect as av,
+  proxy as aw,
+  effect_tracking as ax,
+  increment as ay,
+  Batch as az,
   lifecycle_legacy_only as b,
-  LEGACY_PROPS as b0,
-  safe_not_equal as b1,
+  PROPS_IS_LAZY_INITIAL as b0,
+  LEGACY_PROPS as b1,
+  safe_not_equal as b2,
   component_context as c,
   legacy_mode_flag as d,
   untrack as e,
-  flushSync as f,
+  createContext as f,
   get_abort_signal_outside_reaction as g,
-  getAllContexts as h,
+  flushSync as h,
   is_array as i,
-  getContext as j,
-  hasContext as k,
+  getAllContexts as j,
+  getContext as k,
   lifecycle_outside_component as l,
-  settled as m,
-  comment as n,
-  first_child as o,
-  append as p,
-  block as q,
-  hydrating as r,
+  hasContext as m,
+  settled as n,
+  comment as o,
+  first_child as p,
+  append as q,
+  block as r,
   setContext as s,
   tick as t,
   user_effect as u,
-  hydrate_next as v,
-  create_fragment_from_html as w,
-  assign_nodes as x,
-  teardown as y,
-  branch as z
+  hydrating as v,
+  hydrate_next as w,
+  create_fragment_from_html as x,
+  assign_nodes as y,
+  teardown as z
 };
