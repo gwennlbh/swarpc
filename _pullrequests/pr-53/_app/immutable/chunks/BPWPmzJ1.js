@@ -1,4 +1,4 @@
-import { _ as listen_to_event_and_reset_event, t as tick, e as untrack, $ as render_effect, r as hydrating, V as current_batch, a0 as previous_batch } from "./Dpq-lT5A.js";
+import { $ as listen_to_event_and_reset_event, t as tick, e as untrack, a0 as render_effect, v as hydrating, W as current_batch, a1 as previous_batch } from "./DxO9wToY.js";
 function bind_value(input, get, set = get) {
   var batches = /* @__PURE__ */ new WeakSet();
   listen_to_event_and_reset_event(input, "input", async (is_reset) => {
@@ -12,10 +12,17 @@ function bind_value(input, get, set = get) {
     if (value !== (value = get())) {
       var start = input.selectionStart;
       var end = input.selectionEnd;
+      var length = input.value.length;
       input.value = value ?? "";
       if (end !== null) {
-        input.selectionStart = start;
-        input.selectionEnd = Math.min(end, input.value.length);
+        var new_length = input.value.length;
+        if (start === end && end === length && new_length > length) {
+          input.selectionStart = new_length;
+          input.selectionEnd = new_length;
+        } else {
+          input.selectionStart = start;
+          input.selectionEnd = Math.min(end, new_length);
+        }
       }
     }
   });

@@ -1,4 +1,4 @@
-import { a1 as NAMESPACE_HTML, a2 as get_prototype_of, r as hydrating, a3 as get_descriptors, a4 as queue_micro_task, a5 as add_form_reset_listener, a6 as LOADING_ATTR_SYMBOL } from "./Dpq-lT5A.js";
+import { a2 as NAMESPACE_HTML, a3 as get_prototype_of, v as hydrating, a4 as get_descriptors, a5 as queue_micro_task, a6 as add_form_reset_listener, a7 as LOADING_ATTR_SYMBOL } from "./DxO9wToY.js";
 const IS_CUSTOM_ELEMENT = Symbol("is custom element");
 const IS_HTML = Symbol("is html");
 function remove_input_defaults(input) {

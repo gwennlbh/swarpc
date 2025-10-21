@@ -92,6 +92,8 @@ function nodeIdFromScope(scope2, _scopeType) {
   }
   return "(SW)";
 }
+const regex$1 = (src, flags) => new RegExp(src, flags);
+Object.assign(regex$1, { cast: regex$1 });
 const liftArray = (data) => Array.isArray(data) ? data : [data];
 const spliterate = (arr, predicate) => {
   const result = [[], []];
@@ -171,6 +173,7 @@ class ParseError extends Error {
 }
 const throwParseError = (message) => throwError(message, ParseError);
 const noSuggest = (s) => ` ${s}`;
+const ZeroWidthSpace = "​";
 const flatMorph = (o, flatMapEntry) => {
   const result = {};
   const inputIsArray = Array.isArray(o);
@@ -233,7 +236,7 @@ const withAlphabetizedKeys = (o) => {
     result[keys[i]] = o[keys[i]];
   return result;
 };
-const unset = noSuggest("represents an uninitialized value");
+const unset = noSuggest(`unset${ZeroWidthSpace}`);
 const enumValues = (tsEnum) => Object.values(tsEnum).filter((v) => {
   if (typeof v === "number")
     return true;
@@ -440,7 +443,7 @@ const RegexPatterns = {
   negativeLookahead: (pattern) => `(?!${pattern})`,
   nonCapturingGroup: (pattern) => `(?:${pattern})`
 };
-const escapeChar = "\\";
+const Backslash = "\\";
 const whitespaceChars = {
   " ": 1,
   "\n": 1,
@@ -507,7 +510,7 @@ const tryParseWellFormedBigint = (def) => {
     return throwParseError(writeMalformedNumericLiteralMessage(def, "bigint"));
   }
 };
-const arkUtilVersion = "0.49.0";
+const arkUtilVersion = "0.50.0";
 const initialRegistryContents = {
   version: arkUtilVersion,
   filename: isomorphic.fileName(),
@@ -756,13 +759,28 @@ class Scanner {
   shiftUntil(condition) {
     let shifted = "";
     while (this.lookahead) {
-      if (condition(this, shifted)) {
-        if (shifted[shifted.length - 1] === escapeChar)
-          shifted = shifted.slice(0, -1);
+      if (condition(this, shifted))
+        break;
+      else
+        shifted += this.shift();
+    }
+    return shifted;
+  }
+  shiftUntilEscapable(condition) {
+    let shifted = "";
+    while (this.lookahead) {
+      if (this.lookahead === Backslash) {
+        this.shift();
+        if (condition(this, shifted))
+          shifted += this.shift();
+        else if (this.lookahead === Backslash)
+          shifted += this.shift();
         else
-          break;
-      }
-      shifted += this.shift();
+          shifted += `${Backslash}${this.shift()}`;
+      } else if (condition(this, shifted))
+        break;
+      else
+        shifted += this.shift();
     }
     return shifted;
   }
@@ -797,6 +815,8 @@ class Scanner {
     return this.lookahead in tokens;
   }
 }
+const writeUnmatchedGroupCloseMessage = (char, unscanned) => `Unmatched ${char}${unscanned === "" ? "" : ` before ${unscanned}`}`;
+const writeUnclosedGroupMessage = (missingChar) => `Missing ${missingChar}`;
 let _registryName = "$ark";
 let suffix = 2;
 while (_registryName in globalThis)
@@ -954,7 +974,7 @@ const structuralKinds = [
   "index",
   "sequence"
 ];
-const refinementKinds = [
+const prestructuralKinds = [
   "pattern",
   "divisor",
   "exactLength",
@@ -965,12 +985,12 @@ const refinementKinds = [
   "before",
   "after"
 ];
-const constraintKinds = [
-  ...refinementKinds,
-  ...structuralKinds,
+const refinementKinds = [
+  ...prestructuralKinds,
   "structure",
   "predicate"
 ];
+const constraintKinds = [...refinementKinds, ...structuralKinds];
 const rootKinds = [
   "alias",
   "union",
@@ -1269,9 +1289,26 @@ class ArkErrors extends ReadonlyArray {
    * Append an ArkError to this array, ignoring duplicates.
    */
   add(error) {
-    if (this.includes(error))
-      return;
-    this._add(error);
+    const existing = this.byPath[error.propString];
+    if (existing) {
+      if (error === existing)
+        return;
+      if (existing.hasCode("union") && existing.errors.length === 0)
+        return;
+      const errorIntersection = error.hasCode("union") && error.errors.length === 0 ? error : new ArkError({
+        code: "intersection",
+        errors: existing.hasCode("intersection") ? [...existing.errors, error] : [existing, error]
+      }, this.ctx);
+      const existingIndex = this.indexOf(existing);
+      this.mutable[existingIndex === -1 ? this.length : existingIndex] = errorIntersection;
+      this.byPath[error.propString] = errorIntersection;
+      this.addAncestorPaths(error);
+    } else {
+      this.byPath[error.propString] = error;
+      this.addAncestorPaths(error);
+      this.mutable.push(error);
+    }
+    this.count++;
   }
   transform(f) {
     const result = new ArkErrors(this.ctx);
@@ -1285,9 +1322,7 @@ class ArkErrors extends ReadonlyArray {
    */
   merge(errors) {
     for (const e of errors) {
-      if (this.includes(e))
-        continue;
-      this._add(new ArkError({ ...e, path: [...this.ctx.path, ...e.path] }, this.ctx));
+      this.add(new ArkError({ ...e, path: [...this.ctx.path, ...e.path] }, this.ctx));
     }
   }
   /**
@@ -1321,26 +1356,6 @@ class ArkErrors extends ReadonlyArray {
   }
   toString() {
     return this.join("\n");
-  }
-  _add(error) {
-    const existing = this.byPath[error.propString];
-    if (existing) {
-      if (existing.hasCode("union") && existing.errors.length === 0)
-        return;
-      const errorIntersection = error.hasCode("union") && error.errors.length === 0 ? error : new ArkError({
-        code: "intersection",
-        errors: existing.hasCode("intersection") ? [...existing.errors, error] : [existing, error]
-      }, this.ctx);
-      const existingIndex = this.indexOf(existing);
-      this.mutable[existingIndex === -1 ? this.length : existingIndex] = errorIntersection;
-      this.byPath[error.propString] = errorIntersection;
-      this.addAncestorPaths(error);
-    } else {
-      this.byPath[error.propString] = error;
-      this.addAncestorPaths(error);
-      this.mutable.push(error);
-    }
-    this.count++;
   }
   addAncestorPaths(error) {
     for (const propString of error.path.stringifyAncestors()) {
@@ -1533,6 +1548,7 @@ class Traversal {
         if (!morphIsNode) {
           this.errors.merge(result);
         }
+        this.queuedMorphs = [];
         break;
       }
       if (parent === void 0)
@@ -1581,7 +1597,7 @@ class BaseNode extends Callable {
     this.attachments = attachments;
     this.$ = $;
     this.onFail = this.meta.onFail ?? this.$.resolvedConfig.onFail;
-    this.includesTransform = this.hasKind("morph") || this.hasKind("structure") && this.structuralMorph !== void 0;
+    this.includesTransform = this.hasKind("morph") || this.hasKind("structure") && this.structuralMorph !== void 0 || this.hasKind("sequence") && this.inner.defaultables !== void 0;
     this.includesContextualPredicate = this.hasKind("predicate") && this.inner.predicate.length !== 1;
     this.isCyclic = this.kind === "alias";
     this.referencesById = { [this.id]: this };
@@ -1677,11 +1693,19 @@ class BaseNode extends Callable {
   traverse(data, pipedFromCtx) {
     return this(data, pipedFromCtx, null);
   }
+  /** rawIn should be used internally instead */
   get in() {
-    return this.cacheGetter("in", this.getIo("in"));
+    return this.cacheGetter("in", this.rawIn.isRoot() ? this.$.finalize(this.rawIn) : this.rawIn);
   }
+  get rawIn() {
+    return this.cacheGetter("rawIn", this.getIo("in"));
+  }
+  /** rawOut should be used internally instead */
   get out() {
-    return this.cacheGetter("out", this.getIo("out"));
+    return this.cacheGetter("out", this.rawOut.isRoot() ? this.$.finalize(this.rawOut) : this.rawOut);
+  }
+  get rawOut() {
+    return this.cacheGetter("rawOut", this.getIo("out"));
   }
   // Should be refactored to use transform
   // https://github.com/arktypeio/arktype/issues/1020
@@ -1695,7 +1719,7 @@ class BaseNode extends Callable {
         keySchemaImplementation.reduceIo(ioKind, ioInner, v);
       else if (keySchemaImplementation.child) {
         const childValue = v;
-        ioInner[k] = isArray(childValue) ? childValue.map((child) => child[ioKind]) : childValue[ioKind];
+        ioInner[k] = isArray(childValue) ? childValue.map((child) => ioKind === "in" ? child.rawIn : child.rawOut) : ioKind === "in" ? childValue.rawIn : childValue.rawOut;
       } else
         ioInner[k] = v;
     }
@@ -2021,7 +2045,7 @@ const pipeMorphed = (from, to, ctx) => from.distribute((fromBranch) => _pipeMorp
   const viableBranches = results.filter(isNode);
   if (viableBranches.length === 0)
     return Disjoint.init("union", from.branches, to.branches);
-  if (viableBranches.length < from.branches.length || !from.branches.every((branch, i) => branch.in.equals(viableBranches[i].in)))
+  if (viableBranches.length < from.branches.length || !from.branches.every((branch, i) => branch.rawIn.equals(viableBranches[i].rawIn)))
     return ctx.$.parseSchema(viableBranches);
   if (viableBranches.length === 1) {
     const onlyBranch = viableBranches[0];
@@ -2049,7 +2073,7 @@ const _pipeMorphed = (from, to, ctx) => {
     });
   }
   if (to.hasKind("morph")) {
-    const inTersection = intersectOrPipeNodes(from, to.in, ctx);
+    const inTersection = intersectOrPipeNodes(from, to.rawIn, ctx);
     if (inTersection instanceof Disjoint)
       return inTersection;
     return ctx.$.node("morph", {
@@ -2084,7 +2108,7 @@ class InternalPrimitiveConstraint extends BaseConstraint {
     if (js.traversalKind === "Allows")
       js.return(this.compiledCondition);
     else {
-      js.if(this.compiledNegation, () => js.line(`${js.ctx}.errorFromNodeContext(${this.compiledErrorContext})`));
+      js.if(this.compiledNegation, () => js.line(`ctx.errorFromNodeContext(${this.compiledErrorContext})`));
     }
   }
   get errorContext() {
@@ -2130,16 +2154,16 @@ const intersectConstraints = (s) => {
       continue;
     if (result instanceof Disjoint)
       return result;
+    if (result.isRoot()) {
+      s.roots.push(result);
+      s.l.splice(i);
+      return intersectConstraints(s);
+    }
     if (!matched) {
-      if (result.isRoot()) {
-        s.roots.push(result);
-        s.l.splice(i);
-        return intersectConstraints(s);
-      }
       s.l[i] = result;
       matched = true;
     } else if (!s.l.includes(result)) {
-      return throwInternalError(`Unexpectedly encountered multiple distinct intersection results for refinement ${result}`);
+      return throwInternalError(`Unexpectedly encountered multiple distinct intersection results for refinement ${head}`);
     }
   }
   if (!matched)
@@ -3035,6 +3059,14 @@ class OptionalNode extends BaseProp {
     if ("default" in this.inner)
       assertDefaultValueAssignability(this.value, this.inner.default, this.key);
   }
+  get rawIn() {
+    const baseIn = super.rawIn;
+    if (!this.hasDefault())
+      return baseIn;
+    return this.$.node("optional", omit(baseIn.inner, { default: true }), {
+      prereduced: true
+    });
+  }
   get outProp() {
     if (!this.hasDefault())
       return this;
@@ -3101,6 +3133,14 @@ class BaseRoot extends BaseNode {
     super(attachments, $);
     Object.defineProperty(this, arkKind, { value: "root", enumerable: false });
   }
+  // doesn't seem possible to override this at a type-level (e.g. via declare)
+  // without TS complaining about getters
+  get rawIn() {
+    return super.rawIn;
+  }
+  get rawOut() {
+    return super.rawOut;
+  }
   get internal() {
     return this;
   }
@@ -3119,8 +3159,8 @@ class BaseRoot extends BaseNode {
           return throwParseError(`JSONSchema target '${opts.target}' is not supported (must be "draft-2020-12")`);
         }
         if (opts.io === "input")
-          return this.in.toJsonSchema();
-        return this.out.toJsonSchema();
+          return this.rawIn.toJsonSchema();
+        return this.rawOut.toJsonSchema();
       }
     };
   }
@@ -3246,7 +3286,7 @@ class BaseRoot extends BaseNode {
         return structure.props;
       const structuralMethodName = operation === "required" ? "require" : operation === "partial" ? "optionalize" : operation;
       return this.$.node("intersection", {
-        ...branch.inner,
+        domain: "object",
         structure: structure[structuralMethodName](...args)
       });
     });
@@ -3365,7 +3405,7 @@ class BaseRoot extends BaseNode {
     if (constraint.isRoot()) {
       return constraint.isUnknown() ? this : throwInternalError(`Unexpected constraint node ${constraint}`);
     }
-    const operand = io === "root" ? this : this[io];
+    const operand = io === "root" ? this : io === "in" ? this.rawIn : this.rawOut;
     if (operand.hasKind("morph") || constraint.impliedBasis && !operand.extends(constraint.impliedBasis)) {
       return throwInvalidOperandError(kind, constraint.impliedBasis, this);
     }
@@ -3595,7 +3635,7 @@ class InternalBasis extends BaseRoot {
     if (js.traversalKind === "Allows")
       js.return(this.compiledCondition);
     else {
-      js.if(this.compiledNegation, () => js.line(`${js.ctx}.errorFromNodeContext(${this.compiledErrorContext})`));
+      js.if(this.compiledNegation, () => js.line(`ctx.errorFromNodeContext(${this.compiledErrorContext})`));
     }
   }
 }
@@ -3755,10 +3795,10 @@ const implementation$8 = implementNode({
       if (node2.structure)
         return node2.structure.description;
       const childDescriptions = [];
-      if (node2.basis && !node2.refinements.some((r) => r.impl.obviatesBasisDescription))
+      if (node2.basis && !node2.prestructurals.some((r) => r.impl.obviatesBasisDescription))
         childDescriptions.push(node2.basis.description);
-      if (node2.refinements.length) {
-        const sortedRefinementDescriptions = node2.refinements.toSorted((l, r) => l.kind === "min" && r.kind === "max" ? -1 : 0).map((r) => r.description);
+      if (node2.prestructurals.length) {
+        const sortedRefinementDescriptions = node2.prestructurals.toSorted((l, r) => l.kind === "min" && r.kind === "max" ? -1 : 0).map((r) => r.description);
         childDescriptions.push(...sortedRefinementDescriptions);
       }
       if (node2.inner.predicate) {
@@ -3787,7 +3827,14 @@ ${ctx.expected}`
 });
 class IntersectionNode extends BaseRoot {
   basis = this.inner.domain ?? this.inner.proto ?? null;
-  refinements = this.children.filter((node2) => node2.isRefinement());
+  prestructurals = [];
+  refinements = this.children.filter((node2) => {
+    if (!node2.isRefinement())
+      return false;
+    if (includes(prestructuralKinds, node2.kind))
+      this.prestructurals.push(node2);
+    return true;
+  });
   structure = this.inner.structure;
   expression = writeIntersectionExpression(this);
   get shallowMorphs() {
@@ -3811,13 +3858,13 @@ class IntersectionNode extends BaseRoot {
       if (ctx.currentErrorCount > errorCount)
         return;
     }
-    if (this.refinements.length) {
-      for (let i = 0; i < this.refinements.length - 1; i++) {
-        this.refinements[i].traverseApply(data, ctx);
+    if (this.prestructurals.length) {
+      for (let i = 0; i < this.prestructurals.length - 1; i++) {
+        this.prestructurals[i].traverseApply(data, ctx);
         if (ctx.failFast && ctx.currentErrorCount > errorCount)
           return;
       }
-      this.refinements.at(-1).traverseApply(data, ctx);
+      this.prestructurals.at(-1).traverseApply(data, ctx);
       if (ctx.currentErrorCount > errorCount)
         return;
     }
@@ -3848,12 +3895,12 @@ class IntersectionNode extends BaseRoot {
       if (this.children.length > 1)
         js.returnIfFail();
     }
-    if (this.refinements.length) {
-      for (let i = 0; i < this.refinements.length - 1; i++) {
-        js.check(this.refinements[i]);
+    if (this.prestructurals.length) {
+      for (let i = 0; i < this.prestructurals.length - 1; i++) {
+        js.check(this.prestructurals[i]);
         js.returnIfFailFast();
       }
-      js.check(this.refinements.at(-1));
+      js.check(this.prestructurals.at(-1));
       if (this.structure || this.inner.predicate)
         js.returnIfFail();
     }
@@ -3876,10 +3923,14 @@ const Intersection = {
   Node: IntersectionNode
 };
 const writeIntersectionExpression = (node2) => {
-  let expression = node2.structure?.expression || `${node2.basis && !node2.refinements.some((n) => n.impl.obviatesBasisExpression) ? node2.basis.nestableExpression + " " : ""}${node2.refinements.map((n) => n.expression).join(" & ")}` || "unknown";
-  if (expression === "Array == 0")
-    expression = "[]";
-  return expression;
+  if (node2.structure?.expression)
+    return node2.structure.expression;
+  const basisExpression = node2.basis && !node2.prestructurals.some((n) => n.impl.obviatesBasisExpression) ? node2.basis.nestableExpression : "";
+  const refinementsExpression = node2.prestructurals.map((n) => n.expression).join(" & ");
+  const fullExpression = `${basisExpression}${basisExpression ? " " : ""}${refinementsExpression}`;
+  if (fullExpression === "Array == 0")
+    return "[]";
+  return fullExpression || "unknown";
 };
 const intersectIntersections = (l, r, ctx) => {
   const baseInner = {};
@@ -3922,28 +3973,28 @@ const implementation$7 = implementNode({
   },
   normalize: (schema) => schema,
   defaults: {
-    description: (node2) => `a morph from ${node2.in.description} to ${node2.out?.description ?? "unknown"}`
+    description: (node2) => `a morph from ${node2.rawIn.description} to ${node2.rawOut?.description ?? "unknown"}`
   },
   intersections: {
     morph: (l, r, ctx) => {
       if (!l.hasEqualMorphs(r)) {
         return throwParseError(writeMorphIntersectionMessage(l.expression, r.expression));
       }
-      const inTersection = intersectOrPipeNodes(l.in, r.in, ctx);
+      const inTersection = intersectOrPipeNodes(l.rawIn, r.rawIn, ctx);
       if (inTersection instanceof Disjoint)
         return inTersection;
       const baseInner = {
         morphs: l.morphs
       };
       if (l.declaredIn || r.declaredIn) {
-        const declaredIn = intersectOrPipeNodes(l.in, r.in, ctx);
+        const declaredIn = intersectOrPipeNodes(l.rawIn, r.rawIn, ctx);
         if (declaredIn instanceof Disjoint)
           return declaredIn.throw();
         else
           baseInner.declaredIn = declaredIn;
       }
       if (l.declaredOut || r.declaredOut) {
-        const declaredOut = intersectOrPipeNodes(l.out, r.out, ctx);
+        const declaredOut = intersectOrPipeNodes(l.rawOut, r.rawOut, ctx);
         if (declaredOut instanceof Disjoint)
           return declaredOut.throw();
         else
@@ -3969,14 +4020,14 @@ class MorphNode extends BaseRoot {
   lastMorph = this.inner.morphs.at(-1);
   lastMorphIfNode = hasArkKind(this.lastMorph, "root") ? this.lastMorph : void 0;
   introspectableIn = this.inner.in;
-  introspectableOut = this.lastMorphIfNode ? Object.assign(this.referencesById, this.lastMorphIfNode.referencesById) && this.lastMorphIfNode.out : void 0;
+  introspectableOut = this.lastMorphIfNode ? Object.assign(this.referencesById, this.lastMorphIfNode.referencesById) && this.lastMorphIfNode.rawOut : void 0;
   get shallowMorphs() {
     return Array.isArray(this.inner.in?.shallowMorphs) ? [...this.inner.in.shallowMorphs, ...this.morphs] : this.morphs;
   }
-  get in() {
-    return this.declaredIn ?? this.inner.in?.in ?? $ark.intrinsic.unknown.internal;
+  get rawIn() {
+    return this.declaredIn ?? this.inner.in?.rawIn ?? $ark.intrinsic.unknown.internal;
   }
-  get out() {
+  get rawOut() {
     return this.declaredOut ?? this.introspectableOut ?? $ark.intrinsic.unknown.internal;
   }
   declareIn(declaredIn) {
@@ -3991,14 +4042,14 @@ class MorphNode extends BaseRoot {
       declaredOut
     });
   }
-  expression = `(In: ${this.in.expression}) => ${this.lastMorphIfNode ? "To" : "Out"}<${this.out.expression}>`;
+  expression = `(In: ${this.rawIn.expression}) => ${this.lastMorphIfNode ? "To" : "Out"}<${this.rawOut.expression}>`;
   get defaultShortDescription() {
-    return this.in.meta.description ?? this.in.defaultShortDescription;
+    return this.rawIn.meta.description ?? this.rawIn.defaultShortDescription;
   }
   innerToJsonSchema(ctx) {
     return ctx.fallback.morph({
       code: "morph",
-      base: this.in.toJsonSchemaRecurse(ctx),
+      base: this.rawIn.toJsonSchemaRecurse(ctx),
       out: this.introspectableOut?.toJsonSchemaRecurse(ctx) ?? null
     });
   }
@@ -4128,7 +4179,7 @@ const implementation$5 = implementNode({
                 const matchingMorph = branches[matchingMorphIndex];
                 branches[matchingMorphIndex] = ctx.$.node("morph", {
                   ...matchingMorph.inner,
-                  in: matchingMorph.in.rawOr(node2.in)
+                  in: matchingMorph.rawIn.rawOr(node2.rawIn)
                 });
               }
             } else
@@ -4168,7 +4219,12 @@ const implementation$5 = implementNode({
       return describeBranches(pathDescriptions);
     },
     problem: (ctx) => ctx.expected,
-    message: (ctx) => ctx.problem
+    message: (ctx) => {
+      if (ctx.problem[0] === "[") {
+        return `value at ${ctx.problem}`;
+      }
+      return ctx.problem;
+    }
   },
   intersections: {
     union: (l, r, ctx) => {
@@ -4220,7 +4276,7 @@ class UnionNode extends BaseRoot {
     }
     return branchGroups;
   }
-  unitBranches = this.branches.filter((n) => n.in.hasKind("unit"));
+  unitBranches = this.branches.filter((n) => n.rawIn.hasKind("unit"));
   discriminant = this.discriminate();
   discriminantJson = this.discriminant ? discriminantToJson(this.discriminant) : null;
   expression = this.distribute((n) => n.nestableExpression, expressBranches);
@@ -4299,7 +4355,19 @@ class UnionNode extends BaseRoot {
       for (const k in cases) {
         const v = cases[k];
         const caseCondition = k === "default" ? k : `case ${k}`;
-        js.line(`${caseCondition}: return ${v === true ? optimistic ? js.data : v : optimistic ? `${js.invoke(v)} ? ${v.contextFreeMorph ? `${registeredReference(v.contextFreeMorph)}(${js.data})` : js.data} : "${unset}"` : js.invoke(v)}`);
+        let caseResult;
+        if (v === true)
+          caseResult = optimistic ? "data" : "true";
+        else if (optimistic) {
+          if (v.rootApplyStrategy === "branchedOptimistic")
+            caseResult = js.invoke(v, { kind: "Optimistic" });
+          else if (v.contextFreeMorph)
+            caseResult = `${js.invoke(v)} ? ${registeredReference(v.contextFreeMorph)}(data) : "${unset}"`;
+          else
+            caseResult = `${js.invoke(v)} ? data : "${unset}"`;
+        } else
+          caseResult = js.invoke(v);
+        js.line(`${caseCondition}: return ${caseResult}`);
       }
       return js;
     });
@@ -4333,7 +4401,7 @@ class UnionNode extends BaseRoot {
       const { optimistic } = js;
       js.optimistic = false;
       for (const branch of this.branches) {
-        js.if(`${js.invoke(branch)}`, () => js.return(optimistic ? branch.contextFreeMorph ? `${registeredReference(branch.contextFreeMorph)}(${js.data})` : js.data : true));
+        js.if(`${js.invoke(branch)}`, () => js.return(optimistic ? branch.contextFreeMorph ? `${registeredReference(branch.contextFreeMorph)}(data)` : "data" : true));
       }
       js.return(optimistic ? `"${unset}"` : false);
     }
@@ -4346,7 +4414,7 @@ class UnionNode extends BaseRoot {
       return null;
     if (this.unitBranches.length === this.branches.length) {
       const cases2 = flatMorph(this.unitBranches, (i, n) => [
-        `${n.in.serializedValue}`,
+        `${n.rawIn.serializedValue}`,
         n.hasKind("morph") ? n : true
       ]);
       return {
@@ -4361,7 +4429,7 @@ class UnionNode extends BaseRoot {
       const l = this.branches[lIndex];
       for (let rIndex = lIndex + 1; rIndex < this.branches.length; rIndex++) {
         const r = this.branches[rIndex];
-        const result = intersectNodesRoot(l.in, r.in, l.$);
+        const result = intersectNodesRoot(l.rawIn, r.rawIn, l.$);
         if (!(result instanceof Disjoint))
           continue;
         for (const entry of result) {
@@ -4416,10 +4484,10 @@ class UnionNode extends BaseRoot {
         }
       }
     }
-    const orderedCandidates = this.ordered ? orderCandidates(candidates, this.branches) : candidates;
-    if (!orderedCandidates.length)
+    const viableCandidates = this.ordered ? viableOrderedCandidates(candidates, this.branches) : candidates;
+    if (!viableCandidates.length)
       return null;
-    const ctx = createCaseResolutionContext(orderedCandidates, this);
+    const ctx = createCaseResolutionContext(viableCandidates, this);
     const cases = {};
     for (const k in ctx.best.cases) {
       const resolution = resolveCase(ctx, k);
@@ -4449,8 +4517,9 @@ class UnionNode extends BaseRoot {
     });
   }
 }
-const createCaseResolutionContext = (orderedCandidates, node2) => {
-  const best = orderedCandidates.sort((l, r) => Object.keys(r.cases).length - Object.keys(l.cases).length)[0];
+const createCaseResolutionContext = (viableCandidates, node2) => {
+  const ordered = viableCandidates.sort((l, r) => l.path.length === r.path.length ? Object.keys(r.cases).length - Object.keys(l.cases).length : l.path.length - r.path.length);
+  const best = ordered[0];
   const location = {
     kind: best.kind,
     path: best.path,
@@ -4492,7 +4561,7 @@ const resolveCase = (ctx, key) => {
     )
       resolvedEntries?.push(entry);
     else {
-      if (entry.branch.in.overlaps(discriminantNode)) {
+      if (entry.branch.rawIn.overlaps(discriminantNode)) {
         const overlapping = pruneDiscriminant(entry.branch, ctx.location);
         resolvedEntries?.push({
           originalIndex: entry.originalIndex,
@@ -4505,7 +4574,7 @@ const resolveCase = (ctx, key) => {
   ctx.defaultEntries = nextDefaults;
   return resolvedEntries;
 };
-const orderCandidates = (candidates, originalBranches) => {
+const viableOrderedCandidates = (candidates, originalBranches) => {
   const viableCandidates = candidates.filter((candidate) => {
     const caseGroups = Object.values(candidate.cases).map((caseCtx) => caseCtx.branchIndices);
     for (let i = 0; i < caseGroups.length - 1; i++) {
@@ -4624,14 +4693,14 @@ const reduceBranches = ({ branches, ordered }) => {
         uniquenessByIndex[j] = false;
         continue;
       }
-      const intersection = intersectNodesRoot(branches[i].in, branches[j].in, branches[0].$);
+      const intersection = intersectNodesRoot(branches[i].rawIn, branches[j].rawIn, branches[0].$);
       if (intersection instanceof Disjoint)
         continue;
       if (!ordered)
         assertDeterminateOverlap(branches[i], branches[j]);
-      if (intersection.equals(branches[i].in)) {
+      if (intersection.equals(branches[i].rawIn)) {
         uniquenessByIndex[i] = !!ordered;
-      } else if (intersection.equals(branches[j].in))
+      } else if (intersection.equals(branches[j].rawIn))
         uniquenessByIndex[j] = false;
     }
   }
@@ -4879,7 +4948,15 @@ const implementation$1 = implementNode({
       serialize: (defaults) => defaults.map((element) => [
         element[0].collapsibleJson,
         defaultValueSerializer(element[1])
-      ])
+      ]),
+      reduceIo: (ioKind, inner, defaultables) => {
+        if (ioKind === "in") {
+          inner.optionals = defaultables.map((d) => d[0].rawIn);
+          return;
+        }
+        inner.prefix = defaultables.map((d) => d[0].rawOut);
+        return;
+      }
     },
     variadic: {
       child: true,
@@ -5057,12 +5134,12 @@ class SequenceNode extends BaseConstraint {
     }
     for (const [i, node2] of this.defaultablesAndOptionals.entries()) {
       const dataIndex = `${i + this.prefixLength}`;
-      js.if(`${dataIndex} >= ${js.data}.length`, () => js.traversalKind === "Allows" ? js.return(true) : js.return());
+      js.if(`${dataIndex} >= data.length`, () => js.traversalKind === "Allows" ? js.return(true) : js.return());
       js.traverseKey(dataIndex, `data[${dataIndex}]`, node2);
     }
     if (this.variadic) {
       if (this.postfix) {
-        js.const("firstPostfixIndex", `${js.data}.length${this.postfix ? `- ${this.postfix.length}` : ""}`);
+        js.const("firstPostfixIndex", `data.length${this.postfix ? `- ${this.postfix.length}` : ""}`);
       }
       js.for(`i < ${this.postfix ? "firstPostfixIndex" : "data.length"}`, () => js.traverseKey("i", "data[i]", this.variadic), this.prevariadic.length);
       if (this.postfix) {
@@ -5204,7 +5281,8 @@ const _intersectSequences = (s) => {
         // ideally we could handle disjoint paths more precisely here,
         // but not trivial to serialize postfix elements as keys
         kind === "prefix" ? s.result.length : `-${lTail.length + 1}`,
-        "required"
+        // both operands must be required for the disjoint to be considered required
+        elementIsRequired(lHead) && elementIsRequired(rHead) ? "required" : "optional"
       ));
       s.result = [...s.result, { kind, node: $ark.intrinsic.never.internal }];
     } else if (kind === "optionals" || kind === "defaultables") {
@@ -5241,6 +5319,7 @@ const _intersectSequences = (s) => {
     s.r = rTail;
   return _intersectSequences(s);
 };
+const elementIsRequired = (el) => el.kind === "prefix" || el.kind === "postfix";
 const createStructuralWriter = (childStringProp) => (node2) => {
   if (node2.props.length || node2.index) {
     const parts = node2.index?.map((index) => index[childStringProp]) ?? [];
@@ -5286,7 +5365,7 @@ const implementation = implementNode({
       child: true,
       parse: constraintKeyParser("required"),
       reduceIo: (ioKind, inner, nodes) => {
-        inner.required = append(inner.required, nodes.map((node2) => node2[ioKind]));
+        inner.required = append(inner.required, nodes.map((node2) => ioKind === "in" ? node2.rawIn : node2.rawOut));
         return;
       }
     },
@@ -5295,11 +5374,11 @@ const implementation = implementNode({
       parse: constraintKeyParser("optional"),
       reduceIo: (ioKind, inner, nodes) => {
         if (ioKind === "in") {
-          inner.optional = nodes.map((node2) => node2.in);
+          inner.optional = nodes.map((node2) => node2.rawIn);
           return;
         }
         for (const node2 of nodes) {
-          inner[node2.outProp.kind] = append(inner[node2.outProp.kind], node2.outProp.out);
+          inner[node2.outProp.kind] = append(inner[node2.outProp.kind], node2.outProp.rawOut);
         }
       }
     },
@@ -5314,8 +5393,10 @@ const implementation = implementNode({
     undeclared: {
       parse: (behavior) => behavior === "ignore" ? void 0 : behavior,
       reduceIo: (ioKind, inner, value2) => {
-        if (value2 !== "delete")
+        if (value2 === "reject") {
+          inner.undeclared = "reject";
           return;
+        }
         if (ioKind === "in")
           delete inner.undeclared;
         else
@@ -5771,8 +5852,8 @@ class StructureNode extends BaseConstraint {
           if (keyBranch.hasKind("morph")) {
             keySchema = ctx.fallback.morph({
               code: "morph",
-              base: keyBranch.in.toJsonSchemaRecurse(ctx),
-              out: keyBranch.out.toJsonSchemaRecurse(ctx)
+              base: keyBranch.rawIn.toJsonSchemaRecurse(ctx),
+              out: keyBranch.rawOut.toJsonSchemaRecurse(ctx)
             });
           }
           if (!keyBranch.hasKind("intersection")) {
@@ -6445,7 +6526,7 @@ const maybeParseDate = (source, errorOnFail) => {
   return errorOnFail ? throwParseError(errorOnFail === true ? writeInvalidDateMessage(source) : errorOnFail) : void 0;
 };
 const parseEnclosed = (s, enclosing) => {
-  const enclosed = s.scanner.shiftUntil(untilLookaheadIsClosing[enclosingTokens[enclosing]]);
+  const enclosed = s.scanner.shiftUntilEscapable(untilLookaheadIsClosing[enclosingTokens[enclosing]]);
   if (s.scanner.lookahead === "")
     return s.error(writeUnterminatedEnclosedMessage(enclosed, enclosing));
   s.scanner.shift();
@@ -6475,11 +6556,14 @@ const enclosingChar = {
   "'": 1,
   '"': 1
 };
-const enclosingTokens = {
+const enclosingLiteralTokens = {
   "d'": "'",
   'd"': '"',
   "'": "'",
-  '"': '"',
+  '"': '"'
+};
+const enclosingTokens = {
+  ...enclosingLiteralTokens,
   "/": "/"
 };
 const untilLookaheadIsClosing = {
@@ -6496,26 +6580,26 @@ const writeUnterminatedEnclosedMessage = (fragment, enclosingStart) => `${enclos
 const writePrefixedPrivateReferenceMessage = (name) => `Private type references should not include '#'. Use '${name}' instead.`;
 const shallowOptionalMessage = "Optional definitions like 'string?' are only valid as properties in an object or tuple";
 const shallowDefaultableMessage = "Defaultable definitions like 'number = 0' are only valid as properties in an object or tuple";
-const minComparators = {
-  ">": true,
-  ">=": true
+const terminatingChars = {
+  "<": 1,
+  ">": 1,
+  "=": 1,
+  "|": 1,
+  "&": 1,
+  ")": 1,
+  "[": 1,
+  "%": 1,
+  ",": 1,
+  ":": 1,
+  "?": 1,
+  "#": 1,
+  ...whitespaceChars
 };
-const maxComparators = {
-  "<": true,
-  "<=": true
-};
-const invertedComparators = {
-  "<": ">",
-  ">": "<",
-  "<=": ">=",
-  ">=": "<=",
-  "==": "=="
-};
-const writeUnmatchedGroupCloseMessage = (unscanned) => `Unmatched )${unscanned === "" ? "" : ` before ${unscanned}`}`;
-const writeUnclosedGroupMessage = (missingChar) => `Missing ${missingChar}`;
-const writeOpenRangeMessage = (min, comparator) => `Left bounds are only valid when paired with right bounds (try ...${comparator}${min})`;
-const writeUnpairableComparatorMessage = (comparator) => `Left-bounded expressions must specify their limits using < or <= (was ${comparator})`;
-const writeMultipleLeftBoundsMessage = (openLimit, openComparator, limit, comparator) => `An expression may have at most one left bound (parsed ${openLimit}${invertedComparators[openComparator]}, ${limit}${invertedComparators[comparator]})`;
+const lookaheadIsFinalizing = (lookahead, unscanned) => lookahead === ">" ? unscanned[0] === "=" ? (
+  // >== would only occur in an expression like Array<number>==5
+  // otherwise, >= would only occur as part of a bound like number>=5
+  unscanned[1] === "="
+) : unscanned.trimStart() === "" || isKeyOf(unscanned.trimStart()[0], terminatingChars) : lookahead === "=" ? unscanned[0] !== "=" : lookahead === "," || lookahead === "?";
 const parseGenericArgs = (name, g, s) => _parseGenericArgs(name, g, s, []);
 const _parseGenericArgs = (name, g, s, argNodes) => {
   const argState = s.parseUntilFinalizer();
@@ -6532,7 +6616,7 @@ const _parseGenericArgs = (name, g, s, argNodes) => {
 };
 const writeInvalidGenericArgCountMessage = (name, params, argDefs) => `${name}<${params.join(", ")}> requires exactly ${params.length} args (got ${argDefs.length}${argDefs.length === 0 ? "" : `: ${argDefs.join(", ")}`})`;
 const parseUnenclosed = (s) => {
-  const token = s.scanner.shiftUntilNextTerminator();
+  const token = s.scanner.shiftUntilLookahead(terminatingChars);
   if (token === "keyof")
     s.addPrefix("keyof");
   else
@@ -6546,7 +6630,7 @@ const parseGenericInstantiation = (name, g, s) => {
   const parsedArgs = parseGenericArgs(name, g, s);
   return g(...parsedArgs);
 };
-const unenclosedToNode = (s, token) => maybeParseReference(s, token) ?? maybeParseUnenclosedLiteral(s, token) ?? s.error(token === "" ? s.scanner.lookahead === "#" ? writePrefixedPrivateReferenceMessage(s.shiftedByOne().scanner.shiftUntilNextTerminator()) : writeMissingOperandMessage(s) : writeUnresolvableMessage(token));
+const unenclosedToNode = (s, token) => maybeParseReference(s, token) ?? maybeParseUnenclosedLiteral(s, token) ?? s.error(token === "" ? s.scanner.lookahead === "#" ? writePrefixedPrivateReferenceMessage(s.shiftedByOne().scanner.shiftUntilLookahead(terminatingChars)) : writeMissingOperandMessage(s) : writeUnresolvableMessage(token));
 const maybeParseReference = (s, token) => {
   if (s.ctx.args?.[token]) {
     const arg = s.ctx.args[token];
@@ -6578,39 +6662,24 @@ const writeMissingOperandMessage = (s) => {
 const writeMissingRightOperandMessage = (token, unscanned = "") => `Token '${token}' requires a right operand${unscanned ? ` before '${unscanned}'` : ""}`;
 const writeExpressionExpectedMessage = (unscanned) => `Expected an expression${unscanned ? ` before '${unscanned}'` : ""}`;
 const parseOperand = (s) => s.scanner.lookahead === "" ? s.error(writeMissingOperandMessage(s)) : s.scanner.lookahead === "(" ? s.shiftedByOne().reduceGroupOpen() : s.scanner.lookaheadIsIn(enclosingChar) ? parseEnclosed(s, s.scanner.shift()) : s.scanner.lookaheadIsIn(whitespaceChars) ? parseOperand(s.shiftedByOne()) : s.scanner.lookahead === "d" ? s.scanner.nextLookahead in enclosingQuote ? parseEnclosed(s, `${s.scanner.shift()}${s.scanner.shift()}`) : parseUnenclosed(s) : parseUnenclosed(s);
-class ArkTypeScanner extends Scanner {
-  shiftUntilNextTerminator() {
-    this.shiftUntilNonWhitespace();
-    return this.shiftUntil(() => this.lookahead in ArkTypeScanner.terminatingChars);
-  }
-  static terminatingChars = {
-    "<": 1,
-    ">": 1,
-    "=": 1,
-    "|": 1,
-    "&": 1,
-    ")": 1,
-    "[": 1,
-    "%": 1,
-    ",": 1,
-    ":": 1,
-    "?": 1,
-    "#": 1,
-    ...whitespaceChars
-  };
-  static finalizingLookaheads = {
-    ">": 1,
-    ",": 1,
-    "": 1,
-    "=": 1,
-    "?": 1
-  };
-  static lookaheadIsFinalizing = (lookahead, unscanned) => lookahead === ">" ? unscanned[0] === "=" ? (
-    // >== would only occur in an expression like Array<number>==5
-    // otherwise, >= would only occur as part of a bound like number>=5
-    unscanned[1] === "="
-  ) : unscanned.trimStart() === "" || isKeyOf(unscanned.trimStart()[0], ArkTypeScanner.terminatingChars) : lookahead === "=" ? unscanned[0] !== "=" : lookahead === "," || lookahead === "?";
-}
+const minComparators = {
+  ">": true,
+  ">=": true
+};
+const maxComparators = {
+  "<": true,
+  "<=": true
+};
+const invertedComparators = {
+  "<": ">",
+  ">": "<",
+  "<=": ">=",
+  ">=": "<=",
+  "==": "=="
+};
+const writeOpenRangeMessage = (min, comparator) => `Left bounds are only valid when paired with right bounds (try ...${comparator}${min})`;
+const writeUnpairableComparatorMessage = (comparator) => `Left-bounded expressions must specify their limits using < or <= (was ${comparator})`;
+const writeMultipleLeftBoundsMessage = (openLimit, openComparator, limit, comparator) => `An expression may have at most one left bound (parsed ${openLimit}${invertedComparators[openComparator]}, ${limit}${invertedComparators[comparator]})`;
 const parseBound = (s, start) => {
   const comparator = shiftComparator(s, start);
   if (s.root.hasKind("unit")) {
@@ -6682,11 +6751,12 @@ const parseRightBound = (s, comparator) => {
 const writeInvalidLimitMessage = (comparator, limit, boundKind) => `Comparator ${boundKind === "left" ? invertedComparators[comparator] : comparator} must be ${boundKind === "left" ? "preceded" : "followed"} by a corresponding literal (was ${limit})`;
 const parseBrand = (s) => {
   s.scanner.shiftUntilNonWhitespace();
-  const brandName = s.scanner.shiftUntilNextTerminator();
+  const brandName = s.scanner.shiftUntilLookahead(terminatingChars);
   s.root = s.root.brand(brandName);
 };
 const parseDivisor = (s) => {
-  const divisorToken = s.scanner.shiftUntilNextTerminator();
+  s.scanner.shiftUntilNonWhitespace();
+  const divisorToken = s.scanner.shiftUntilLookahead(terminatingChars);
   const divisor = tryParseInteger(divisorToken, {
     errorOnFail: writeInvalidDivisorMessage(divisorToken)
   });
@@ -6697,7 +6767,7 @@ const parseDivisor = (s) => {
 const writeInvalidDivisorMessage = (divisor) => `% operator must be followed by a non-zero integer literal (was ${divisor})`;
 const parseOperator = (s) => {
   const lookahead = s.scanner.shift();
-  return lookahead === "" ? s.finalize("") : lookahead === "[" ? s.scanner.shift() === "]" ? s.setRoot(s.root.array()) : s.error(incompleteArrayTokenMessage) : lookahead === "|" ? s.scanner.lookahead === ">" ? s.shiftedByOne().pushRootToBranch("|>") : s.pushRootToBranch(lookahead) : lookahead === "&" ? s.pushRootToBranch(lookahead) : lookahead === ")" ? s.finalizeGroup() : ArkTypeScanner.lookaheadIsFinalizing(lookahead, s.scanner.unscanned) ? s.finalize(lookahead) : isKeyOf(lookahead, comparatorStartChars) ? parseBound(s, lookahead) : lookahead === "%" ? parseDivisor(s) : lookahead === "#" ? parseBrand(s) : lookahead in whitespaceChars ? parseOperator(s) : s.error(writeUnexpectedCharacterMessage(lookahead));
+  return lookahead === "" ? s.finalize("") : lookahead === "[" ? s.scanner.shift() === "]" ? s.setRoot(s.root.array()) : s.error(incompleteArrayTokenMessage) : lookahead === "|" ? s.scanner.lookahead === ">" ? s.shiftedByOne().pushRootToBranch("|>") : s.pushRootToBranch(lookahead) : lookahead === "&" ? s.pushRootToBranch(lookahead) : lookahead === ")" ? s.finalizeGroup() : lookaheadIsFinalizing(lookahead, s.scanner.unscanned) ? s.finalize(lookahead) : isKeyOf(lookahead, comparatorStartChars) ? parseBound(s, lookahead) : lookahead === "%" ? parseDivisor(s) : lookahead === "#" ? parseBrand(s) : lookahead in whitespaceChars ? parseOperator(s) : s.error(writeUnexpectedCharacterMessage(lookahead));
 };
 const writeUnexpectedCharacterMessage = (char, shouldBe = "") => `'${char}' is not allowed here${shouldBe && ` (should be ${shouldBe})`}`;
 const incompleteArrayTokenMessage = `Missing expected ']'`;
@@ -6710,7 +6780,7 @@ const parseDefault = (s) => {
   const defaultValue = defaultNode.unit instanceof Date ? () => new Date(defaultNode.unit) : defaultNode.unit;
   return [baseNode, "=", defaultValue];
 };
-const writeNonLiteralDefaultMessage = (defaultDef) => `Default value '${defaultDef}' must a literal value`;
+const writeNonLiteralDefaultMessage = (defaultDef) => `Default value '${defaultDef}' must be a literal value`;
 const parseString = (def, ctx) => {
   const aliasResolution = ctx.$.maybeResolveRoot(def);
   if (aliasResolution)
@@ -6720,7 +6790,7 @@ const parseString = (def, ctx) => {
     if (possibleElementResolution)
       return possibleElementResolution.array();
   }
-  const s = new DynamicState(new ArkTypeScanner(def), ctx);
+  const s = new RuntimeState(new Scanner(def), ctx);
   const node2 = fullStringParse(s);
   if (s.finalizer === ">")
     throwParseError(writeUnexpectedCharacterMessage(">"));
@@ -6748,8 +6818,7 @@ const parseUntilFinalizer = (s) => {
   return s;
 };
 const next = (s) => s.hasRoot() ? s.parseOperator() : s.parseOperand();
-class DynamicState {
-  // set root type to `any` so that all constraints can be applied
+class RuntimeState {
   root;
   branches = {
     prefixes: [],
@@ -6823,8 +6892,9 @@ class DynamicState {
   finalizeGroup() {
     this.finalizeBranches();
     const topBranchState = this.groups.pop();
-    if (!topBranchState)
-      return this.error(writeUnmatchedGroupCloseMessage(this.scanner.unscanned));
+    if (!topBranchState) {
+      return this.error(writeUnmatchedGroupCloseMessage(")", this.scanner.unscanned));
+    }
     this.branches = topBranchState;
   }
   addPrefix(prefix) {
@@ -6852,7 +6922,7 @@ class DynamicState {
     this.branches.union = null;
   }
   parseUntilFinalizer() {
-    return parseUntilFinalizer(new DynamicState(this.scanner, this.ctx));
+    return parseUntilFinalizer(new RuntimeState(this.scanner, this.ctx));
   }
   parseOperator() {
     return parseOperator(this);
@@ -6886,7 +6956,7 @@ class DynamicState {
 const emptyGenericParameterMessage = "An empty string is not a valid generic parameter name";
 const parseGenericParamName = (scanner, result, ctx) => {
   scanner.shiftUntilNonWhitespace();
-  const name = scanner.shiftUntilNextTerminator();
+  const name = scanner.shiftUntilLookahead(terminatingChars);
   if (name === "") {
     if (scanner.lookahead === "" && result.length)
       return result;
@@ -6906,10 +6976,60 @@ const _parseOptionalConstraint = (scanner, name, result, ctx) => {
     result.push(name);
     return parseGenericParamName(scanner, result, ctx);
   }
-  const s = parseUntilFinalizer(new DynamicState(scanner, ctx));
+  const s = parseUntilFinalizer(new RuntimeState(scanner, ctx));
   result.push([name, s.root]);
   return parseGenericParamName(scanner, result, ctx);
 };
+class InternalFnParser extends Callable {
+  constructor($) {
+    const attach = {
+      $,
+      raw: $.fn
+    };
+    super((...signature) => {
+      const returnOperatorIndex = signature.indexOf(":");
+      const lastParamIndex = returnOperatorIndex === -1 ? signature.length - 1 : returnOperatorIndex - 1;
+      const paramDefs = signature.slice(0, lastParamIndex + 1);
+      const paramTuple = $.parse(paramDefs).assertHasKind("intersection");
+      let returnType = $.intrinsic.unknown;
+      if (returnOperatorIndex !== -1) {
+        if (returnOperatorIndex !== signature.length - 2)
+          return throwParseError(badFnReturnTypeMessage);
+        returnType = $.parse(signature[returnOperatorIndex + 1]);
+      }
+      return (impl) => new InternalTypedFn(impl, paramTuple, returnType);
+    }, { attach });
+  }
+}
+class InternalTypedFn extends Callable {
+  raw;
+  params;
+  returns;
+  expression;
+  constructor(raw, params, returns) {
+    const typedName = `typed ${raw.name}`;
+    const typed = {
+      // assign to a key with the expected name to force it to be created that way
+      [typedName]: (...args) => {
+        const validatedArgs = params.assert(args);
+        const returned = raw(...validatedArgs);
+        return returns.assert(returned);
+      }
+    }[typedName];
+    super(typed);
+    this.raw = raw;
+    this.params = params;
+    this.returns = returns;
+    let argsExpression = params.expression;
+    if (argsExpression[0] === "[" && argsExpression.at(-1) === "]")
+      argsExpression = argsExpression.slice(1, -1);
+    else if (argsExpression.endsWith("[]"))
+      argsExpression = `...${argsExpression}`;
+    this.expression = `(${argsExpression}) => ${returns?.expression ?? "unknown"}`;
+  }
+}
+const badFnReturnTypeMessage = `":" must be followed by exactly one return type e.g:
+fn("string", ":", "number")(s => s.length)`;
 class InternalMatchParser extends Callable {
   $;
   constructor($) {
@@ -7092,10 +7212,10 @@ const appendNamedProp = (structure, kind, inner, ctx) => {
 };
 const writeInvalidUndeclaredBehaviorMessage = (actual) => `Value of '+' key must be 'reject', 'delete', or 'ignore' (was ${printable(actual)})`;
 const nonLeadingSpreadError = "Spread operator may only be used as the first key in an object";
-const preparseKey = (key) => typeof key === "symbol" ? { kind: "required", normalized: key } : key.at(-1) === "?" ? key.at(-2) === escapeChar ? { kind: "required", normalized: `${key.slice(0, -2)}?` } : {
+const preparseKey = (key) => typeof key === "symbol" ? { kind: "required", normalized: key } : key.at(-1) === "?" ? key.at(-2) === Backslash ? { kind: "required", normalized: `${key.slice(0, -2)}?` } : {
   kind: "optional",
   normalized: key.slice(0, -1)
-} : key[0] === "[" && key.at(-1) === "]" ? { kind: "index", normalized: key.slice(1, -1) } : key[0] === escapeChar && key[1] === "[" && key.at(-1) === "]" ? { kind: "required", normalized: key.slice(1) } : key === "..." ? { kind: "spread" } : key === "+" ? { kind: "undeclared" } : {
+} : key[0] === "[" && key.at(-1) === "]" ? { kind: "index", normalized: key.slice(1, -1) } : key[0] === Backslash && key[1] === "[" && key.at(-1) === "]" ? { kind: "required", normalized: key.slice(1) } : key === "..." ? { kind: "spread" } : key === "+" ? { kind: "undeclared" } : {
   kind: "required",
   normalized: key === "\\..." ? "..." : key === "\\+" ? "+" : key
 };
@@ -7128,7 +7248,7 @@ const parseNarrowTuple = (def, ctx) => {
   }
   return ctx.$.parseOwnDefinitionFormat(def[0], ctx).constrain("predicate", def[2]);
 };
-const parseAttributeTuple = (def, ctx) => ctx.$.parseOwnDefinitionFormat(def[0], ctx).configureReferences(def[2], "shallow");
+const parseMetaTuple = (def, ctx) => ctx.$.parseOwnDefinitionFormat(def[0], ctx).configure(def[2], def[3]);
 const defineIndexOneParsers = (parsers) => parsers;
 const postfixParsers = defineIndexOneParsers({
   "[]": parseArrayTuple,
@@ -7140,7 +7260,7 @@ const infixParsers = defineIndexOneParsers({
   ":": parseNarrowTuple,
   "=>": parseMorphTuple,
   "|>": parseBranchTuple,
-  "@": parseAttributeTuple,
+  "@": parseMetaTuple,
   // since object and tuple literals parse there via `parseProperty`,
   // they must be shallow if parsed directly as a tuple expression
   "=": () => throwParseError(shallowDefaultableMessage)
@@ -7308,6 +7428,7 @@ class InternalTypeParser extends Callable {
         raw: $.parse,
         module: $.constructor.module,
         scope: $.constructor.scope,
+        declare: $.declare,
         define: $.define,
         match: $.match,
         generic: $.generic,
@@ -7321,7 +7442,8 @@ class InternalTypeParser extends Callable {
         or: $.or,
         and: $.and,
         merge: $.merge,
-        pipe: $.pipe
+        pipe: $.pipe,
+        fn: $.fn
       },
       // also won't be defined during bootstrapping
       $.ambientAttachments
@@ -7337,7 +7459,6 @@ class InternalTypeParser extends Callable {
       }
       return $.parse(args);
     }, {
-      bind: $,
       attach
     });
   }
@@ -7380,7 +7501,7 @@ class InternalScope extends BaseScope {
     ];
   }
   parseGenericParams(def, opts) {
-    return parseGenericParamName(new ArkTypeScanner(def), [], this.createParseContext({
+    return parseGenericParamName(new Scanner(def), [], this.createParseContext({
       ...opts,
       def,
       prefix: "generic"
@@ -7419,6 +7540,7 @@ class InternalScope extends BaseScope {
   and = (...defs) => defs.reduce((node2, def) => node2.and(this.parse(def)), this.intrinsic.unknown);
   merge = (...defs) => defs.reduce((node2, def) => node2.merge(this.parse(def)), this.intrinsic.object);
   pipe = (...morphs) => this.intrinsic.unknown.pipe(...morphs);
+  fn = new InternalFnParser(this);
   match = new InternalMatchParser(this);
   declare = () => ({
     type: this.type
@@ -7888,16 +8010,7 @@ const upper = Scope.module({
 }, {
   name: "string.upper"
 });
-const isParsableUrl = (s) => {
-  if (URL.canParse)
-    return URL.canParse(s);
-  try {
-    new URL(s);
-    return true;
-  } catch {
-    return false;
-  }
-};
+const isParsableUrl = (s) => URL.canParse(s);
 const urlRoot = rootSchema({
   domain: "string",
   predicate: {
@@ -8091,6 +8204,7 @@ const type = Object.assign(
   $arkTypeRegistry.typeAttachments
 );
 ark.match;
+ark.fn;
 ark.generic;
 ark.schema;
 ark.define;
