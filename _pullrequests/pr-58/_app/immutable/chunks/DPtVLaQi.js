@@ -1,6 +1,6 @@
-import { l as lifecycle_outside_component, u as user_effect, g as get_abort_signal_outside_reaction, a as active_reaction, c as component_context, i as is_array, b as lifecycle_legacy_only, d as legacy_mode_flag, e as untrack, f as flushSync, h as getAllContexts, j as getContext, k as hasContext, s as setContext, m as settled, t as tick } from "./Dpq-lT5A.js";
-import { h as hydrate, m as mount, u as unmount } from "./BK8QOlwn.js";
-import { c as createRawSnippet } from "./DYVjLlS2.js";
+import { l as lifecycle_outside_component, u as user_effect, g as get_abort_signal_outside_reaction, a as active_reaction, c as component_context, i as is_array, b as lifecycle_legacy_only, d as legacy_mode_flag, e as untrack, f as createContext, h as flushSync, j as getAllContexts, k as getContext, m as hasContext, s as setContext, n as settled, t as tick } from "./DxO9wToY.js";
+import { h as hydrate, m as mount, u as unmount } from "./CZk5GCzL.js";
+import { c as createRawSnippet } from "./BymjBzi3.js";
 function getAbortSignal() {
   if (active_reaction === null) {
     get_abort_signal_outside_reaction();
@@ -90,6 +90,7 @@ const svelte = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProper
   __proto__: null,
   afterUpdate,
   beforeUpdate,
+  createContext,
   createEventDispatcher,
   createRawSnippet,
   flushSync,
