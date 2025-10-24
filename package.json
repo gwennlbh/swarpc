@@ -70,7 +70,7 @@
   },
   "volta": {
     "node": "24.10.0",
-    "npm": "11.6.1"
+    "npm": "11.6.2"
   },
   "lint-staged": {
     "*.{ts,js,md,json,yaml,yml}": [
