@@ -109,7 +109,7 @@ export type Hooks<Procedures extends ProceduresMap> = {
      */
     progress?: <Procedure extends keyof ProceduresMap>(procedure: Procedure, data: Procedures[Procedure]["progress"]["inferOut"]) => void;
 };
-export declare const PayloadInitializeSchema: import("arktype/internal/methods/object.ts").ObjectType<{
+export declare const PayloadInitializeSchema: import("arktype/internal/variants/object.ts").ObjectType<{
     by: "sw&rpc";
     functionName: "#initialize";
     isInitializeRequest: true;
@@ -190,14 +190,14 @@ export declare const PayloadSchema: import("arktype").Generic<[["Name", string],
             readonly functionName: "Name";
             readonly requestId: "string >= 1";
         }, {}, {}>;
-        PayloadInitializeSchema: import("arktype/internal/methods/object.ts").ObjectType<{
+        PayloadInitializeSchema: import("arktype/internal/variants/object.ts").ObjectType<{
             by: "sw&rpc";
             functionName: "#initialize";
             isInitializeRequest: true;
             localStorageData: Record<string, unknown>;
             nodeId: string;
         }, {}> & {
-            readonly " brand": [import("arktype/internal/methods/object.ts").ObjectType<{
+            readonly " brand": [import("arktype/internal/variants/object.ts").ObjectType<{
                 by: "sw&rpc";
                 functionName: "#initialize";
                 isInitializeRequest: true;
@@ -227,14 +227,14 @@ export declare const PayloadSchema: import("arktype").Generic<[["Name", string],
             readonly functionName: "Name";
             readonly requestId: "string >= 1";
         }, {}, {}>;
-        PayloadInitializeSchema: import("arktype/internal/methods/object.ts").ObjectType<{
+        PayloadInitializeSchema: import("arktype/internal/variants/object.ts").ObjectType<{
             by: "sw&rpc";
             functionName: "#initialize";
             isInitializeRequest: true;
             localStorageData: Record<string, unknown>;
             nodeId: string;
         }, {}> & {
-            readonly " brand": [import("arktype/internal/methods/object.ts").ObjectType<{
+            readonly " brand": [import("arktype/internal/variants/object.ts").ObjectType<{
                 by: "sw&rpc";
                 functionName: "#initialize";
                 isInitializeRequest: true;
@@ -278,14 +278,14 @@ export declare const PayloadSchema: import("arktype").Generic<[["Name", string],
             readonly functionName: "Name";
             readonly requestId: "string >= 1";
         }, {}, {}>;
-        PayloadInitializeSchema: import("arktype/internal/methods/object.ts").ObjectType<{
+        PayloadInitializeSchema: import("arktype/internal/variants/object.ts").ObjectType<{
             by: "sw&rpc";
             functionName: "#initialize";
             isInitializeRequest: true;
             localStorageData: Record<string, unknown>;
             nodeId: string;
         }, {}> & {
-            readonly " brand": [import("arktype/internal/methods/object.ts").ObjectType<{
+            readonly " brand": [import("arktype/internal/variants/object.ts").ObjectType<{
                 by: "sw&rpc";
                 functionName: "#initialize";
                 isInitializeRequest: true;
@@ -315,14 +315,14 @@ export declare const PayloadSchema: import("arktype").Generic<[["Name", string],
             readonly functionName: "Name";
             readonly requestId: "string >= 1";
         }, {}, {}>;
-        PayloadInitializeSchema: import("arktype/internal/methods/object.ts").ObjectType<{
+        PayloadInitializeSchema: import("arktype/internal/variants/object.ts").ObjectType<{
             by: "sw&rpc";
             functionName: "#initialize";
             isInitializeRequest: true;
             localStorageData: Record<string, unknown>;
             nodeId: string;
         }, {}> & {
-            readonly " brand": [import("arktype/internal/methods/object.ts").ObjectType<{
+            readonly " brand": [import("arktype/internal/variants/object.ts").ObjectType<{
                 by: "sw&rpc";
                 functionName: "#initialize";
                 isInitializeRequest: true;
