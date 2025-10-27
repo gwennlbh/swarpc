@@ -1,54 +1,19 @@
-const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["../nodes/0.BBgqo_WL.js","../chunks/Cz47pBZ4.js","../chunks/CKOwlSI2.js","../chunks/DxO9wToY.js","../chunks/BymjBzi3.js","../nodes/1.Cw1eEznk.js","../chunks/Du0hMIwk.js","../chunks/CZk5GCzL.js","../chunks/C4LUBec3.js","../chunks/DPtVLaQi.js","../chunks/BSsBU_Uh.js","../chunks/j3_9r2Nk.js","../nodes/2.CKIKocYg.js","../nodes/3.DNqPhJH6.js","../chunks/BJfIL4s5.js","../nodes/4.hf3u82om.js","../chunks/DMqOXJiS.js","../chunks/BPWPmzJ1.js","../nodes/5.DMbCDWVk.js","../assets/5.3kMZvOdl.css"])))=>i.map(i=>d[i]);
-import { v as hydrating, w as hydrate_next, r as block, E as EFFECT_TRANSPARENT, V as create_text, A as branch, W as current_batch, Y as should_defer_append, D as hydrate_node, _ as pause_effect, aS as effect, a0 as render_effect, e as untrack, a5 as queue_micro_task, aT as STATE_SYMBOL, aU as get_descriptor, aV as props_invalid_value, aW as PROPS_IS_UPDATED, K as get, ae as derived, ag as derived_safe_equal, aw as proxy, M as set, aX as is_destroying_effect, av as active_effect, aY as DESTROYED, aZ as PROPS_IS_BINDABLE, d as legacy_mode_flag, a_ as PROPS_IS_RUNES, a$ as PROPS_IS_IMMUTABLE, b0 as PROPS_IS_LAZY_INITIAL, b1 as LEGACY_PROPS, h as flushSync, aL as define_property, ak as mutable_source, a8 as push, aa as user_pre_effect, u as user_effect, I as state, t as tick, G as from_html, p as first_child, J as sibling, q as append, a9 as pop, o as comment, L as child, N as reset, H as user_derived, O as text, P as template_effect } from "../chunks/DxO9wToY.js";
-import { h as hydrate, m as mount, u as unmount, s as set_text } from "../chunks/CZk5GCzL.js";
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["../nodes/0.CFwY4--i.js","../chunks/hifvxb8K.js","../chunks/CKOwlSI2.js","../chunks/DMYzM3Fw.js","../chunks/DsyTFrz4.js","../chunks/L8JBpe-E.js","../nodes/1.TplY1d5d.js","../chunks/9zWEcJxl.js","../chunks/DZt4UtlZ.js","../chunks/CknomxJb.js","../chunks/BFcou0xE.js","../chunks/BHuZ28Z_.js","../chunks/HZPjSN3u.js","../nodes/2.BPHOa5D3.js","../nodes/3.ziC2KqCC.js","../chunks/C6HFKkFn.js","../nodes/4.Rcj1-Ukj.js","../chunks/BJRBorb5.js","../chunks/BLseoZor.js","../nodes/5.CsnZ-Op2.js","../assets/5.3kMZvOdl.css"])))=>i.map(i=>d[i]);
+import { w as hydrating, x as hydrate_next, v as block, E as EFFECT_TRANSPARENT, aS as effect, a0 as render_effect, e as untrack, a5 as queue_micro_task, aT as STATE_SYMBOL, aU as get_descriptor, aV as props_invalid_value, aW as PROPS_IS_UPDATED, G as get, ae as derived, ag as derived_safe_equal, aw as proxy, H as set, aX as is_destroying_effect, av as active_effect, aY as DESTROYED, aZ as PROPS_IS_BINDABLE, d as legacy_mode_flag, a_ as PROPS_IS_RUNES, a$ as PROPS_IS_IMMUTABLE, b0 as PROPS_IS_LAZY_INITIAL, b1 as LEGACY_PROPS, h as flushSync, aL as define_property, ak as mutable_source, a8 as push, aa as user_pre_effect, u as user_effect, I as state, t as tick, D as from_html, q as first_child, F as sibling, r as append, a9 as pop, p as comment, J as child, L as reset, K as user_derived, M as text, N as template_effect } from "../chunks/DMYzM3Fw.js";
+import { h as hydrate, m as mount, u as unmount, s as set_text } from "../chunks/DZt4UtlZ.js";
 import "../chunks/CKOwlSI2.js";
-import { o as onMount } from "../chunks/DPtVLaQi.js";
-import { i as if_block } from "../chunks/DMqOXJiS.js";
+import { o as onMount } from "../chunks/BFcou0xE.js";
+import { i as if_block } from "../chunks/BJRBorb5.js";
+import { B as BranchManager } from "../chunks/L8JBpe-E.js";
 function component(node, get_component, render_fn) {
   if (hydrating) {
     hydrate_next();
   }
-  var anchor = node;
-  var component2;
-  var effect2;
-  var offscreen_fragment = null;
-  var pending_effect = null;
-  function commit() {
-    if (effect2) {
-      pause_effect(effect2);
-      effect2 = null;
-    }
-    if (offscreen_fragment) {
-      offscreen_fragment.lastChild.remove();
-      anchor.before(offscreen_fragment);
-      offscreen_fragment = null;
-    }
-    effect2 = pending_effect;
-    pending_effect = null;
-  }
+  var branches = new BranchManager(node);
   block(() => {
-    if (component2 === (component2 = get_component())) return;
-    var defer = should_defer_append();
-    if (component2) {
-      var target = anchor;
-      if (defer) {
-        offscreen_fragment = document.createDocumentFragment();
-        offscreen_fragment.append(target = create_text());
-        if (effect2) {
-          current_batch.skipped_effects.add(effect2);
-        }
-      }
-      pending_effect = branch(() => render_fn(target, component2));
-    }
-    if (defer) {
-      current_batch.add_callback(commit);
-    } else {
-      commit();
-    }
+    var component2 = get_component() ?? null;
+    branches.ensure(component2, component2 && ((target) => render_fn(target, component2)));
   }, EFFECT_TRANSPARENT);
-  if (hydrating) {
-    anchor = hydrate_node;
-  }
 }
 function is_bound_this(bound_value, element_or_component) {
   return bound_value === element_or_component || bound_value?.[STATE_SYMBOL] === element_or_component;
@@ -563,12 +528,12 @@ function Root($$anchor, $$props) {
 }
 const root = asClassComponent(Root);
 const nodes = [
-  () => __vitePreload(() => import("../nodes/0.BBgqo_WL.js"), true ? __vite__mapDeps([0,1,2,3,4]) : void 0, import.meta.url),
-  () => __vitePreload(() => import("../nodes/1.Cw1eEznk.js"), true ? __vite__mapDeps([5,2,6,3,7,8,9,4,10,11]) : void 0, import.meta.url),
-  () => __vitePreload(() => import("../nodes/2.CKIKocYg.js"), true ? __vite__mapDeps([12,10,1,2,3,4]) : void 0, import.meta.url),
-  () => __vitePreload(() => import("../nodes/3.DNqPhJH6.js"), true ? __vite__mapDeps([13,2,6,3,14,11]) : void 0, import.meta.url),
-  () => __vitePreload(() => import("../nodes/4.hf3u82om.js"), true ? __vite__mapDeps([15,2,3,7,16,14,17]) : void 0, import.meta.url),
-  () => __vitePreload(() => import("../nodes/5.DMbCDWVk.js"), true ? __vite__mapDeps([18,2,3,7,14,17,19]) : void 0, import.meta.url)
+  () => __vitePreload(() => import("../nodes/0.CFwY4--i.js"), true ? __vite__mapDeps([0,1,2,3,4,5]) : void 0, import.meta.url),
+  () => __vitePreload(() => import("../nodes/1.TplY1d5d.js"), true ? __vite__mapDeps([6,2,7,3,8,9,10,4,5,11,12]) : void 0, import.meta.url),
+  () => __vitePreload(() => import("../nodes/2.BPHOa5D3.js"), true ? __vite__mapDeps([13,11,1,2,3,4,5]) : void 0, import.meta.url),
+  () => __vitePreload(() => import("../nodes/3.ziC2KqCC.js"), true ? __vite__mapDeps([14,2,7,3,15,12]) : void 0, import.meta.url),
+  () => __vitePreload(() => import("../nodes/4.Rcj1-Ukj.js"), true ? __vite__mapDeps([16,2,3,8,17,5,15,18]) : void 0, import.meta.url),
+  () => __vitePreload(() => import("../nodes/5.CsnZ-Op2.js"), true ? __vite__mapDeps([19,2,3,8,15,18,20]) : void 0, import.meta.url)
 ];
 const server_loads = [];
 const dictionary = {

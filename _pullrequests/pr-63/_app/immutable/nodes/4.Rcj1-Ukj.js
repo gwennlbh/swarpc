@@ -1,23 +1,9 @@
 import "../chunks/CKOwlSI2.js";
-import { G as from_html, p as first_child, H as user_derived, I as state, J as sibling, K as get, q as append, L as child, M as set, N as reset, O as text, P as template_effect, o as comment } from "../chunks/DxO9wToY.js";
-import { d as delegate, s as set_text } from "../chunks/CZk5GCzL.js";
-import { i as if_block } from "../chunks/DMqOXJiS.js";
-import { r as remove_input_defaults } from "../chunks/BJfIL4s5.js";
-import { b as bind_value } from "../chunks/BPWPmzJ1.js";
-var on_click = async (_, swarpc, a, b, loading, progress, cancel, result) => {
-  const cancelable = get(swarpc).multiply.cancelable({ a: get(a), b: get(b) }, ({ progress: p }) => {
-    set(loading, true);
-    set(progress, p, true);
-  });
-  set(cancel, cancelable.cancel, true);
-  set(result, await cancelable.request.then((r) => r.result), true);
-  set(loading, false);
-  set(cancel, void 0);
-};
-var on_click_1 = async (__1, cancel, loading) => {
-  get(cancel)?.("User cancelled");
-  set(loading, false);
-};
+import { D as from_html, q as first_child, F as sibling, G as get, H as set, r as append, I as state, J as child, K as user_derived, L as reset, M as text, N as template_effect, p as comment } from "../chunks/DMYzM3Fw.js";
+import { d as delegate, s as set_text } from "../chunks/DZt4UtlZ.js";
+import { i as if_block } from "../chunks/BJRBorb5.js";
+import { r as remove_input_defaults } from "../chunks/C6HFKkFn.js";
+import { b as bind_value } from "../chunks/BLseoZor.js";
 var root_5 = from_html(`<button>Cancel</button>`);
 var root = from_html(`<search><input type="number"/> * <input type="number"/> = <button><!></button></search> <!>`, 1);
 function _page($$anchor, $$props) {
@@ -35,7 +21,16 @@ function _page($$anchor, $$props) {
   var input_1 = sibling(input, 2);
   remove_input_defaults(input_1);
   var button = sibling(input_1, 2);
-  button.__click = [on_click, swarpc, a, b, loading, progress, cancel, result];
+  button.__click = async () => {
+    const cancelable = get(swarpc).multiply.cancelable({ a: get(a), b: get(b) }, ({ progress: p }) => {
+      set(loading, true);
+      set(progress, p, true);
+    });
+    set(cancel, cancelable.cancel, true);
+    set(result, await cancelable.request.then((r) => r.result), true);
+    set(loading, false);
+    set(cancel, void 0);
+  };
   var node = child(button);
   {
     var consequent = ($$anchor2) => {
@@ -78,7 +73,10 @@ function _page($$anchor, $$props) {
   {
     var consequent_2 = ($$anchor2) => {
       var button_1 = root_5();
-      button_1.__click = [on_click_1, cancel, loading];
+      button_1.__click = async () => {
+        get(cancel)?.("User cancelled");
+        set(loading, false);
+      };
       append($$anchor2, button_1);
     };
     if_block(node_2, ($$render) => {

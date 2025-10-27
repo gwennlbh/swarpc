@@ -1,4 +1,4 @@
-import { c as component_context, aa as user_pre_effect, u as user_effect, e as untrack, ab as run_all, ac as run, K as get, ad as deep_read_state, ae as derived, af as enable_legacy_mode_flag } from "./DxO9wToY.js";
+import { c as component_context, aa as user_pre_effect, u as user_effect, e as untrack, ab as run_all, ac as run, G as get, ad as deep_read_state, ae as derived, af as enable_legacy_mode_flag } from "./DMYzM3Fw.js";
 function init(immutable = false) {
   const context = (
     /** @type {ComponentContextLegacy} */

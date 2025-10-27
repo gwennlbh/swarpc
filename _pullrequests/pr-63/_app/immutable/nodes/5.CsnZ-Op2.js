@@ -1,8 +1,8 @@
 import "../chunks/CKOwlSI2.js";
-import { V as create_text, r as block, T as set_hydrate_node, v as hydrating, F as get_first_child, w as hydrate_next, K as get, ag as derived_safe_equal, Q as read_hydration_instruction, R as HYDRATION_START_ELSE, S as skip_nodes, U as set_hydrating, D as hydrate_node, ah as COMMENT_NODE, ai as HYDRATION_END, A as branch, Y as should_defer_append, W as current_batch, aj as internal_set, ak as mutable_source, al as source, am as array_from, i as is_array, an as EACH_INDEX_REACTIVE, Z as resume_effect, _ as pause_effect, ao as EACH_ITEM_REACTIVE, ap as EACH_ITEM_IMMUTABLE, aq as INERT, C as destroy_effect, ar as get_next_sibling, as as pause_children, at as clear_text_content, au as run_out_transitions, av as active_effect, aw as proxy, G as from_html, p as first_child, H as user_derived, I as state, J as sibling, q as append, M as set, N as reset, L as child, P as template_effect } from "../chunks/DxO9wToY.js";
-import { d as delegate, s as set_text } from "../chunks/CZk5GCzL.js";
-import { r as remove_input_defaults } from "../chunks/BJfIL4s5.js";
-import { b as bind_value } from "../chunks/BPWPmzJ1.js";
+import { X as create_text, v as block, R as set_hydrate_node, w as hydrating, C as get_first_child, x as hydrate_next, G as get, ag as derived_safe_equal, O as read_hydration_instruction, P as HYDRATION_START_ELSE, Q as skip_nodes, S as set_hydrating, B as hydrate_node, ah as COMMENT_NODE, ai as HYDRATION_END, Y as branch, _ as should_defer_append, T as current_batch, aj as internal_set, ak as mutable_source, al as source, am as array_from, i as is_array, an as EACH_INDEX_REACTIVE, U as resume_effect, W as pause_effect, ao as EACH_ITEM_REACTIVE, ap as EACH_ITEM_IMMUTABLE, aq as INERT, V as destroy_effect, ar as get_next_sibling, as as pause_children, at as clear_text_content, au as run_out_transitions, av as active_effect, aw as proxy, D as from_html, q as first_child, F as sibling, r as append, K as user_derived, I as state, H as set, L as reset, J as child, N as template_effect } from "../chunks/DMYzM3Fw.js";
+import { d as delegate, s as set_text } from "../chunks/DZt4UtlZ.js";
+import { r as remove_input_defaults } from "../chunks/C6HFKkFn.js";
+import { b as bind_value } from "../chunks/BLseoZor.js";
 function index(_, i) {
   return i;
 }
@@ -185,7 +185,7 @@ function each(node, flags, get_collection, get_key, render_fn, fallback_fn = nul
             batch.skipped_effects.add(item2.e);
           }
         }
-        batch.add_callback(commit);
+        batch.oncommit(commit);
       } else {
         commit();
       }
@@ -414,27 +414,27 @@ function link(state2, prev, next) {
     next.e.prev = prev && prev.e;
   }
 }
-async function compute(__1, results, swarpc, tableOf) {
-  await Promise.all(results.map(async (_, i) => {
-    const { result, node } = await get(swarpc).multiply({ a: i, b: get(tableOf) }, ({ progress: p, node: node2 }) => {
-      results[i].progress = Math.round(p * 100) + "%";
-      results[i].node = node2;
-    });
-    results[i].result = result;
-    results[i].node = node;
-  }));
-}
 var root_1 = from_html(`<p><code class="svelte-qrjmsr"> <br/> </code></p>`);
 var root = from_html(`<input type="number" min="0" max="10"/> <button>Compute</button> <div id="result"></div>`, 1);
 function _page($$anchor, $$props) {
   const swarpc = user_derived(() => $$props.data.swarpc);
   let results = proxy(Array.from({ length: 11 }, () => ({ result: 0, node: "?", progress: "waiting" })));
   let tableOf = state(0);
+  async function compute() {
+    await Promise.all(results.map(async (_, i) => {
+      const { result, node } = await get(swarpc).multiply({ a: i, b: get(tableOf) }, ({ progress: p, node: node2 }) => {
+        results[i].progress = Math.round(p * 100) + "%";
+        results[i].node = node2;
+      });
+      results[i].result = result;
+      results[i].node = node;
+    }));
+  }
   var fragment = root();
   var input = first_child(fragment);
   remove_input_defaults(input);
   var button = sibling(input, 2);
-  button.__click = [compute, results, swarpc, tableOf];
+  button.__click = compute;
   var div = sibling(button, 2);
   each(div, 21, () => results, index, ($$anchor2, $$item, i) => {
     let result = () => get($$item).result;

@@ -1,22 +1,11 @@
-import { r as block, v as hydrating, w as hydrate_next, x as create_fragment_from_html, y as assign_nodes, z as teardown, E as EFFECT_TRANSPARENT, A as branch, B as noop, C as destroy_effect, D as hydrate_node, F as get_first_child } from "./DxO9wToY.js";
+import { v as block, w as hydrating, x as hydrate_next, y as create_fragment_from_html, z as assign_nodes, A as teardown, E as EFFECT_TRANSPARENT, B as hydrate_node, C as get_first_child } from "./DMYzM3Fw.js";
+import { B as BranchManager } from "./L8JBpe-E.js";
 function snippet(node, get_snippet, ...args) {
-  var anchor = node;
-  var snippet2 = noop;
-  var snippet_effect;
+  var branches = new BranchManager(node);
   block(() => {
-    if (snippet2 === (snippet2 = get_snippet())) return;
-    if (snippet_effect) {
-      destroy_effect(snippet_effect);
-      snippet_effect = null;
-    }
-    snippet_effect = branch(() => (
-      /** @type {SnippetFn} */
-      snippet2(anchor, ...args)
-    ));
+    const snippet2 = get_snippet() ?? null;
+    branches.ensure(snippet2, snippet2 && ((anchor) => snippet2(anchor, ...args)));
   }, EFFECT_TRANSPARENT);
-  if (hydrating) {
-    anchor = hydrate_node;
-  }
 }
 function createRawSnippet(fn) {
   return (anchor, ...params) => {

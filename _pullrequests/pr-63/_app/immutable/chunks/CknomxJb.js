@@ -1,7 +1,7 @@
-import { o as onMount, s as svelte } from "./DPtVLaQi.js";
-import { b as base64_decode, H as HttpError, S as SvelteKitError, R as Redirect, t as text_decoder } from "./BSsBU_Uh.js";
-import { p as parse_route_id, e as exec, a as assets, b as base } from "./j3_9r2Nk.js";
-import { B as noop$1, b2 as safe_not_equal, I as state, K as get$1, M as set$1, t as tick$1 } from "./DxO9wToY.js";
+import { o as onMount, s as svelte } from "./BFcou0xE.js";
+import { b as base64_decode, H as HttpError, S as SvelteKitError, R as Redirect } from "./BHuZ28Z_.js";
+import { p as parse_route_id, e as exec, a as assets, b as base } from "./HZPjSN3u.js";
+import { b2 as noop$1, b3 as safe_not_equal, I as state, G as get$1, H as set$1, o as settled, t as tick$1, j as fork } from "./DMYzM3Fw.js";
 const subscriber_queue = [];
 function writable(value, start2 = noop$1) {
   let stop = null;
@@ -220,7 +220,7 @@ function set(key, value, stringify = JSON.stringify) {
   } catch {
   }
 }
-const version = "1761531056310";
+const version = "1761531275094";
 const SNAPSHOT_KEY = "sveltekit:snapshot";
 const SCROLL_KEY = "sveltekit:scroll";
 const STATES_KEY = "sveltekit:states";
@@ -414,185 +414,6 @@ function is_external_url(url, base2, hash_routing) {
 function load_css(deps) {
   return;
 }
-function decode64(string) {
-  const binaryString = asciiToBinary(string);
-  const arraybuffer = new ArrayBuffer(binaryString.length);
-  const dv = new DataView(arraybuffer);
-  for (let i = 0; i < arraybuffer.byteLength; i++) {
-    dv.setUint8(i, binaryString.charCodeAt(i));
-  }
-  return arraybuffer;
-}
-const KEY_STRING = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-function asciiToBinary(data) {
-  if (data.length % 4 === 0) {
-    data = data.replace(/==?$/, "");
-  }
-  let output = "";
-  let buffer = 0;
-  let accumulatedBits = 0;
-  for (let i = 0; i < data.length; i++) {
-    buffer <<= 6;
-    buffer |= KEY_STRING.indexOf(data[i]);
-    accumulatedBits += 6;
-    if (accumulatedBits === 24) {
-      output += String.fromCharCode((buffer & 16711680) >> 16);
-      output += String.fromCharCode((buffer & 65280) >> 8);
-      output += String.fromCharCode(buffer & 255);
-      buffer = accumulatedBits = 0;
-    }
-  }
-  if (accumulatedBits === 12) {
-    buffer >>= 4;
-    output += String.fromCharCode(buffer);
-  } else if (accumulatedBits === 18) {
-    buffer >>= 2;
-    output += String.fromCharCode((buffer & 65280) >> 8);
-    output += String.fromCharCode(buffer & 255);
-  }
-  return output;
-}
-const UNDEFINED = -1;
-const HOLE = -2;
-const NAN = -3;
-const POSITIVE_INFINITY = -4;
-const NEGATIVE_INFINITY = -5;
-const NEGATIVE_ZERO = -6;
-function unflatten(parsed, revivers) {
-  if (typeof parsed === "number") return hydrate(parsed, true);
-  if (!Array.isArray(parsed) || parsed.length === 0) {
-    throw new Error("Invalid input");
-  }
-  const values = (
-    /** @type {any[]} */
-    parsed
-  );
-  const hydrated2 = Array(values.length);
-  function hydrate(index, standalone = false) {
-    if (index === UNDEFINED) return void 0;
-    if (index === NAN) return NaN;
-    if (index === POSITIVE_INFINITY) return Infinity;
-    if (index === NEGATIVE_INFINITY) return -Infinity;
-    if (index === NEGATIVE_ZERO) return -0;
-    if (standalone || typeof index !== "number") {
-      throw new Error(`Invalid input`);
-    }
-    if (index in hydrated2) return hydrated2[index];
-    const value = values[index];
-    if (!value || typeof value !== "object") {
-      hydrated2[index] = value;
-    } else if (Array.isArray(value)) {
-      if (typeof value[0] === "string") {
-        const type = value[0];
-        const reviver = revivers?.[type];
-        if (reviver) {
-          return hydrated2[index] = reviver(hydrate(value[1]));
-        }
-        switch (type) {
-          case "Date":
-            hydrated2[index] = new Date(value[1]);
-            break;
-          case "Set":
-            const set2 = /* @__PURE__ */ new Set();
-            hydrated2[index] = set2;
-            for (let i = 1; i < value.length; i += 1) {
-              set2.add(hydrate(value[i]));
-            }
-            break;
-          case "Map":
-            const map = /* @__PURE__ */ new Map();
-            hydrated2[index] = map;
-            for (let i = 1; i < value.length; i += 2) {
-              map.set(hydrate(value[i]), hydrate(value[i + 1]));
-            }
-            break;
-          case "RegExp":
-            hydrated2[index] = new RegExp(value[1], value[2]);
-            break;
-          case "Object":
-            hydrated2[index] = Object(value[1]);
-            break;
-          case "BigInt":
-            hydrated2[index] = BigInt(value[1]);
-            break;
-          case "null":
-            const obj = /* @__PURE__ */ Object.create(null);
-            hydrated2[index] = obj;
-            for (let i = 1; i < value.length; i += 2) {
-              obj[value[i]] = hydrate(value[i + 1]);
-            }
-            break;
-          case "Int8Array":
-          case "Uint8Array":
-          case "Uint8ClampedArray":
-          case "Int16Array":
-          case "Uint16Array":
-          case "Int32Array":
-          case "Uint32Array":
-          case "Float32Array":
-          case "Float64Array":
-          case "BigInt64Array":
-          case "BigUint64Array": {
-            const TypedArrayConstructor = globalThis[type];
-            const typedArray = new TypedArrayConstructor(hydrate(value[1]));
-            hydrated2[index] = value[2] !== void 0 ? typedArray.subarray(value[2], value[3]) : typedArray;
-            break;
-          }
-          case "ArrayBuffer": {
-            const base64 = value[1];
-            const arraybuffer = decode64(base64);
-            hydrated2[index] = arraybuffer;
-            break;
-          }
-          case "Temporal.Duration":
-          case "Temporal.Instant":
-          case "Temporal.PlainDate":
-          case "Temporal.PlainTime":
-          case "Temporal.PlainDateTime":
-          case "Temporal.PlainMonthDay":
-          case "Temporal.PlainYearMonth":
-          case "Temporal.ZonedDateTime": {
-            const temporalName = type.slice(9);
-            hydrated2[index] = Temporal[temporalName].from(value[1]);
-            break;
-          }
-          case "URL": {
-            const url = new URL(value[1]);
-            hydrated2[index] = url;
-            break;
-          }
-          case "URLSearchParams": {
-            const url = new URLSearchParams(value[1]);
-            hydrated2[index] = url;
-            break;
-          }
-          default:
-            throw new Error(`Unknown type ${type}`);
-        }
-      } else {
-        const array = new Array(value.length);
-        hydrated2[index] = array;
-        for (let i = 0; i < value.length; i += 1) {
-          const n = value[i];
-          if (n === HOLE) continue;
-          array[i] = hydrate(n);
-        }
-      }
-    } else {
-      const object = {};
-      hydrated2[index] = object;
-      for (const key in value) {
-        if (key === "__proto__") {
-          throw new Error("Cannot parse an object with a `__proto__` property");
-        }
-        const n = value[key];
-        object[key] = hydrate(n);
-      }
-    }
-    return hydrated2[index];
-  }
-  return hydrate(0);
-}
 const valid_layout_exports = /* @__PURE__ */ new Set([
   "load",
   "prerender",
@@ -610,8 +431,6 @@ function compact(arr) {
     (val) => val != null
   );
 }
-const INVALIDATED_PARAM = "x-sveltekit-invalidated";
-const TRAILING_SLASH_PARAM = "x-sveltekit-trailing-slash";
 function get_status(error) {
   return error instanceof HttpError || error instanceof SvelteKitError ? error.status : 500;
 }
@@ -717,12 +536,6 @@ if (is_legacy) {
 function update(new_page) {
   Object.assign(page, new_page);
 }
-const DATA_SUFFIX = "/__data.json";
-const HTML_DATA_SUFFIX = ".html__data.json";
-function add_data_suffix(pathname) {
-  if (pathname.endsWith(".html")) return pathname.replace(/\.html$/, HTML_DATA_SUFFIX);
-  return pathname.replace(/\/$/, "") + DATA_SUFFIX;
-}
 const noop_span = {
   spanContext() {
     return noop_span_context;
@@ -819,6 +632,10 @@ let app;
 const invalidated = [];
 const components = [];
 let load_cache = null;
+function discard_load_cache() {
+  void load_cache?.fork?.then((f) => f?.discard());
+  load_cache = null;
+}
 const reroute_cache = /* @__PURE__ */ new Map();
 const before_navigate_callbacks = /* @__PURE__ */ new Set();
 const on_navigate_callbacks = /* @__PURE__ */ new Set();
@@ -843,8 +660,8 @@ let token;
 const preload_tokens = /* @__PURE__ */ new Set();
 const query_map = /* @__PURE__ */ new Map();
 async function start(_app, _target, hydrate) {
-  if (globalThis.__sveltekit_17j7afm?.data) {
-    globalThis.__sveltekit_17j7afm.data;
+  if (globalThis.__sveltekit_4g5c3i?.data) {
+    globalThis.__sveltekit_4g5c3i.data;
   }
   if (document.URL !== location.href) {
     location.href = location.href;
@@ -914,7 +731,7 @@ function persist_state() {
 async function _goto(url, options, redirect_count, nav_token) {
   let query_keys;
   if (options.invalidateAll) {
-    load_cache = null;
+    discard_load_cache();
   }
   await navigate({
     type: "goto",
@@ -955,11 +772,26 @@ async function _preload_data(intent) {
       promise: load_route({ ...intent, preload }).then((result) => {
         preload_tokens.delete(preload);
         if (result.type === "loaded" && result.state.error) {
-          load_cache = null;
+          discard_load_cache();
         }
         return result;
-      })
+      }),
+      fork: null
     };
+    if (fork) {
+      const lc = load_cache;
+      lc.fork = lc.promise.then((result) => {
+        if (lc === load_cache && result.type === "loaded") {
+          try {
+            return fork(() => {
+              root.$set(result.props);
+            });
+          } catch {
+          }
+        }
+        return null;
+      });
+    }
   }
   return load_cache.promise;
 }
@@ -1257,52 +1089,14 @@ async function load_route({ id, invalidating, url, params, route, preload }) {
   }));
   loaders.forEach((loader) => loader?.[1]().catch(() => {
   }));
-  let server_data = null;
   const url_changed = current.url ? id !== get_page_key(current.url) : false;
   const route_changed = current.route ? route.id !== current.route.id : false;
   const search_params_changed = diff_search_params(current.url, url);
-  let parent_invalid = false;
-  const invalid_server_nodes = loaders.map((loader, i) => {
-    const previous = current.branch[i];
-    const invalid = !!loader?.[0] && (previous?.loader !== loader[1] || has_changed(
-      parent_invalid,
-      route_changed,
-      url_changed,
-      search_params_changed,
-      previous.server?.uses,
-      params
-    ));
-    if (invalid) {
-      parent_invalid = true;
-    }
-    return invalid;
-  });
-  if (invalid_server_nodes.some(Boolean)) {
-    try {
-      server_data = await load_data(url, invalid_server_nodes);
-    } catch (error) {
-      const handled_error = await handle_error(error, { url, params, route: { id } });
-      if (preload_tokens.has(preload)) {
-        return preload_error({ error: handled_error, url, params, route });
-      }
-      return load_root_error_page({
-        status: get_status(error),
-        error: handled_error,
-        url,
-        route
-      });
-    }
-    if (server_data.type === "redirect") {
-      return server_data;
-    }
-  }
-  const server_data_nodes = server_data?.nodes;
   let parent_changed = false;
   const branch_promises = loaders.map(async (loader, i) => {
     if (!loader) return;
     const previous = current.branch[i];
-    const server_data_node = server_data_nodes?.[i];
-    const valid = (!server_data_node || server_data_node.type === "skip") && loader[1] === previous?.loader && !has_changed(
+    const valid = loader[1] === previous?.loader && !has_changed(
       parent_changed,
       route_changed,
       url_changed,
@@ -1312,9 +1106,6 @@ async function load_route({ id, invalidating, url, params, route, preload }) {
     );
     if (valid) return previous;
     parent_changed = true;
-    if (server_data_node?.type === "error") {
-      throw server_data_node;
-    }
     return load_node({
       loader: loader[1],
       url,
@@ -1330,7 +1121,7 @@ async function load_route({ id, invalidating, url, params, route, preload }) {
       server_data_node: create_data_node(
         // server_data_node is undefined if it wasn't reloaded from the server;
         // and if current loader uses server data, we want to reuse previous data.
-        server_data_node === void 0 && loader[0] ? { type: "skip" } : server_data_node ?? null,
+        loader[0] ? { type: "skip" } : null,
         loader[0] ? previous?.server : void 0
       )
     });
@@ -1359,15 +1150,7 @@ async function load_route({ id, invalidating, url, params, route, preload }) {
         }
         let status = get_status(err);
         let error;
-        if (server_data_nodes?.includes(
-          /** @type {import('types').ServerErrorNode} */
-          err
-        )) {
-          status = /** @type {import('types').ServerErrorNode} */
-          err.status ?? status;
-          error = /** @type {import('types').ServerErrorNode} */
-          err.error;
-        } else if (err instanceof HttpError) {
+        if (err instanceof HttpError) {
           error = err.body;
         } else {
           const updated2 = await stores.updated.check();
@@ -1435,20 +1218,6 @@ async function load_nearest_error_page(i, branch, errors) {
 async function load_root_error_page({ status, error, url, route }) {
   const params = {};
   let server_data_node = null;
-  const default_layout_has_server_load = app.server_loads[0] === 0;
-  if (default_layout_has_server_load) {
-    try {
-      const server_data = await load_data(url, [true]);
-      if (server_data.type !== "data" || server_data.nodes[0] && server_data.nodes[0].type !== "data") {
-        throw 0;
-      }
-      server_data_node = server_data.nodes[0] ?? null;
-    } catch {
-      if (url.origin !== origin || url.pathname !== location.pathname || hydrated) {
-        await native_navigation(url);
-      }
-    }
-  }
   try {
     const root_layout = await load_node({
       loader: default_layout_loader,
@@ -1681,6 +1450,7 @@ async function navigate({
       clear_onward_history(current_history_index, current_navigation_index);
     }
   }
+  const load_cache_fork = load_cache?.fork;
   load_cache = null;
   navigation_result.props.page.state = state2;
   if (started) {
@@ -1711,14 +1481,29 @@ async function navigate({
     if (navigation_result.props.page) {
       navigation_result.props.page.url = url;
     }
-    root.$set(navigation_result.props);
+    const fork2 = load_cache_fork && await load_cache_fork;
+    if (fork2) {
+      void fork2.commit();
+    } else {
+      root.$set(navigation_result.props);
+    }
     update(navigation_result.props.page);
     has_navigated = true;
   } else {
     initialize(navigation_result, target, false);
   }
   const { activeElement } = document;
-  await tick();
+  const promises = [tick()];
+  if (
+    /** @type {any} */
+    settled
+  ) {
+    promises.push(
+      /** @type {any} */
+      settled()
+    );
+  }
+  await Promise.all(promises);
   let scroll = popped ? popped.scroll : noscroll ? scroll_state() : null;
   if (autoscroll) {
     const deep_linked = url.hash && document.getElementById(get_id(url));
@@ -2161,82 +1946,6 @@ async function _hydrate(target2, { status = 200, error, node_ids, params, route,
     result.props.page.state = {};
   }
   initialize(result, target2, hydrate);
-}
-async function load_data(url, invalid) {
-  const data_url = new URL(url);
-  data_url.pathname = add_data_suffix(url.pathname);
-  if (url.pathname.endsWith("/")) {
-    data_url.searchParams.append(TRAILING_SLASH_PARAM, "1");
-  }
-  data_url.searchParams.append(INVALIDATED_PARAM, invalid.map((i) => i ? "1" : "0").join(""));
-  const fetcher = window.fetch;
-  const res = await fetcher(data_url.href, {});
-  if (!res.ok) {
-    let message;
-    if (res.headers.get("content-type")?.includes("application/json")) {
-      message = await res.json();
-    } else if (res.status === 404) {
-      message = "Not Found";
-    } else if (res.status === 500) {
-      message = "Internal Error";
-    }
-    throw new HttpError(res.status, message);
-  }
-  return new Promise(async (resolve) => {
-    const deferreds = /* @__PURE__ */ new Map();
-    const reader = (
-      /** @type {ReadableStream<Uint8Array>} */
-      res.body.getReader()
-    );
-    function deserialize(data) {
-      return unflatten(data, {
-        ...app.decoders,
-        Promise: (id) => {
-          return new Promise((fulfil, reject) => {
-            deferreds.set(id, { fulfil, reject });
-          });
-        }
-      });
-    }
-    let text = "";
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done && !text) break;
-      text += !value && text ? "\n" : text_decoder.decode(value, { stream: true });
-      while (true) {
-        const split = text.indexOf("\n");
-        if (split === -1) {
-          break;
-        }
-        const node = JSON.parse(text.slice(0, split));
-        text = text.slice(split + 1);
-        if (node.type === "redirect") {
-          return resolve(node);
-        }
-        if (node.type === "data") {
-          node.nodes?.forEach((node2) => {
-            if (node2?.type === "data") {
-              node2.uses = deserialize_uses(node2.uses);
-              node2.data = deserialize(node2.data);
-            }
-          });
-          resolve(node);
-        } else if (node.type === "chunk") {
-          const { id, data, error } = node;
-          const deferred = (
-            /** @type {import('types').Deferred} */
-            deferreds.get(id)
-          );
-          deferreds.delete(id);
-          if (error) {
-            deferred.reject(deserialize(error));
-          } else {
-            deferred.fulfil(deserialize(data));
-          }
-        }
-      }
-    }
-  });
 }
 function deserialize_uses(uses) {
   return {

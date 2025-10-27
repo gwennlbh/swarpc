@@ -40,7 +40,7 @@ class SvelteKitError extends Error {
   }
 }
 new TextEncoder();
-const text_decoder = new TextDecoder();
+new TextDecoder();
 function base64_decode(encoded) {
   const binary = atob(encoded);
   const bytes = new Uint8Array(binary.length);
@@ -53,6 +53,5 @@ export {
   HttpError as H,
   Redirect as R,
   SvelteKitError as S,
-  base64_decode as b,
-  text_decoder as t
+  base64_decode as b
 };

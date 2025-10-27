@@ -1,4 +1,4 @@
-import { ax as effect_tracking, K as get, al as source, a0 as render_effect, e as untrack, ay as increment, a5 as queue_micro_task, D as hydrate_node, v as hydrating, aj as internal_set, av as active_effect, r as block, w as hydrate_next, ah as COMMENT_NODE, R as HYDRATION_START_ELSE, A as branch, az as Batch, _ as pause_effect, aA as set_active_effect, aB as set_active_reaction, aC as set_component_context, aD as handle_error, a as active_reaction, c as component_context, aE as effect_pending_updates, C as destroy_effect, T as set_hydrate_node, aF as next, S as skip_nodes, aG as invoke_error_boundary, aH as svelte_boundary_reset_onerror, E as EFFECT_TRANSPARENT, aI as EFFECT_PRESERVED, aJ as BOUNDARY_EFFECT, ar as get_next_sibling, aK as svelte_boundary_reset_noop, aL as define_property, i as is_array, aM as init_operations, F as get_first_child, aN as HYDRATION_START, aO as HYDRATION_ERROR, U as set_hydrating, aP as hydration_failed, at as clear_text_content, am as array_from, aQ as component_root, V as create_text, a8 as push, y as assign_nodes, ai as HYDRATION_END, aR as hydration_mismatch, a9 as pop } from "./DxO9wToY.js";
+import { ax as effect_tracking, G as get, al as source, a0 as render_effect, e as untrack, ay as increment, a5 as queue_micro_task, B as hydrate_node, w as hydrating, aj as internal_set, av as active_effect, v as block, x as hydrate_next, ah as COMMENT_NODE, P as HYDRATION_START_ELSE, Y as branch, az as Batch, W as pause_effect, X as create_text, aA as set_active_effect, aB as set_active_reaction, aC as set_component_context, aD as handle_error, a as active_reaction, c as component_context, Z as move_effect, aE as effect_pending_updates, V as destroy_effect, R as set_hydrate_node, aF as next, Q as skip_nodes, aG as invoke_error_boundary, aH as svelte_boundary_reset_onerror, E as EFFECT_TRANSPARENT, aI as EFFECT_PRESERVED, aJ as BOUNDARY_EFFECT, aK as svelte_boundary_reset_noop, aL as define_property, aM as init_operations, C as get_first_child, aN as HYDRATION_START, ar as get_next_sibling, aO as HYDRATION_ERROR, S as set_hydrating, aP as hydration_failed, at as clear_text_content, am as array_from, aQ as component_root, a8 as push, z as assign_nodes, ai as HYDRATION_END, aR as hydration_mismatch, a9 as pop } from "./DMYzM3Fw.js";
 function createSubscriber(start) {
   let subscribers = 0;
   let version = source(0);
@@ -51,6 +51,8 @@ class Boundary {
   #failed_effect = null;
   /** @type {DocumentFragment | null} */
   #offscreen_fragment = null;
+  /** @type {TemplateNode | null} */
+  #pending_anchor = null;
   #local_pending_count = 0;
   #pending_count = 0;
   #is_creating_fallback = false;
@@ -101,8 +103,9 @@ class Boundary {
           this.#hydrate_resolved_content();
         }
       } else {
+        var anchor = this.#get_anchor();
         try {
-          this.#main_effect = branch(() => children(this.#anchor));
+          this.#main_effect = branch(() => children(anchor));
         } catch (error) {
           this.error(error);
         }
@@ -112,6 +115,9 @@ class Boundary {
           this.#pending = false;
         }
       }
+      return () => {
+        this.#pending_anchor?.remove();
+      };
     }, flags);
     if (hydrating) {
       this.#anchor = hydrate_node;
@@ -132,9 +138,10 @@ class Boundary {
     }
     this.#pending_effect = branch(() => pending(this.#anchor));
     Batch.enqueue(() => {
+      var anchor = this.#get_anchor();
       this.#main_effect = this.#run(() => {
         Batch.ensure();
-        return branch(() => this.#children(this.#anchor));
+        return branch(() => this.#children(anchor));
       });
       if (this.#pending_count > 0) {
         this.#show_pending_snippet();
@@ -149,6 +156,15 @@ class Boundary {
         this.#pending = false;
       }
     });
+  }
+  #get_anchor() {
+    var anchor = this.#anchor;
+    if (this.#pending) {
+      this.#pending_anchor = create_text();
+      this.#anchor.before(this.#pending_anchor);
+      anchor = this.#pending_anchor;
+    }
+    return anchor;
   }
   /**
    * Returns `true` if the effect exists inside a boundary whose pending snippet is shown
@@ -188,6 +204,10 @@ class Boundary {
     );
     if (this.#main_effect !== null) {
       this.#offscreen_fragment = document.createDocumentFragment();
+      this.#offscreen_fragment.append(
+        /** @type {TemplateNode} */
+        this.#pending_anchor
+      );
       move_effect(this.#main_effect, this.#offscreen_fragment);
     }
     if (this.#pending_effect === null) {
@@ -218,9 +238,6 @@ class Boundary {
         this.#anchor.before(this.#offscreen_fragment);
         this.#offscreen_fragment = null;
       }
-      queue_micro_task(() => {
-        Batch.ensure().flush();
-      });
     }
   }
   /**
@@ -311,6 +328,7 @@ class Boundary {
     if (failed) {
       queue_micro_task(() => {
         this.#failed_effect = this.#run(() => {
+          Batch.ensure();
           this.#is_creating_fallback = true;
           try {
             return branch(() => {
@@ -333,18 +351,6 @@ class Boundary {
         });
       });
     }
-  }
-}
-function move_effect(effect, fragment) {
-  var node = effect.nodes_start;
-  var end = effect.nodes_end;
-  while (node !== null) {
-    var next2 = node === end ? null : (
-      /** @type {TemplateNode} */
-      get_next_sibling(node)
-    );
-    fragment.append(node);
-    node = next2;
   }
 }
 const PASSIVE_EVENTS = ["touchstart", "touchmove"];
@@ -417,12 +423,7 @@ function handle_event_propagation(event) {
         current_target.disabled || // DOM could've been updated already by the time this is reached, so we check this as well
         // -> the target could not have been disabled because it emits the event in the first place
         event.target === current_target)) {
-          if (is_array(delegated)) {
-            var [fn, ...data] = delegated;
-            fn.apply(current_target, [event, ...data]);
-          } else {
-            delegated.call(current_target, event);
-          }
+          delegated.call(current_target, event);
         }
       } catch (error) {
         if (throw_error) {
