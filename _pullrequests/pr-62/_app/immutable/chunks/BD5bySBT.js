@@ -1,6 +1,6 @@
 import { o as onMount, s as svelte } from "./BFcou0xE.js";
 import { b as base64_decode, H as HttpError, S as SvelteKitError, R as Redirect } from "./BHuZ28Z_.js";
-import { p as parse_route_id, e as exec, a as assets, b as base } from "./CGe9VBLe.js";
+import { p as parse_route_id, e as exec, a as assets, b as base } from "./BzAj4NKp.js";
 import { b2 as noop$1, b3 as safe_not_equal, I as state, G as get$1, H as set$1, o as settled, t as tick$1, j as fork } from "./DMYzM3Fw.js";
 const subscriber_queue = [];
 function writable(value, start2 = noop$1) {
@@ -220,7 +220,7 @@ function set(key, value, stringify = JSON.stringify) {
   } catch {
   }
 }
-const version = "1761530832982";
+const version = "1761531040486";
 const SNAPSHOT_KEY = "sveltekit:snapshot";
 const SCROLL_KEY = "sveltekit:scroll";
 const STATES_KEY = "sveltekit:states";
@@ -660,8 +660,8 @@ let token;
 const preload_tokens = /* @__PURE__ */ new Set();
 const query_map = /* @__PURE__ */ new Map();
 async function start(_app, _target, hydrate) {
-  if (globalThis.__sveltekit_12daf7c?.data) {
-    globalThis.__sveltekit_12daf7c.data;
+  if (globalThis.__sveltekit_1mr6hkt?.data) {
+    globalThis.__sveltekit_1mr6hkt.data;
   }
   if (document.URL !== location.href) {
     location.href = location.href;
