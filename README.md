@@ -3,7 +3,7 @@
   <img src="./logo.svg" alt="sw&rpc" />
 </h1>
 
-RPC for Service Workers -- move that heavy computation off of your UI thread!
+RPC for Service (and other types of) Workers -- move that heavy computation off of your UI thread!
 
 </div>
  
