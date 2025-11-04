@@ -5,7 +5,7 @@
 /// <reference lib="webworker" />
 import { type } from "arktype";
 import { createLogger, injectIntoConsoleGlobal } from "./log.js";
-import { PayloadHeaderSchema, PayloadInitializeSchema, PayloadSchema, zImplementations, zProcedures, } from "./types.js";
+import { PayloadHeaderSchema, PayloadInitializeSchema, validatePayloadCore as validatePayloadCore, zImplementations, zProcedures, } from "./types.js";
 import { findTransferables } from "./utils.js";
 import { FauxLocalStorage } from "./localstorage.js";
 import { scopeIsDedicated, scopeIsShared, scopeIsService } from "./scopes.js";
@@ -120,11 +120,11 @@ export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = 
                 return;
             }
             // Define payload schema for incoming messages
-            const payload = PayloadSchema(type(`"${functionName}"`), schemas.input, schemas.progress, schemas.success).assert(event.data);
+            const payload = validatePayloadCore(schemas, event.data);
             if ("isInitializeRequest" in payload)
                 throw "Unreachable: #initialize request payload should've been handled already";
             // Handle abortion requests (pro-choice ftw!!)
-            if (payload.abort) {
+            if ("abort" in payload) {
                 const controller = abortControllers.get(requestId);
                 if (!controller)
                     await postError("No abort controller found for request");
@@ -133,7 +133,7 @@ export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = 
             }
             // Set up the abort controller for this request
             abortControllers.set(requestId, new AbortController());
-            if (!payload.input) {
+            if (!("input" in payload)) {
                 await postError("No input provided");
                 return;
             }

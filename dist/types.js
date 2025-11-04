@@ -2,7 +2,7 @@
  * @module
  * @mergeModuleWith <project>
  */
-import { type } from "arktype";
+import { ArkErrors, type } from "arktype";
 export const PayloadInitializeSchema = type({
     by: '"sw&rpc"',
     functionName: '"#initialize"',
@@ -28,16 +28,36 @@ export const PayloadCoreSchema = type("<I, P, S>", {
     "abort?": { reason: "string" },
     "error?": { message: "string" },
 });
+const AbortOrError = type.or({ abort: { reason: "string" } }, { error: { message: "string" } });
 /**
  * @source
  */
-export const PayloadSchema = type
-    .scope({ PayloadCoreSchema, PayloadHeaderSchema, PayloadInitializeSchema })
-    .type("<Name extends string, I, P, S>", [
-    ["PayloadHeaderSchema<Name>", "&", "PayloadCoreSchema<I, P, S>"],
-    "|",
-    "PayloadInitializeSchema",
-]);
+export function validatePayloadCore(procedure, payload) {
+    if (typeof payload !== "object")
+        throw new Error("payload is not an object");
+    if (payload === null)
+        throw new Error("payload is null");
+    if ("input" in payload) {
+        const input = procedure.input["~standard"].validate(payload.input);
+        if ("value" in input)
+            return { input: input.value };
+    }
+    if ("progress" in payload) {
+        const progress = procedure.progress["~standard"].validate(payload.progress);
+        if ("value" in progress)
+            return { progress: progress.value };
+    }
+    if ("result" in payload) {
+        const result = procedure.success["~standard"].validate(payload.result);
+        if ("value" in result)
+            return { result: result.value };
+    }
+    const abortOrError = AbortOrError(payload);
+    if (!(abortOrError instanceof ArkErrors)) {
+        return abortOrError;
+    }
+    throw new Error("invalid payload");
+}
 /**
  * Symbol used as the key for the procedures map on the server instance
  * @internal

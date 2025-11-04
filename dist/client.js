@@ -75,7 +75,11 @@ export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug
         // Set the method on the instance
         const _runProcedure = async (input, onProgress = () => { }, reqid, nodeId) => {
             // Validate the input against the procedure's input schema
-            procedures[functionName].input.assert(input);
+            const validation = procedures[functionName].input["~standard"].validate(input);
+            if (validation instanceof Promise)
+                throw new Error("Validations must not be async");
+            if (validation.issues)
+                throw new Error(`Invalid input: ${validation.issues}`);
             const requestId = reqid ?? makeRequestId();
             // Choose which node to use
             nodeId ??= whoToSendTo(nodes, pendingRequests);
@@ -217,7 +221,7 @@ export async function startClientListener(ctx) {
         // Ignore other messages that aren't for us
         if (eventData?.by !== "sw&rpc")
             return;
-        // We don't use a arktype schema here, we trust the server to send valid data
+        // We don't use a schema here, we trust the server to send valid data
         const payload = eventData;
         // Ignore #initialize request, it's client->server only
         if ("isInitializeRequest" in payload) {

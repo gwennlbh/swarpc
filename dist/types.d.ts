@@ -2,12 +2,12 @@
  * @module
  * @mergeModuleWith <project>
  */
-import { type Type } from "arktype";
+import type { StandardSchemaV1 as Schema } from "./standardschema.js";
 import { RequestBoundLogger } from "./log.js";
 /**
  * A procedure declaration
  */
-export type Procedure<I extends Type, P extends Type, S extends Type> = {
+export type Procedure<I extends Schema, P extends Schema, S extends Schema> = {
     /**
      * ArkType type for the input (first argument) of the procedure, when calling it from the client.
      */
@@ -53,15 +53,15 @@ export type CancelablePromise<T = unknown> = {
 /**
  * An implementation of a procedure
  */
-export type ProcedureImplementation<I extends Type, P extends Type, S extends Type> = (
+export type ProcedureImplementation<I extends Schema, P extends Schema, S extends Schema> = (
 /**
  * Input data for the procedure
  */
-input: I["inferOut"], 
+input: Schema.InferInput<I>, 
 /**
  * Callback to call with progress updates.
  */
-onProgress: (progress: P["inferIn"]) => void, 
+onProgress: (progress: Schema.InferInput<P>) => void, 
 /**
  * Additional tools useful when implementing the procedure.
  */
@@ -78,14 +78,14 @@ tools: {
      * ID of the Node the request is being processed on.
      */
     nodeId: string;
-}) => Promise<S["inferIn"]>;
+}) => Promise<Schema.InferInput<S>>;
 /**
  * Declarations of procedures by name.
  *
  * An example of declaring procedures:
  * {@includeCode ../example/src/lib/procedures.ts}
  */
-export type ProceduresMap = Record<string, Procedure<Type, Type, Type>>;
+export type ProceduresMap = Record<string, Procedure<Schema, Schema, Schema>>;
 /**
  * Implementations of procedures by name
  */
@@ -99,7 +99,7 @@ export type Hooks<Procedures extends ProceduresMap> = {
     /**
      * Called when a procedure call has been successful.
      */
-    success?: <Procedure extends keyof ProceduresMap>(procedure: Procedure, data: Procedures[Procedure]["success"]["inferOut"]) => void;
+    success?: <Procedure extends keyof ProceduresMap>(procedure: Procedure, data: Schema.InferOutput<Procedures[Procedure]["success"]>) => void;
     /**
      * Called when a procedure call has failed.
      */
@@ -107,7 +107,7 @@ export type Hooks<Procedures extends ProceduresMap> = {
     /**
      * Called when a procedure call sends progress updates.
      */
-    progress?: <Procedure extends keyof ProceduresMap>(procedure: Procedure, data: Procedures[Procedure]["progress"]["inferOut"]) => void;
+    progress?: <Procedure extends keyof ProceduresMap>(procedure: Procedure, data: Schema.InferOutput<Procedures[Procedure]["progress"]>) => void;
 };
 export declare const PayloadInitializeSchema: import("arktype/internal/variants/object.ts").ObjectType<{
     by: "sw&rpc";
@@ -145,11 +145,11 @@ export declare const PayloadCoreSchema: import("arktype").Generic<[["I", unknown
     };
 }, {}, {}>;
 export type PayloadCore<PM extends ProceduresMap, Name extends keyof PM = keyof PM> = {
-    input: PM[Name]["input"]["inferOut"];
+    input: Schema.InferOutput<PM[Name]["input"]>;
 } | {
-    progress: PM[Name]["progress"]["inferOut"];
+    progress: Schema.InferOutput<PM[Name]["progress"]>;
 } | {
-    result: PM[Name]["success"]["inferOut"];
+    result: Schema.InferOutput<PM[Name]["success"]>;
 } | {
     abort: {
         reason: string;
@@ -162,183 +162,7 @@ export type PayloadCore<PM extends ProceduresMap, Name extends keyof PM = keyof 
 /**
  * @source
  */
-export declare const PayloadSchema: import("arktype").Generic<[["Name", string], ["I", unknown], ["P", unknown], ["S", unknown]], readonly [readonly ["PayloadHeaderSchema<Name>", "&", "PayloadCoreSchema<I, P, S>"], "|", "PayloadInitializeSchema"], {
-    PayloadCoreSchema: import("arktype/internal/scope.ts").bindGenericToScope<import("@ark/schema").GenericAst<[["I", unknown], ["P", unknown], ["S", unknown]], {
-        readonly "input?": "I";
-        readonly "progress?": "P";
-        readonly "result?": "S";
-        readonly "abort?": {
-            readonly reason: "string";
-        };
-        readonly "error?": {
-            readonly message: "string";
-        };
-    }, {}, {}>, {
-        PayloadCoreSchema: import("@ark/schema").GenericAst<[["I", unknown], ["P", unknown], ["S", unknown]], {
-            readonly "input?": "I";
-            readonly "progress?": "P";
-            readonly "result?": "S";
-            readonly "abort?": {
-                readonly reason: "string";
-            };
-            readonly "error?": {
-                readonly message: "string";
-            };
-        }, {}, {}>;
-        PayloadHeaderSchema: import("@ark/schema").GenericAst<[["Name", string]], {
-            readonly by: "\"sw&rpc\"";
-            readonly functionName: "Name";
-            readonly requestId: "string >= 1";
-        }, {}, {}>;
-        PayloadInitializeSchema: import("arktype/internal/variants/object.ts").ObjectType<{
-            by: "sw&rpc";
-            functionName: "#initialize";
-            isInitializeRequest: true;
-            localStorageData: Record<string, unknown>;
-            nodeId: string;
-        }, {}> & {
-            readonly " brand": [import("arktype/internal/variants/object.ts").ObjectType<{
-                by: "sw&rpc";
-                functionName: "#initialize";
-                isInitializeRequest: true;
-                localStorageData: Record<string, unknown>;
-                nodeId: string;
-            }, {}>, "unparsed"];
-        };
-    } & {}>;
-    PayloadHeaderSchema: import("arktype/internal/scope.ts").bindGenericToScope<import("@ark/schema").GenericAst<[["Name", string]], {
-        readonly by: "\"sw&rpc\"";
-        readonly functionName: "Name";
-        readonly requestId: "string >= 1";
-    }, {}, {}>, {
-        PayloadCoreSchema: import("@ark/schema").GenericAst<[["I", unknown], ["P", unknown], ["S", unknown]], {
-            readonly "input?": "I";
-            readonly "progress?": "P";
-            readonly "result?": "S";
-            readonly "abort?": {
-                readonly reason: "string";
-            };
-            readonly "error?": {
-                readonly message: "string";
-            };
-        }, {}, {}>;
-        PayloadHeaderSchema: import("@ark/schema").GenericAst<[["Name", string]], {
-            readonly by: "\"sw&rpc\"";
-            readonly functionName: "Name";
-            readonly requestId: "string >= 1";
-        }, {}, {}>;
-        PayloadInitializeSchema: import("arktype/internal/variants/object.ts").ObjectType<{
-            by: "sw&rpc";
-            functionName: "#initialize";
-            isInitializeRequest: true;
-            localStorageData: Record<string, unknown>;
-            nodeId: string;
-        }, {}> & {
-            readonly " brand": [import("arktype/internal/variants/object.ts").ObjectType<{
-                by: "sw&rpc";
-                functionName: "#initialize";
-                isInitializeRequest: true;
-                localStorageData: Record<string, unknown>;
-                nodeId: string;
-            }, {}>, "unparsed"];
-        };
-    } & {}>;
-    PayloadInitializeSchema: {
-        by: "sw&rpc";
-        functionName: "#initialize";
-        isInitializeRequest: true;
-        localStorageData: Record<string, unknown>;
-        nodeId: string;
-    };
-}, {
-    PayloadCoreSchema: import("arktype/internal/scope.ts").bindGenericToScope<import("@ark/schema").GenericAst<[["I", unknown], ["P", unknown], ["S", unknown]], {
-        readonly "input?": "I";
-        readonly "progress?": "P";
-        readonly "result?": "S";
-        readonly "abort?": {
-            readonly reason: "string";
-        };
-        readonly "error?": {
-            readonly message: "string";
-        };
-    }, {}, {}>, {
-        PayloadCoreSchema: import("@ark/schema").GenericAst<[["I", unknown], ["P", unknown], ["S", unknown]], {
-            readonly "input?": "I";
-            readonly "progress?": "P";
-            readonly "result?": "S";
-            readonly "abort?": {
-                readonly reason: "string";
-            };
-            readonly "error?": {
-                readonly message: "string";
-            };
-        }, {}, {}>;
-        PayloadHeaderSchema: import("@ark/schema").GenericAst<[["Name", string]], {
-            readonly by: "\"sw&rpc\"";
-            readonly functionName: "Name";
-            readonly requestId: "string >= 1";
-        }, {}, {}>;
-        PayloadInitializeSchema: import("arktype/internal/variants/object.ts").ObjectType<{
-            by: "sw&rpc";
-            functionName: "#initialize";
-            isInitializeRequest: true;
-            localStorageData: Record<string, unknown>;
-            nodeId: string;
-        }, {}> & {
-            readonly " brand": [import("arktype/internal/variants/object.ts").ObjectType<{
-                by: "sw&rpc";
-                functionName: "#initialize";
-                isInitializeRequest: true;
-                localStorageData: Record<string, unknown>;
-                nodeId: string;
-            }, {}>, "unparsed"];
-        };
-    } & {}>;
-    PayloadHeaderSchema: import("arktype/internal/scope.ts").bindGenericToScope<import("@ark/schema").GenericAst<[["Name", string]], {
-        readonly by: "\"sw&rpc\"";
-        readonly functionName: "Name";
-        readonly requestId: "string >= 1";
-    }, {}, {}>, {
-        PayloadCoreSchema: import("@ark/schema").GenericAst<[["I", unknown], ["P", unknown], ["S", unknown]], {
-            readonly "input?": "I";
-            readonly "progress?": "P";
-            readonly "result?": "S";
-            readonly "abort?": {
-                readonly reason: "string";
-            };
-            readonly "error?": {
-                readonly message: "string";
-            };
-        }, {}, {}>;
-        PayloadHeaderSchema: import("@ark/schema").GenericAst<[["Name", string]], {
-            readonly by: "\"sw&rpc\"";
-            readonly functionName: "Name";
-            readonly requestId: "string >= 1";
-        }, {}, {}>;
-        PayloadInitializeSchema: import("arktype/internal/variants/object.ts").ObjectType<{
-            by: "sw&rpc";
-            functionName: "#initialize";
-            isInitializeRequest: true;
-            localStorageData: Record<string, unknown>;
-            nodeId: string;
-        }, {}> & {
-            readonly " brand": [import("arktype/internal/variants/object.ts").ObjectType<{
-                by: "sw&rpc";
-                functionName: "#initialize";
-                isInitializeRequest: true;
-                localStorageData: Record<string, unknown>;
-                nodeId: string;
-            }, {}>, "unparsed"];
-        };
-    } & {}>;
-    PayloadInitializeSchema: {
-        by: "sw&rpc";
-        functionName: "#initialize";
-        isInitializeRequest: true;
-        localStorageData: Record<string, unknown>;
-        nodeId: string;
-    };
-}>;
+export declare function validatePayloadCore<PM extends ProceduresMap, Name extends keyof PM>(procedure: PM[Name], payload: unknown): PayloadCore<PM, keyof PM>;
 /**
  * The effective payload as sent by the server to the client
  */
@@ -346,21 +170,21 @@ export type Payload<PM extends ProceduresMap, Name extends keyof PM = keyof PM> 
 /**
  * A procedure's corresponding method on the client instance -- used to call the procedure. If you want to be able to cancel the request, you can use the `cancelable` method instead of running the procedure directly.
  */
-export type ClientMethod<P extends Procedure<Type, Type, Type>> = ((input: P["input"]["inferIn"], onProgress?: (progress: P["progress"]["inferOut"]) => void) => Promise<P["success"]["inferOut"]>) & {
+export type ClientMethod<P extends Procedure<Schema, Schema, Schema>> = ((input: Schema.InferInput<P["input"]>, onProgress?: (progress: Schema.InferOutput<P["progress"]>) => void) => Promise<Schema.InferOutput<P["success"]>>) & {
     /**
      * A method that returns a `CancelablePromise`. Cancel it by calling `.cancel(reason)` on it, and wait for the request to resolve by awaiting the `request` property on the returned object.
      */
-    cancelable: (input: P["input"]["inferIn"], onProgress?: (progress: P["progress"]["inferOut"]) => void, requestId?: string) => CancelablePromise<P["success"]["inferOut"]>;
+    cancelable: (input: Schema.InferInput<P["input"]>, onProgress?: (progress: Schema.InferOutput<P["progress"]>) => void, requestId?: string) => CancelablePromise<Schema.InferOutput<P["success"]>>;
     /**
      * Send the request to specific nodes, or all nodes.
      * Returns an array of results, one for each node the request was sent to.
      * Each result is a {@link PromiseSettledResult}, with also an additional property, the node ID of the request
      */
-    broadcast: (input: P["input"]["inferIn"], onProgress?: (
+    broadcast: (input: Schema.InferInput<P["input"]>, onProgress?: (
     /** Map of node IDs to their progress updates */
-    progresses: Map<string, P["progress"]["inferOut"]>) => void, 
+    progresses: Map<string, Schema.InferOutput<P["progress"]>>) => void, 
     /** Number of nodes to send the request to. Leave undefined to send to all nodes */
-    nodes?: number) => Promise<Array<PromiseSettledResult<P["success"]["inferOut"]> & {
+    nodes?: number) => Promise<Array<PromiseSettledResult<Schema.InferOutput<P["success"]>> & {
         node: string;
     }>>;
 };
