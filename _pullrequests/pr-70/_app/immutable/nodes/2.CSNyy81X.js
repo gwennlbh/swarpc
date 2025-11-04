@@ -8470,7 +8470,7 @@ const procedures = {
 };
 function WorkerWrapper$1(options) {
   return new SharedWorker(
-    "" + new URL("../workers/service-worker-tKMatoZ0.js", import.meta.url).href,
+    "" + new URL("../workers/service-worker-BTtih_Xn.js", import.meta.url).href,
     {
       type: "module",
       name: options?.name
@@ -8479,7 +8479,7 @@ function WorkerWrapper$1(options) {
 }
 function WorkerWrapper(options) {
   return new Worker(
-    "" + new URL("../workers/service-worker-tKMatoZ0.js", import.meta.url).href,
+    "" + new URL("../workers/service-worker-BTtih_Xn.js", import.meta.url).href,
     {
       type: "module",
       name: options?.name

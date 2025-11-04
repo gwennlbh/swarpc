@@ -8580,27 +8580,18 @@ function validatePayloadCore(procedure, payload) {
     throw new Error("payload is null");
   if ("input" in payload) {
     const input = procedure.input["~standard"].validate(payload.input);
-    if ("value" in input) {
-      if (typeof input.value !== "object")
-        throw new Error("payload.input must be an object");
+    if ("value" in input)
       return { input: input.value };
-    }
   }
   if ("progress" in payload) {
     const progress = procedure.progress["~standard"].validate(payload.progress);
-    if ("value" in progress) {
-      if (typeof progress.value !== "object")
-        throw new Error("payload.progress must be an object");
+    if ("value" in progress)
       return { progress: progress.value };
-    }
   }
   if ("result" in payload) {
     const result = procedure.success["~standard"].validate(payload.result);
-    if ("value" in result) {
-      if (typeof result.value !== "object")
-        throw new Error("payload.success must be an object");
+    if ("value" in result)
       return { result: result.value };
-    }
   }
   const abortOrError = AbortOrError(payload);
   if (!(abortOrError instanceof ArkErrors)) {
