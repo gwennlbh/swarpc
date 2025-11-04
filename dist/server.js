@@ -88,7 +88,7 @@ export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = 
                 const { localStorageData, nodeId } = event.data;
                 l.debug(null, "Setting up faux localStorage", localStorageData);
                 new FauxLocalStorage(localStorageData).register(scope);
-                injectIntoConsoleGlobal(scope, nodeId);
+                injectIntoConsoleGlobal(scope, nodeId, null);
                 return;
             }
             // Decode the payload
@@ -138,6 +138,7 @@ export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = 
                 return;
             }
             try {
+                injectIntoConsoleGlobal(scope, nodeId, requestId);
                 // Call the implementation with the input and a progress callback
                 const result = await implementation(payload.input, async (progress) => {
                     // l.debug(requestId, `Progress for ${functionName}`, progress);

@@ -66,8 +66,8 @@ function log(method, side, { rqid, nid }, ...args) {
  *
  * @param scope
  */
-export function injectIntoConsoleGlobal(scope, nodeId) {
+export function injectIntoConsoleGlobal(scope, nodeId, requestId) {
     for (const method of PATCHABLE_LOG_METHODS) {
-        scope.self.console[method] = logger(method, "server", nodeId);
+        scope.self.console[method] = (...args) => logger(method, "server", nodeId)(requestId, ...args);
     }
 }

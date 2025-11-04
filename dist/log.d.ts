@@ -29,6 +29,6 @@ export type LogLevel = (typeof LOG_LEVELS)[number];
  *
  * @param scope
  */
-export declare function injectIntoConsoleGlobal(scope: WorkerGlobalScope | SharedWorkerGlobalScope, nodeId: string): void;
+export declare function injectIntoConsoleGlobal(scope: WorkerGlobalScope | SharedWorkerGlobalScope, nodeId: string, requestId: string | null): void;
 export {};
 //# sourceMappingURL=log.d.ts.map
