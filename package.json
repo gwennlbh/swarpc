@@ -40,9 +40,6 @@
     "typedoc:withplugins": "npm run typedoc:plugins && npm run typedoc",
     "prepare": "husky"
   },
-  "peerDependencies": {
-    "arktype": "^2.1.25"
-  },
   "devDependencies": {
     "@8hobbies/typedoc-plugin-plausible": "^2.2.0",
     "@playwright/test": "^1.56.1",
@@ -77,5 +74,8 @@
       "oxlint --fix",
       "prettier --write"
     ]
+  },
+  "dependencies": {
+    "arktype": "^2.1.25"
   }
 }

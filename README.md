@@ -12,6 +12,7 @@ RPC for Service Workers -- move that heavy computation off of your UI thread!
 ## Features
 
 - Fully typesafe
+- Supports any [Standard Schema](https://standardschema.dev)-compliant validation library (ArkType, Zod, Valibot, etc.)
 - Cancelable requests
 - Parallelization with multiple worker instances
 - Automatic [transfer](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Transferable_objects) of transferable values from- and to- worker code
@@ -21,13 +22,19 @@ RPC for Service Workers -- move that heavy computation off of your UI thread!
 ## Installation
 
 ```bash
-npm add swarpc arktype
+npm add swarpc
 ```
 
- <details>
+Also add a [Standard-Schema-compliant validation library](https://standardschema.dev/#what-schema-libraries-implement-the-spec) of your choosing
+
+```bash
+# For example
+npm add arktype
+```
+
+<details>
 <summary>
 Bleeding edge
-
 </summary>
 
 If you want to use the latest commit instead of a published version, you can, either by using the Git URL:
@@ -49,6 +56,10 @@ This works thanks to the fact that `dist/` is published on the repository (and k
 </details>
 
 ## Usage
+
+> [!NOTE]
+> We use [ArkType](https://arktype.io) in the following examples, but, as stated above, any validation library
+> is a-okay (provided that it is [Standard Schema v1](https://standardschema.dev)-compliant)
 
 ### 1. Declare your procedures in a shared file
 

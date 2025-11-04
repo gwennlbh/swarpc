@@ -178,7 +178,12 @@ export function Client<Procedures extends ProceduresMap>(
       nodeId?: string,
     ) => {
       // Validate the input against the procedure's input schema
-      procedures[functionName].input.assert(input);
+      const validation =
+        procedures[functionName].input["~standard"].validate(input);
+      if (validation instanceof Promise)
+        throw new Error("Validations must not be async");
+      if (validation.issues)
+        throw new Error(`Invalid input: ${validation.issues}`);
 
       const requestId = reqid ?? makeRequestId();
 
@@ -374,7 +379,7 @@ export async function startClientListener<Procedures extends ProceduresMap>(
     // Ignore other messages that aren't for us
     if (eventData?.by !== "sw&rpc") return;
 
-    // We don't use a arktype schema here, we trust the server to send valid data
+    // We don't use a schema here, we trust the server to send valid data
     const payload = eventData as Payload<Procedures>;
 
     // Ignore #initialize request, it's client->server only

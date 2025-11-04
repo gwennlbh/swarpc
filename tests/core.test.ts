@@ -119,7 +119,7 @@ describe("Complex data", () => {
         age: 30,
       }),
     ).rejects.toThrowErrorMatchingInlineSnapshot(
-      `[TraversalError: address.houseno must be a number (was a string)]`,
+      `[Error: Invalid input: address.houseno must be a number (was a string)]`,
     );
   });
 });
