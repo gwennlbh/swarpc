@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.15.0] - 2025-11-04
+
 ### Added
 
 - Support for any [Standard Schema](https://standardschema.dev)-compliant validation library, instead of just ArkType
@@ -115,7 +117,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - support for transferable objects via a new [`autotransfer` property on procedure declarations](https://gwennlbh.github.io/swarpc/docs/types/types.Procedure.html#autotransfer)
 
-[Unreleased]: https://github.com/gwennlbh/swarpc/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/gwennlbh/swarpc/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/gwennlbh/swarpc/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/gwennlbh/swarpc/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/gwennlbh/swarpc/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/gwennlbh/swarpc/compare/v0.11.0...v0.12.0
