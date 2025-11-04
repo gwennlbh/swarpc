@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.15.1] - 2025-11-04
+
 ### Fixed
 
 - Console logs called from within procedures' implementations had their message weirdly colored. The logs are now correctly prefixed with node & request IDs
@@ -121,7 +123,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - support for transferable objects via a new [`autotransfer` property on procedure declarations](https://gwennlbh.github.io/swarpc/docs/types/types.Procedure.html#autotransfer)
 
-[Unreleased]: https://github.com/gwennlbh/swarpc/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/gwennlbh/swarpc/compare/v0.15.1...HEAD
+[0.15.1]: https://github.com/gwennlbh/swarpc/compare/v0.15.0...v0.15.1
 [0.15.0]: https://github.com/gwennlbh/swarpc/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/gwennlbh/swarpc/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/gwennlbh/swarpc/compare/v0.12.0...v0.13.0
