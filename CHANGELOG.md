@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Support for any [Standard Schema](https://standardschema.dev)-compliant validation library, instead of just ArkType
+
 ## [0.14.0] - 2025-09-13
 
 ### Changed
