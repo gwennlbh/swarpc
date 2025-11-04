@@ -3,13 +3,17 @@
  * @mergeModuleWith <project>
  */
 
-import { type, type Type } from "arktype";
+import type {
+  StandardSchemaV1 as Schema,
+  StandardSchemaV1,
+} from "./standardschema.js";
+import { ArkErrors, type } from "arktype";
 import { RequestBoundLogger } from "./log.js";
 
 /**
  * A procedure declaration
  */
-export type Procedure<I extends Type, P extends Type, S extends Type> = {
+export type Procedure<I extends Schema, P extends Schema, S extends Schema> = {
   /**
    * ArkType type for the input (first argument) of the procedure, when calling it from the client.
    */
@@ -58,18 +62,18 @@ export type CancelablePromise<T = unknown> = {
  * An implementation of a procedure
  */
 export type ProcedureImplementation<
-  I extends Type,
-  P extends Type,
-  S extends Type,
+  I extends Schema,
+  P extends Schema,
+  S extends Schema,
 > = (
   /**
    * Input data for the procedure
    */
-  input: I["inferOut"],
+  input: Schema.InferInput<I>,
   /**
    * Callback to call with progress updates.
    */
-  onProgress: (progress: P["inferIn"]) => void,
+  onProgress: (progress: Schema.InferInput<P>) => void,
   /**
    * Additional tools useful when implementing the procedure.
    */
@@ -87,7 +91,7 @@ export type ProcedureImplementation<
      */
     nodeId: string;
   },
-) => Promise<S["inferIn"]>;
+) => Promise<Schema.InferInput<S>>;
 
 /**
  * Declarations of procedures by name.
@@ -95,7 +99,7 @@ export type ProcedureImplementation<
  * An example of declaring procedures:
  * {@includeCode ../example/src/lib/procedures.ts}
  */
-export type ProceduresMap = Record<string, Procedure<Type, Type, Type>>;
+export type ProceduresMap = Record<string, Procedure<Schema, Schema, Schema>>;
 
 /**
  * Implementations of procedures by name
@@ -117,7 +121,7 @@ export type Hooks<Procedures extends ProceduresMap> = {
    */
   success?: <Procedure extends keyof ProceduresMap>(
     procedure: Procedure,
-    data: Procedures[Procedure]["success"]["inferOut"],
+    data: Schema.InferOutput<Procedures[Procedure]["success"]>,
   ) => void;
   /**
    * Called when a procedure call has failed.
@@ -131,7 +135,7 @@ export type Hooks<Procedures extends ProceduresMap> = {
    */
   progress?: <Procedure extends keyof ProceduresMap>(
     procedure: Procedure,
-    data: Procedures[Procedure]["progress"]["inferOut"],
+    data: Schema.InferOutput<Procedures[Procedure]["progress"]>,
   ) => void;
 };
 
@@ -179,13 +183,13 @@ export type PayloadCore<
   Name extends keyof PM = keyof PM,
 > =
   | {
-      input: PM[Name]["input"]["inferOut"];
+      input: Schema.InferOutput<PM[Name]["input"]>;
     }
   | {
-      progress: PM[Name]["progress"]["inferOut"];
+      progress: Schema.InferOutput<PM[Name]["progress"]>;
     }
   | {
-      result: PM[Name]["success"]["inferOut"];
+      result: Schema.InferOutput<PM[Name]["success"]>;
     }
   | {
       abort: { reason: string };
@@ -194,16 +198,43 @@ export type PayloadCore<
       error: { message: string };
     };
 
+const AbortOrError = type.or(
+  { abort: { reason: "string" } },
+  { error: { message: "string" } },
+);
+
 /**
  * @source
  */
-export const PayloadSchema = type
-  .scope({ PayloadCoreSchema, PayloadHeaderSchema, PayloadInitializeSchema })
-  .type("<Name extends string, I, P, S>", [
-    ["PayloadHeaderSchema<Name>", "&", "PayloadCoreSchema<I, P, S>"],
-    "|",
-    "PayloadInitializeSchema",
-  ]);
+export function validatePayloadCore<
+  PM extends ProceduresMap,
+  Name extends keyof PM,
+>(procedure: PM[Name], payload: unknown): PayloadCore<PM, keyof PM> {
+  if (typeof payload !== "object") throw new Error("payload is not an object");
+  if (payload === null) throw new Error("payload is null");
+
+  if ("input" in payload) {
+    const input = procedure.input["~standard"].validate(payload.input);
+    if ("value" in input) return { input: input.value };
+  }
+
+  if ("progress" in payload) {
+    const progress = procedure.progress["~standard"].validate(payload.progress);
+    if ("value" in progress) return { progress: progress.value };
+  }
+
+  if ("result" in payload) {
+    const result = procedure.success["~standard"].validate(payload.result);
+    if ("value" in result) return { result: result.value };
+  }
+
+  const abortOrError = AbortOrError(payload);
+  if (!(abortOrError instanceof ArkErrors)) {
+    return abortOrError;
+  }
+
+  throw new Error("invalid payload");
+}
 
 /**
  * The effective payload as sent by the server to the client
@@ -216,33 +247,35 @@ export type Payload<
 /**
  * A procedure's corresponding method on the client instance -- used to call the procedure. If you want to be able to cancel the request, you can use the `cancelable` method instead of running the procedure directly.
  */
-export type ClientMethod<P extends Procedure<Type, Type, Type>> = ((
-  input: P["input"]["inferIn"],
-  onProgress?: (progress: P["progress"]["inferOut"]) => void,
-) => Promise<P["success"]["inferOut"]>) & {
+export type ClientMethod<P extends Procedure<Schema, Schema, Schema>> = ((
+  input: Schema.InferInput<P["input"]>,
+  onProgress?: (progress: Schema.InferOutput<P["progress"]>) => void,
+) => Promise<Schema.InferOutput<P["success"]>>) & {
   /**
    * A method that returns a `CancelablePromise`. Cancel it by calling `.cancel(reason)` on it, and wait for the request to resolve by awaiting the `request` property on the returned object.
    */
   cancelable: (
-    input: P["input"]["inferIn"],
-    onProgress?: (progress: P["progress"]["inferOut"]) => void,
+    input: Schema.InferInput<P["input"]>,
+    onProgress?: (progress: Schema.InferOutput<P["progress"]>) => void,
     requestId?: string,
-  ) => CancelablePromise<P["success"]["inferOut"]>;
+  ) => CancelablePromise<Schema.InferOutput<P["success"]>>;
   /**
    * Send the request to specific nodes, or all nodes.
    * Returns an array of results, one for each node the request was sent to.
    * Each result is a {@link PromiseSettledResult}, with also an additional property, the node ID of the request
    */
   broadcast: (
-    input: P["input"]["inferIn"],
+    input: Schema.InferInput<P["input"]>,
     onProgress?: (
       /** Map of node IDs to their progress updates */
-      progresses: Map<string, P["progress"]["inferOut"]>,
+      progresses: Map<string, Schema.InferOutput<P["progress"]>>,
     ) => void,
     /** Number of nodes to send the request to. Leave undefined to send to all nodes */
     nodes?: number,
   ) => Promise<
-    Array<PromiseSettledResult<P["success"]["inferOut"]> & { node: string }>
+    Array<
+      PromiseSettledResult<Schema.InferOutput<P["success"]>> & { node: string }
+    >
   >;
 };
 

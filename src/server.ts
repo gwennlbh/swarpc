@@ -12,8 +12,8 @@ import {
   PayloadCore,
   PayloadHeaderSchema,
   PayloadInitializeSchema,
-  PayloadSchema,
   ProcedureImplementation,
+  validatePayloadCore as validatePayloadCore,
   zImplementations,
   zProcedures,
   type ProceduresMap,
@@ -188,18 +188,13 @@ export function Server<Procedures extends ProceduresMap>(
       }
 
       // Define payload schema for incoming messages
-      const payload = PayloadSchema(
-        type(`"${functionName}"`),
-        schemas.input,
-        schemas.progress,
-        schemas.success,
-      ).assert(event.data);
+      const payload = validatePayloadCore(schemas, event.data);
 
       if ("isInitializeRequest" in payload)
         throw "Unreachable: #initialize request payload should've been handled already";
 
       // Handle abortion requests (pro-choice ftw!!)
-      if (payload.abort) {
+      if ("abort" in payload) {
         const controller = abortControllers.get(requestId);
 
         if (!controller)
@@ -212,7 +207,7 @@ export function Server<Procedures extends ProceduresMap>(
       // Set up the abort controller for this request
       abortControllers.set(requestId, new AbortController());
 
-      if (!payload.input) {
+      if (!("input" in payload)) {
         await postError("No input provided");
         return;
       }
