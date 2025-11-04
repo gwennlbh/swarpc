@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Console logs called from within procedures' implementations had their message weirdly colored. The logs are now correctly prefixed with node & request IDs
+
 ## [0.15.0] - 2025-11-04
 
 ### Added

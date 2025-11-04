@@ -148,8 +148,10 @@ function log(
 export function injectIntoConsoleGlobal(
   scope: WorkerGlobalScope | SharedWorkerGlobalScope,
   nodeId: string,
+  requestId: string | null,
 ) {
   for (const method of PATCHABLE_LOG_METHODS) {
-    scope.self.console[method] = logger(method, "server", nodeId);
+    scope.self.console[method] = (...args) =>
+      logger(method, "server", nodeId)(requestId, ...args);
   }
 }

@@ -144,7 +144,7 @@ export function Server<Procedures extends ProceduresMap>(
         const { localStorageData, nodeId } = event.data;
         l.debug(null, "Setting up faux localStorage", localStorageData);
         new FauxLocalStorage(localStorageData).register(scope);
-        injectIntoConsoleGlobal(scope, nodeId);
+        injectIntoConsoleGlobal(scope, nodeId, null);
         return;
       }
 
@@ -213,6 +213,8 @@ export function Server<Procedures extends ProceduresMap>(
       }
 
       try {
+        injectIntoConsoleGlobal(scope, nodeId, requestId);
+
         // Call the implementation with the input and a progress callback
         const result = await implementation(
           payload.input,
