@@ -54,6 +54,7 @@ type Context<Procedures extends ProceduresMap> = {
  * This allows having a single listener for the client, and having multiple in-flight calls to the same procedure.
  */
 const pendingRequests = new Map<string, PendingRequest>();
+/** @internal */
 export type PendingRequest = {
   /** ID of the node the request was sent to. udefined if running on a service worker */
   nodeId?: string;
