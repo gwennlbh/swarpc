@@ -20,6 +20,19 @@ jobs:
       - run: npm ci
       - run: npm run check
 
+  size:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: package.json
+          cache: npm
+      - run: npm ci
+      - run: rm -r dist; npm run build
+      - run: npx size-limit
+
   typecheck:
     runs-on: ubuntu-latest
     steps:
