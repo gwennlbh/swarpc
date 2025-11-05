@@ -22,6 +22,10 @@ jobs:
 
   size:
     runs-on: ubuntu-latest
+    concurrency: sizelimit-${{ github.ref }}
+    environment:
+      name: "#${{ github.event.number }}: Size analysis"
+      url: ${{ steps.deploy-preview.outputs.preview-url }}
     steps:
       - uses: actions/checkout@v5
       - name: Install Node.js
@@ -31,6 +35,19 @@ jobs:
           cache: npm
       - run: npm ci
       - run: rm -r dist; npm run build
+
+      # Analyze
+      - run: npx size-limit --why
+      - run: mkdir size; mv esbuild-why.html size/index.html
+      - name: Deploy analysis
+        id: deploy-preview
+        uses: rossjrw/pr-preview-action@v1
+        with:
+          source-dir: ./size
+          umbrella-dir: _size
+          comment: false
+
+      # Enforce limit
       - run: npx size-limit
 
   typecheck:
