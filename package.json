@@ -21,11 +21,16 @@
   "author": "Gwenn Le Bihan <gwenn.lebihan7@gmail.com>",
   "type": "module",
   "files": [
-    "dist",
-    "src"
+    "dist"
   ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "size-limit": [
+    {
+      "path": "dist/index.js",
+      "limit": "10 kB"
+    }
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
@@ -54,6 +59,7 @@
     "pkg-pr-new": "^0.0.60",
     "prettier": "^3.6.2",
     "sirv-cli": "^3.0.1",
+    "size-limit": "^11.2.0",
     "typedoc": "^0.28.14",
     "typedoc-material-theme": "^1.4.1",
     "typedoc-plugin-dt-links": "^2.0.27",
