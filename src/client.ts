@@ -67,9 +67,6 @@ export type PendingRequest = {
 // Have we started the client listener?
 let _clientListenerStarted: Set<string> = new Set();
 
-/** @internal */
-export type ClientOptions = Parameters<typeof Client>[1];
-
 /**
  *
  * @param procedures procedures the client will be able to call, see {@link ProceduresMap}
