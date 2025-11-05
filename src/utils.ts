@@ -9,6 +9,7 @@ const transferableClasses: Constructor<Transferable>[] = [
   ArrayBuffer,
 ];
 
+/** @internal */
 export function findTransferables(value: any): Transferable[] {
   if (value === null || value === undefined) {
     return [];

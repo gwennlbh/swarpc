@@ -12,12 +12,14 @@ export function createLogger(
   level: LogLevel,
   nid?: string,
 ): Logger;
+/** @internal */
 export function createLogger(
   side: "server" | "client",
   level: LogLevel,
   nid: string,
   rqid: string,
 ): RequestBoundLogger;
+/** @internal */
 export function createLogger(
   side: "server" | "client",
   level: LogLevel = "debug",
@@ -55,6 +57,7 @@ export type Logger = {
   error: (rqid: string | null, message: string, ...args: any[]) => void;
 };
 
+/** @internal */
 export type RequestBoundLogger = {
   debug: (message: string, ...args: any[]) => void;
   info: (message: string, ...args: any[]) => void;

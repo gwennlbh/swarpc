@@ -1,3 +1,4 @@
+/** @internal */
 export class FauxLocalStorage {
   data: Record<string, any>;
   keysOrder: string[];

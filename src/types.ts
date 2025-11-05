@@ -60,6 +60,7 @@ export type CancelablePromise<T = unknown> = {
 
 /**
  * An implementation of a procedure
+ * @internal
  */
 export type ProcedureImplementation<
   I extends Schema,
