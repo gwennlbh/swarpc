@@ -225,7 +225,6 @@ export function Server<Procedures extends ProceduresMap>(
           {
             nodeId,
             abortSignal: abortControllers.get(requestId)?.signal,
-            logger: createLogger("server", loglevel, nodeId, requestId),
           },
         );
 

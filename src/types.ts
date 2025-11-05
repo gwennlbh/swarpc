@@ -83,10 +83,6 @@ export type ProcedureImplementation<
      */
     abortSignal?: AbortSignal;
     /**
-     * Logger instance to use for logging messages related to this procedure call, using the same format as SWARPC's built-in logging.
-     */
-    logger: RequestBoundLogger;
-    /**
      * ID of the Node the request is being processed on.
      */
     nodeId: string;
