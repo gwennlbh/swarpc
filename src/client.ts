@@ -320,7 +320,7 @@ async function postMessage<Procedures extends ProceduresMap>(
  * @param message
  * @param options
  */
-export function postMessageSync<Procedures extends ProceduresMap>(
+function postMessageSync<Procedures extends ProceduresMap>(
   l: RequestBoundLogger,
   worker: Worker | SharedWorker | undefined,
   message: Payload<Procedures>,
@@ -349,7 +349,7 @@ export function postMessageSync<Procedures extends ProceduresMap>(
  * @param ctx.worker if provided, the client will use this worker to listen for messages, instead of using the service worker
  * @returns
  */
-export async function startClientListener<Procedures extends ProceduresMap>(
+async function startClientListener<Procedures extends ProceduresMap>(
   ctx: Context<Procedures>,
 ) {
   if (_clientListenerStarted.has(nodeIdOrSW(ctx.nodeId))) return;
@@ -443,6 +443,6 @@ export async function startClientListener<Procedures extends ProceduresMap>(
  * @source
  * @returns a 6-character hexadecimal string
  */
-export function makeRequestId(): string {
+function makeRequestId(): string {
   return Math.random().toString(16).substring(2, 8).toUpperCase();
 }

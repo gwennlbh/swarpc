@@ -103,6 +103,7 @@ export type ProceduresMap = Record<string, Procedure<Schema, Schema, Schema>>;
 
 /**
  * Implementations of procedures by name
+ * @internal
  */
 export type ImplementationsMap<Procedures extends ProceduresMap> = {
   [F in keyof Procedures]: ProcedureImplementation<
@@ -139,6 +140,9 @@ export type Hooks<Procedures extends ProceduresMap> = {
   ) => void;
 };
 
+/**
+ * @internal
+ */
 export const PayloadInitializeSchema = type({
   by: '"sw&rpc"',
   functionName: '"#initialize"',
@@ -147,10 +151,13 @@ export const PayloadInitializeSchema = type({
   nodeId: "string",
 });
 
+/**
+ * @internal
+ */
 export type PayloadInitialize = typeof PayloadInitializeSchema.infer;
 
 /**
- * @source
+ * @internal
  */
 export const PayloadHeaderSchema = type("<Name extends string>", {
   by: '"sw&rpc"',
@@ -158,6 +165,9 @@ export const PayloadHeaderSchema = type("<Name extends string>", {
   requestId: "string >= 1",
 });
 
+/**
+ * @internal
+ */
 export type PayloadHeader<
   PM extends ProceduresMap,
   Name extends keyof PM = keyof PM,
@@ -168,16 +178,8 @@ export type PayloadHeader<
 };
 
 /**
- * @source
+ * @internal
  */
-export const PayloadCoreSchema = type("<I, P, S>", {
-  "input?": "I",
-  "progress?": "P",
-  "result?": "S",
-  "abort?": { reason: "string" },
-  "error?": { message: "string" },
-});
-
 export type PayloadCore<
   PM extends ProceduresMap,
   Name extends keyof PM = keyof PM,
@@ -204,7 +206,7 @@ const AbortOrError = type.or(
 );
 
 /**
- * @source
+ * @internal
  */
 export function validatePayloadCore<
   PM extends ProceduresMap,
@@ -238,6 +240,7 @@ export function validatePayloadCore<
 
 /**
  * The effective payload as sent by the server to the client
+ * @internal
  */
 export type Payload<
   PM extends ProceduresMap,
@@ -282,14 +285,12 @@ export type ClientMethod<P extends Procedure<Schema, Schema, Schema>> = ((
 /**
  * Symbol used as the key for the procedures map on the server instance
  * @internal
- * @source
  */
 export const zImplementations = Symbol("SWARPC implementations");
 
 /**
  * Symbol used as the key for the procedures map on instances
  * @internal
- * @source
  */
 export const zProcedures = Symbol("SWARPC procedures");
 

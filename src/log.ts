@@ -5,6 +5,7 @@
 
 /**
  * @ignore
+ * @internal
  */
 export function createLogger(
   side: "server" | "client",
@@ -45,6 +46,7 @@ export function createLogger(
 
 /**
  * @ignore
+ * @internal
  */
 export type Logger = {
   debug: (rqid: string | null, message: string, ...args: any[]) => void;
@@ -142,7 +144,7 @@ function log(
 }
 
 /**
- *
+ * @internal
  * @param scope
  */
 export function injectIntoConsoleGlobal(
