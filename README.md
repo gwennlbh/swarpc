@@ -17,6 +17,7 @@ RPC for Service (and other types of) Workers -- move that heavy computation off 
 - Parallelization with multiple worker instances
 - Automatic [transfer](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Transferable_objects) of transferable values from- and to- worker code
 - A way to polyfill a pre-filled `localStorage` to be accessed within the worker code
+- First-class support for signaling progress updates (and e.g. display a progress bar)
 - Supports [Service workers](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorker), [Shared workers](https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker) and [Dedicated workers](https://developer.mozilla.org/en-US/docs/Web/API/Worker)
 
 ## Installation
@@ -83,9 +84,9 @@ export const procedures = {
 } as const satisfies ProceduresMap;
 ```
 
-### 2. Register your procedures in the service worker
+### 2. Register your procedures in worker
 
-In your service worker file:
+In your worker file:
 
 ```javascript
 import fetchProgress from "fetch-progress"
@@ -152,6 +153,30 @@ Here's a Svelte example!
 </ul>
 ```
 
+### 4. Registering your worker
+
+#### Service Workers
+
+If you use SvelteKit, [just name your service worker file `src/service-worker.ts`](https://svelte.dev/docs/kit/service-workers)
+
+_If you use any other (meta) framework, please contribute usage documentation here :)_
+
+#### Dedicated or Shared Workers
+
+Preferred over service workers for heavy computations, since you can run multiple instances of them (see [Configure parallelism](#configure-parallelism))
+
+If you use Vite, you can [import files as Web Worker classes](https://vite.dev/guide/features.html#web-workers):
+
+```ts
+import { Client } from "swarpc";
+import { procedures } from "$lib/off-thread/procedures.ts";
+import OffThreadWorker from "$lib/off-thread/worker.ts?worker";
+
+const client = Client(procedures, {
+  worker: OffThreadWorker, // don't instanciate the class, sw&rpc does it
+});
+```
+
 ### Configure parallelism
 
 By default, when a `worker` is passed to the `Client`'s options, the client will automatically spin up `navigator.hardwareConcurrency` worker instances and distribute requests among them. You can customize this behavior by setting the `Client:options.nodes` option to control the number of _nodes_ (worker instances).
@@ -166,7 +191,7 @@ For example:
 
 ```ts
 const client = Client(procedures, {
-  worker: "./worker.js",
+  worker: MyWorker,
   nodes: 4,
 });
 
