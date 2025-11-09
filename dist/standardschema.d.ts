@@ -53,4 +53,3 @@ export declare namespace StandardSchemaV1 {
     /** Infers the output type of a Standard Schema. */
     type InferOutput<Schema extends StandardSchemaV1> = NonNullable<Schema["~standard"]["types"]>["output"];
 }
-//# sourceMappingURL=standardschema.d.ts.map

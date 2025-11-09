@@ -33,7 +33,6 @@ export class FauxLocalStorage {
         return this.keysOrder.length;
     }
     register(subject) {
-        // @ts-expect-error
         subject.localStorage = this;
     }
 }

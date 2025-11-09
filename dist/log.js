@@ -1,7 +1,3 @@
-/**
- * @module
- * @mergeModuleWith <project>
- */
 export function createLogger(side, level = "debug", nid, rqid) {
     const lvls = LOG_LEVELS.slice(LOG_LEVELS.indexOf(level));
     if (rqid && nid) {
@@ -20,7 +16,6 @@ export function createLogger(side, level = "debug", nid, rqid) {
         error: lvls.includes("error") ? logger("error", side, nid) : () => { },
     };
 }
-/** @source */
 const LOG_LEVELS = ["debug", "info", "warn", "error"];
 const PATCHABLE_LOG_METHODS = [
     "debug",
@@ -40,13 +35,6 @@ const originalConsole = PATCHABLE_LOG_METHODS.reduce((result, method) => {
     result[method] = console[method];
     return result;
 }, {});
-/**
- * Send log messages to the console, with a helpful prefix.
- * @param method
- * @param side
- * @param ids request ID and node ID
- * @param args passed to console methods directly
- */
 function log(method, side, { rqid, nid }, ...args) {
     const prefix = [
         `[SWARPC ${side}]`,
@@ -62,10 +50,6 @@ function log(method, side, { rqid, nid }, ...args) {
         prefixStyles.push("color: hotpink", "color: inherit");
     return originalConsole[method](prefix, ...prefixStyles, ...args);
 }
-/**
- *
- * @param scope
- */
 export function injectIntoConsoleGlobal(scope, nodeId, requestId) {
     for (const method of PATCHABLE_LOG_METHODS) {
         scope.self.console[method] = (...args) => logger(method, "server", nodeId)(requestId, ...args);

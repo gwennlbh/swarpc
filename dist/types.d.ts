@@ -3,7 +3,6 @@
  * @mergeModuleWith <project>
  */
 import type { StandardSchemaV1 as Schema } from "./standardschema.js";
-import { RequestBoundLogger } from "./log.js";
 /**
  * A procedure declaration
  */
@@ -71,10 +70,6 @@ tools: {
      */
     abortSignal?: AbortSignal;
     /**
-     * Logger instance to use for logging messages related to this procedure call, using the same format as SWARPC's built-in logging.
-     */
-    logger: RequestBoundLogger;
-    /**
      * ID of the Node the request is being processed on.
      */
     nodeId: string;
@@ -86,12 +81,6 @@ tools: {
  * {@includeCode ../example/src/lib/procedures.ts}
  */
 export type ProceduresMap = Record<string, Procedure<Schema, Schema, Schema>>;
-/**
- * Implementations of procedures by name
- */
-export type ImplementationsMap<Procedures extends ProceduresMap> = {
-    [F in keyof Procedures]: ProcedureImplementation<Procedures[F]["input"], Procedures[F]["progress"], Procedures[F]["success"]>;
-};
 /**
  * Declaration of hooks to run on messages received from the server
  */
@@ -109,41 +98,6 @@ export type Hooks<Procedures extends ProceduresMap> = {
      */
     progress?: <Procedure extends keyof ProceduresMap>(procedure: Procedure, data: Schema.InferOutput<Procedures[Procedure]["progress"]>) => void;
 };
-export declare const PayloadInitializeSchema: import("arktype/internal/variants/object.ts").ObjectType<{
-    by: "sw&rpc";
-    functionName: "#initialize";
-    isInitializeRequest: true;
-    localStorageData: Record<string, unknown>;
-    nodeId: string;
-}, {}>;
-export type PayloadInitialize = typeof PayloadInitializeSchema.infer;
-/**
- * @source
- */
-export declare const PayloadHeaderSchema: import("arktype").Generic<[["Name", string]], {
-    readonly by: "\"sw&rpc\"";
-    readonly functionName: "Name";
-    readonly requestId: "string >= 1";
-}, {}, {}>;
-export type PayloadHeader<PM extends ProceduresMap, Name extends keyof PM = keyof PM> = {
-    by: "sw&rpc";
-    functionName: Name & string;
-    requestId: string;
-};
-/**
- * @source
- */
-export declare const PayloadCoreSchema: import("arktype").Generic<[["I", unknown], ["P", unknown], ["S", unknown]], {
-    readonly "input?": "I";
-    readonly "progress?": "P";
-    readonly "result?": "S";
-    readonly "abort?": {
-        readonly reason: "string";
-    };
-    readonly "error?": {
-        readonly message: "string";
-    };
-}, {}, {}>;
 export type PayloadCore<PM extends ProceduresMap, Name extends keyof PM = keyof PM> = {
     input: Schema.InferOutput<PM[Name]["input"]>;
 } | {
@@ -159,14 +113,6 @@ export type PayloadCore<PM extends ProceduresMap, Name extends keyof PM = keyof 
         message: string;
     };
 };
-/**
- * @source
- */
-export declare function validatePayloadCore<PM extends ProceduresMap, Name extends keyof PM>(procedure: PM[Name], payload: unknown): PayloadCore<PM, keyof PM>;
-/**
- * The effective payload as sent by the server to the client
- */
-export type Payload<PM extends ProceduresMap, Name extends keyof PM = keyof PM> = (PayloadHeader<PM, Name> & PayloadCore<PM, Name>) | PayloadInitialize;
 /**
  * A procedure's corresponding method on the client instance -- used to call the procedure. If you want to be able to cancel the request, you can use the `cancelable` method instead of running the procedure directly.
  */
@@ -188,21 +134,8 @@ export type ClientMethod<P extends Procedure<Schema, Schema, Schema>> = ((input:
         node: string;
     }>>;
 };
-/**
- * Symbol used as the key for the procedures map on the server instance
- * @internal
- * @source
- */
-export declare const zImplementations: unique symbol;
-/**
- * Symbol used as the key for the procedures map on instances
- * @internal
- * @source
- */
-export declare const zProcedures: unique symbol;
 export type WorkerConstructor<T extends Worker | SharedWorker = Worker | SharedWorker> = {
     new (opts?: {
         name?: string;
     }): T;
 };
-//# sourceMappingURL=types.d.ts.map

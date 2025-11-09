@@ -2,8 +2,8 @@
  * @module
  * @mergeModuleWith <project>
  */
-import { RequestBoundLogger, type Logger, type LogLevel } from "./log.js";
-import { ClientMethod, Hooks, Payload, WorkerConstructor, zProcedures, type ProceduresMap } from "./types.js";
+import { type LogLevel } from "./log.js";
+import { ClientMethod, Hooks, WorkerConstructor, zProcedures, type ProceduresMap } from "./types.js";
 /**
  * The sw&rpc client instance, which provides {@link ClientMethod | methods to call procedures}.
  * Each property of the procedures map will be a method, that accepts an input, an optional onProgress callback and an optional request ID.
@@ -14,30 +14,6 @@ export type SwarpcClient<Procedures extends ProceduresMap> = {
 } & {
     [F in keyof Procedures]: ClientMethod<Procedures[F]>;
 };
-/**
- * Context for passing around data useful for requests
- */
-type Context<Procedures extends ProceduresMap> = {
-    /** A logger, bound to the client */
-    logger: Logger;
-    /** The node to use */
-    node: Worker | SharedWorker | undefined;
-    /** The ID of the node to use */
-    nodeId: string | undefined;
-    /** Hooks defined by the client */
-    hooks: Hooks<Procedures>;
-    /** Local storage data defined by the client for the faux local storage */
-    localStorage: Record<string, any>;
-};
-export type PendingRequest = {
-    /** ID of the node the request was sent to. udefined if running on a service worker */
-    nodeId?: string;
-    functionName: string;
-    reject: (err: Error) => void;
-    onProgress: (progress: any) => void;
-    resolve: (result: any) => void;
-};
-export type ClientOptions = Parameters<typeof Client>[1];
 /**
  *
  * @param procedures procedures the client will be able to call, see {@link ProceduresMap}
@@ -64,26 +40,3 @@ export declare function Client<Procedures extends ProceduresMap>(procedures: Pro
     restartListener?: boolean;
     localStorage?: Record<string, any>;
 }): SwarpcClient<Procedures>;
-/**
- * A quicker version of postMessage that does not try to start the client listener, await the service worker, etc.
- * esp. useful for abort logic that needs to not be... put behind everything else on the event loop.
- * @param l
- * @param worker
- * @param message
- * @param options
- */
-export declare function postMessageSync<Procedures extends ProceduresMap>(l: RequestBoundLogger, worker: Worker | SharedWorker | undefined, message: Payload<Procedures>, options?: StructuredSerializeOptions): void;
-/**
- * Starts the client listener, which listens for messages from the sw&rpc server.
- * @param ctx.worker if provided, the client will use this worker to listen for messages, instead of using the service worker
- * @returns
- */
-export declare function startClientListener<Procedures extends ProceduresMap>(ctx: Context<Procedures>): Promise<void>;
-/**
- * Generate a random request ID, used to identify requests between client and server.
- * @source
- * @returns a 6-character hexadecimal string
- */
-export declare function makeRequestId(): string;
-export {};
-//# sourceMappingURL=client.d.ts.map

@@ -3,7 +3,8 @@
  * @mergeModuleWith <project>
  */
 import "./polyfills.js";
-export * from "./client.js";
-export * from "./server.js";
 export type { ProceduresMap, CancelablePromise } from "./types.js";
-//# sourceMappingURL=index.d.ts.map
+export { Client } from "./client.js";
+export type { SwarpcClient } from "./client.js";
+export { Server } from "./server.js";
+export type { SwarpcServer } from "./server.js";

@@ -1,7 +1,3 @@
-/**
- * @module
- * @mergeModuleWith <project>
- */
 import "./polyfills.js";
-export * from "./client.js";
-export * from "./server.js";
+export { Client } from "./client.js";
+export { Server } from "./server.js";

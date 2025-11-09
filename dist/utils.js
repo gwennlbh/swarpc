@@ -1,4 +1,3 @@
-// TODO: keep it in sync with web standards, how?
 const transferableClasses = [
     MessagePort,
     ReadableStream,

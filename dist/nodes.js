@@ -1,7 +1,4 @@
 import { scopeIsDedicated, scopeIsShared } from "./scopes.js";
-/**
- * Returns to which node to send the next request, given the state of the currently pending requests
- */
 export function whoToSendTo(nodes, requests) {
     if (!nodes)
         return undefined;
@@ -14,7 +11,6 @@ export function whoToSendTo(nodes, requests) {
     for (const [node, reqs] of requestsPerNode.entries()) {
         if (!node)
             continue;
-        // Send to the least busy node
         if (reqs.length < requestsPerNode.get(chosen).length)
             chosen = node;
     }
@@ -27,14 +23,10 @@ export function nodeIdFromScope(scope, _scopeType) {
     }
     return "(SW)";
 }
-/**
- * Generate a random request ID, used to identify nodes in the client
- * @source
- */
 export function makeNodeId() {
     return "N" + Math.random().toString(16).substring(2, 5).toUpperCase();
 }
-const serviceWorkerNodeId = "(SW)"; // Fixed ID for the service worker, as there's only one
+const serviceWorkerNodeId = "(SW)";
 export function nodeIdOrSW(id) {
     return id ?? serviceWorkerNodeId;
 }

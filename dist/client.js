@@ -1,42 +1,13 @@
-/**
- * @module
- * @mergeModuleWith <project>
- */
 import { createLogger, } from "./log.js";
 import { makeNodeId, nodeIdOrSW, whoToSendTo } from "./nodes.js";
 import { zProcedures, } from "./types.js";
 import { findTransferables } from "./utils.js";
-/**
- * Pending requests are stored in a map, where the key is the request ID.
- * Each request has a set of handlers: resolve, reject, and onProgress.
- * This allows having a single listener for the client, and having multiple in-flight calls to the same procedure.
- */
 const pendingRequests = new Map();
-// Have we started the client listener?
 let _clientListenerStarted = new Set();
-/**
- *
- * @param procedures procedures the client will be able to call, see {@link ProceduresMap}
- * @param options various options
- * @param options.worker The worker class, **not instantiated**, or a path to the source code. If not provided, the client will use the service worker. If a string is provided, it'll instantiate a regular `Worker`, not a `SharedWorker`.
- * Example: `"./worker.js"`
- * See {@link Worker} (used by both dedicated workers and service workers), {@link SharedWorker}, and
- * the different [worker types](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API#worker_types) that exist
- * @param options.hooks Hooks to run on messages received from the server. See {@link Hooks}
- * @param options.loglevel Maximum log level to use, defaults to "debug" (shows everything). "info" will not show debug messages, "warn" will only show warnings and errors, "error" will only show errors.
- * @param options.restartListener If true, will force the listener to restart even if it has already been started. You should probably leave this to false, unless you are testing and want to reset the client state.
- * @param options.localStorage Define a in-memory localStorage with the given key-value pairs. Allows code called on the server to access localStorage (even though SharedWorkers don't have access to the browser's real localStorage)
- * @param options.nodes the number of workers to use for the server, defaults to {@link navigator.hardwareConcurrency}.
- * @returns a sw&rpc client instance. Each property of the procedures map will be a method, that accepts an input and an optional onProgress callback, see {@link ClientMethod}
- *
- * An example of defining and using a client:
- * {@includeCode ../example/src/routes/+page.svelte}
- */
 export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug", restartListener = false, hooks = {}, localStorage = {}, } = {}) {
     const l = createLogger("client", loglevel);
     if (restartListener)
         _clientListenerStarted.clear();
-    // Store procedures on a symbol key, to avoid conflicts with procedure names
     const instance = { [zProcedures]: procedures };
     nodeCount ??= navigator.hardwareConcurrency || 1;
     let nodes;
@@ -72,23 +43,17 @@ export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug
                 functionName,
             }, options);
         };
-        // Set the method on the instance
         const _runProcedure = async (input, onProgress = () => { }, reqid, nodeId) => {
-            // Validate the input against the procedure's input schema
             const validation = procedures[functionName].input["~standard"].validate(input);
             if (validation instanceof Promise)
                 throw new Error("Validations must not be async");
             if (validation.issues)
                 throw new Error(`Invalid input: ${validation.issues}`);
             const requestId = reqid ?? makeRequestId();
-            // Choose which node to use
             nodeId ??= whoToSendTo(nodes, pendingRequests);
             const node = nodes && nodeId ? nodes[nodeId] : undefined;
             const l = createLogger("client", loglevel, nodeIdOrSW(nodeId), requestId);
             return new Promise((resolve, reject) => {
-                // Store promise handlers (as well as progress updates handler)
-                // so the client listener can resolve/reject the promise (and react to progress updates)
-                // when the server sends messages back
                 pendingRequests.set(requestId, {
                     nodeId,
                     functionName,
@@ -99,14 +64,12 @@ export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug
                 const transfer = procedures[functionName].autotransfer === "always"
                     ? findTransferables(input)
                     : [];
-                // Post the message to the server
                 l.debug(`Requesting ${functionName} with`, input);
                 return send(node, nodeId, requestId, { input }, { transfer })
                     .then(() => { })
                     .catch(reject);
             });
         };
-        // @ts-expect-error
         instance[functionName] = _runProcedure;
         instance[functionName].broadcast = async (input, onProgresses, nodesCount) => {
             let nodesToUse = [undefined];
@@ -151,16 +114,11 @@ export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug
     }
     return instance;
 }
-/**
- * Warms up the client by starting the listener and getting the worker, then posts a message to the worker.
- * @returns the worker to use
- */
 async function postMessage(ctx, message, options) {
     await startClientListener(ctx);
     const { logger: l, node: worker } = ctx;
     if (!worker && !navigator.serviceWorker.controller)
         l.warn("", "Service Worker is not controlling the page");
-    // If no worker is provided, we use the service worker
     const w = worker instanceof SharedWorker
         ? worker.port
         : worker === undefined
@@ -171,18 +129,9 @@ async function postMessage(ctx, message, options) {
     }
     w.postMessage(message, options);
 }
-/**
- * A quicker version of postMessage that does not try to start the client listener, await the service worker, etc.
- * esp. useful for abort logic that needs to not be... put behind everything else on the event loop.
- * @param l
- * @param worker
- * @param message
- * @param options
- */
-export function postMessageSync(l, worker, message, options) {
+function postMessageSync(l, worker, message, options) {
     if (!worker && !navigator.serviceWorker.controller)
         l.warn("Service Worker is not controlling the page");
-    // If no worker is provided, we use the service worker
     const w = worker instanceof SharedWorker
         ? worker.port
         : worker === undefined
@@ -193,16 +142,10 @@ export function postMessageSync(l, worker, message, options) {
     }
     w.postMessage(message, options);
 }
-/**
- * Starts the client listener, which listens for messages from the sw&rpc server.
- * @param ctx.worker if provided, the client will use this worker to listen for messages, instead of using the service worker
- * @returns
- */
-export async function startClientListener(ctx) {
+async function startClientListener(ctx) {
     if (_clientListenerStarted.has(nodeIdOrSW(ctx.nodeId)))
         return;
     const { logger: l, node: worker } = ctx;
-    // Get service worker registration if no worker is provided
     if (!worker) {
         const sw = await navigator.serviceWorker.ready;
         if (!sw?.active) {
@@ -213,33 +156,24 @@ export async function startClientListener(ctx) {
         }
     }
     const w = worker ?? navigator.serviceWorker;
-    // Start listening for messages
     l.debug(null, "Starting client listener", { w, ...ctx });
     const listener = (event) => {
-        // Get the data from the event
         const eventData = event.data || {};
-        // Ignore other messages that aren't for us
         if (eventData?.by !== "sw&rpc")
             return;
-        // We don't use a schema here, we trust the server to send valid data
         const payload = eventData;
-        // Ignore #initialize request, it's client->server only
         if ("isInitializeRequest" in payload) {
             l.warn(null, "Ignoring unexpected #initialize from server", payload);
             return;
         }
         const { requestId, ...data } = payload;
-        // Sanity check in case we somehow receive a message without requestId
         if (!requestId) {
             throw new Error("[SWARPC Client] Message received without requestId");
         }
-        // Get the associated pending request handlers
         const handlers = pendingRequests.get(requestId);
         if (!handlers) {
             throw new Error(`[SWARPC Client] ${requestId} has no active request handlers, cannot process ${JSON.stringify(data)}`);
         }
-        // React to the data received: call hook, call handler,
-        // and remove the request from pendingRequests (unless it's a progress update)
         if ("error" in data) {
             ctx.hooks.error?.(data.functionName, new Error(data.error.message));
             handlers.reject(new Error(data.error.message));
@@ -263,7 +197,6 @@ export async function startClientListener(ctx) {
         w.addEventListener("message", listener);
     }
     _clientListenerStarted.add(nodeIdOrSW(ctx.nodeId));
-    // Recursive terminal case is ensured by calling this *after* _clientListenerStarted is set to true: startClientListener() will therefore not be called in postMessage() again.
     await postMessage(ctx, {
         by: "sw&rpc",
         functionName: "#initialize",
@@ -272,11 +205,6 @@ export async function startClientListener(ctx) {
         nodeId: nodeIdOrSW(ctx.nodeId),
     });
 }
-/**
- * Generate a random request ID, used to identify requests between client and server.
- * @source
- * @returns a 6-character hexadecimal string
- */
-export function makeRequestId() {
+function makeRequestId() {
     return Math.random().toString(16).substring(2, 8).toUpperCase();
 }

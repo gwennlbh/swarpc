@@ -1,45 +1,20 @@
-/**
- * @module
- * @mergeModuleWith <project>
- */
-/// <reference lib="webworker" />
-import { type } from "arktype";
 import { createLogger, injectIntoConsoleGlobal } from "./log.js";
-import { PayloadHeaderSchema, PayloadInitializeSchema, validatePayloadCore as validatePayloadCore, zImplementations, zProcedures, } from "./types.js";
+import { isPayloadHeader, isPayloadInitialize, validatePayloadCore as validatePayloadCore, zImplementations, zProcedures, } from "./types.js";
 import { findTransferables } from "./utils.js";
 import { FauxLocalStorage } from "./localstorage.js";
 import { scopeIsDedicated, scopeIsShared, scopeIsService } from "./scopes.js";
 import { nodeIdFromScope } from "./nodes.js";
 const abortControllers = new Map();
 const abortedRequests = new Set();
-/**
- * Creates a sw&rpc server instance.
- * @param procedures procedures the server will implement, see {@link ProceduresMap}
- * @param options various options
- * @param options.scope The worker scope to use, defaults to the `self` of the file where Server() is called.
- * @param options.loglevel Maximum log level to use, defaults to "debug" (shows everything). "info" will not show debug messages, "warn" will only show warnings and errors, "error" will only show errors.
- * @param options._scopeType @internal Don't touch, this is used in testing environments because the mock is subpar. Manually overrides worker scope type detection.
- * @returns a SwarpcServer instance. Each property of the procedures map will be a method, that accepts a function implementing the procedure (see {@link ProcedureImplementation}). There is also .start(), to be called after implementing all procedures.
- *
- * An example of defining a server:
- * {@includeCode ../example/src/service-worker.ts}
- */
 export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = {}) {
-    // If scope is not provided, use the global scope
-    // This function is meant to be used in a worker, so `self` is a WorkerGlobalScope
     scope ??= self;
-    // Service workers don't have a name, but it's fine anyways cuz we don't have multiple nodes when running with a SW
     const nodeId = nodeIdFromScope(scope, _scopeType);
     const l = createLogger("server", loglevel, nodeId);
-    // Initialize the instance.
-    // Procedures and implementations are stored on properties with symbol keys,
-    // to avoid any conflicts with procedure names, and also discourage direct access to them.
     const instance = {
         [zProcedures]: procedures,
         [zImplementations]: {},
         start: async () => { },
     };
-    // Set all implementation-setter methods
     for (const functionName in procedures) {
         instance[functionName] = ((implementation) => {
             if (!instance[zProcedures][functionName]) {
@@ -68,7 +43,6 @@ export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = 
                 resolve(port);
             });
         });
-        // Used to post messages back to the client
         const postMessage = async (autotransfer, data) => {
             const transfer = autotransfer ? [] : findTransferables(data);
             if (port) {
@@ -84,19 +58,20 @@ export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = 
             }
         };
         const listener = async (event) => {
-            if (PayloadInitializeSchema.allows(event.data)) {
+            if (isPayloadInitialize(event.data)) {
                 const { localStorageData, nodeId } = event.data;
                 l.debug(null, "Setting up faux localStorage", localStorageData);
                 new FauxLocalStorage(localStorageData).register(scope);
                 injectIntoConsoleGlobal(scope, nodeId, null);
                 return;
             }
-            // Decode the payload
-            const { requestId, functionName } = PayloadHeaderSchema(type.enumerated(...Object.keys(procedures))).assert(event.data);
+            if (!isPayloadHeader(procedures, event.data)) {
+                l.error(null, "Received payload with invalid header", event.data);
+                return;
+            }
+            const { requestId, functionName } = event.data;
             l.debug(requestId, `Received request for ${functionName}`, event.data);
-            // Get autotransfer preference from the procedure definition
             const { autotransfer = "output-only", ...schemas } = instance[zProcedures][functionName];
-            // Shorthand function with functionName, requestId, etc. set
             const postMsg = async (data) => {
                 if (abortedRequests.has(requestId))
                     return;
@@ -107,23 +82,19 @@ export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = 
                     ...data,
                 });
             };
-            // Prepare a function to post errors back to the client
             const postError = async (error) => postMsg({
                 error: {
                     message: "message" in error ? error.message : String(error),
                 },
             });
-            // Retrieve the implementation for the requested function
             const implementation = instance[zImplementations][functionName];
             if (!implementation) {
                 await postError("No implementation found");
                 return;
             }
-            // Define payload schema for incoming messages
             const payload = validatePayloadCore(schemas, event.data);
             if ("isInitializeRequest" in payload)
                 throw "Unreachable: #initialize request payload should've been handled already";
-            // Handle abortion requests (pro-choice ftw!!)
             if ("abort" in payload) {
                 const controller = abortControllers.get(requestId);
                 if (!controller)
@@ -131,7 +102,6 @@ export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = 
                 controller?.abort(payload.abort.reason);
                 return;
             }
-            // Set up the abort controller for this request
             abortControllers.set(requestId, new AbortController());
             if (!("input" in payload)) {
                 await postError("No input provided");
@@ -139,22 +109,16 @@ export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = 
             }
             try {
                 injectIntoConsoleGlobal(scope, nodeId, requestId);
-                // Call the implementation with the input and a progress callback
                 const result = await implementation(payload.input, async (progress) => {
-                    // l.debug(requestId, `Progress for ${functionName}`, progress);
                     await postMsg({ progress });
                 }, {
                     nodeId,
                     abortSignal: abortControllers.get(requestId)?.signal,
-                    logger: createLogger("server", loglevel, nodeId, requestId),
                 });
-                // Send results
                 l.debug(requestId, `Result for ${functionName}`, result);
                 await postMsg({ result });
             }
             catch (error) {
-                // Send errors
-                // Handle errors caused by abortions
                 if ("aborted" in error) {
                     l.debug(requestId, `Received abort error for ${functionName}`, error.aborted);
                     abortedRequests.add(requestId);
@@ -168,7 +132,6 @@ export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = 
                 abortedRequests.delete(requestId);
             }
         };
-        // Listen for messages from the client
         if (scopeIsShared(scope, _scopeType)) {
             if (!port)
                 throw new Error("SharedWorker port not initialized");
