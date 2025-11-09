@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.16.0] - 2025-11-09
+
+### Changed
+
+- The package is now _much_ smaller, clocking in at around 3kB (minified + gzipped) instead of 44 kB ! This is thanks to the removal of internal APIs' type definitions, source maps, and the only runtime dependency, arktype (type-checking code is now hand-written, there wasn't a lot of it anyway).
+
 ### Removed
 
 - **BREAKING:** The `logger` options in the third argument of procedure implementations has been removed. Just use `console.log` instead:
@@ -20,10 +26,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   ```
 
 - Functions and types for internal things have been removed from the public API. The only remaining API surface is the one documented in the README (`Server`, `Client` and their related types).
-
-### Changed
-
-- The package is now _much_ smaller, clocking in at around 3kB (minified + gzipped) instead of 44 kB ! This is thanks to the removal of internal APIs' type definitions, source maps, and the only runtime dependency, arktype (type-checking code is now hand-written, there wasn't a lot of it anyway).
 
 ## [0.15.1] - 2025-11-04
 
@@ -141,7 +143,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - support for transferable objects via a new [`autotransfer` property on procedure declarations](https://gwennlbh.github.io/swarpc/docs/types/types.Procedure.html#autotransfer)
 
-[Unreleased]: https://github.com/gwennlbh/swarpc/compare/v0.15.1...HEAD
+[Unreleased]: https://github.com/gwennlbh/swarpc/compare/v0.16.0...HEAD
+[0.16.0]: https://github.com/gwennlbh/swarpc/compare/v0.15.1...v0.16.0
 [0.15.1]: https://github.com/gwennlbh/swarpc/compare/v0.15.0...v0.15.1
 [0.15.0]: https://github.com/gwennlbh/swarpc/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/gwennlbh/swarpc/compare/v0.13.0...v0.14.0
