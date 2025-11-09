@@ -51,6 +51,7 @@
     "@size-limit/esbuild-why": "^11.2.0",
     "@size-limit/preset-small-lib": "^11.2.0",
     "@vitest/web-worker": "^4.0.6",
+    "arktype": "^2.1.25",
     "date-fns": "^4.1.0",
     "husky": "^9.1.7",
     "kacl": "^1.1.1",
