@@ -2,6 +2,7 @@ import { PendingRequest } from "./client.js";
 import { scopeIsDedicated, scopeIsShared } from "./scopes.js";
 
 /**
+ * @internal
  * Returns to which node to send the next request, given the state of the currently pending requests
  */
 export function whoToSendTo(
@@ -35,6 +36,9 @@ export function whoToSendTo(
   return chosen;
 }
 
+/**
+ * @internal
+ */
 export function nodeIdFromScope(
   scope: WorkerGlobalScope,
   _scopeType?: "dedicated" | "shared" | "service",
@@ -48,7 +52,7 @@ export function nodeIdFromScope(
 
 /**
  * Generate a random request ID, used to identify nodes in the client
- * @source
+ * @internal
  */
 export function makeNodeId(): string {
   return "N" + Math.random().toString(16).substring(2, 5).toUpperCase();
@@ -56,6 +60,9 @@ export function makeNodeId(): string {
 
 const serviceWorkerNodeId = "(SW)" as const; // Fixed ID for the service worker, as there's only one
 
+/**
+ * @internal
+ */
 export function nodeIdOrSW(
   id: string | undefined,
 ): string | typeof serviceWorkerNodeId {

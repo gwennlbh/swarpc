@@ -4,14 +4,13 @@
  */
 
 /// <reference lib="webworker" />
-import { type } from "arktype";
 import { createLogger, injectIntoConsoleGlobal, type LogLevel } from "./log.js";
 import {
   ImplementationsMap,
+  isPayloadHeader,
+  isPayloadInitialize,
   Payload,
   PayloadCore,
-  PayloadHeaderSchema,
-  PayloadInitializeSchema,
   ProcedureImplementation,
   validatePayloadCore as validatePayloadCore,
   zImplementations,
@@ -50,7 +49,7 @@ const abortedRequests = new Set<string>();
  * @param options various options
  * @param options.scope The worker scope to use, defaults to the `self` of the file where Server() is called.
  * @param options.loglevel Maximum log level to use, defaults to "debug" (shows everything). "info" will not show debug messages, "warn" will only show warnings and errors, "error" will only show errors.
- * @param options._scopeType @internal Don't touch, this is used in testing environments because the mock is subpar. Manually overrides worker scope type detection.
+ * @param options._scopeType Don't touch, this is used in testing environments because the mock is subpar. Manually overrides worker scope type detection.
  * @returns a SwarpcServer instance. Each property of the procedures map will be a method, that accepts a function implementing the procedure (see {@link ProcedureImplementation}). There is also .start(), to be called after implementing all procedures.
  *
  * An example of defining a server:
@@ -140,7 +139,7 @@ export function Server<Procedures extends ProceduresMap>(
     const listener = async (
       event: MessageEvent<any> | ExtendableMessageEvent,
     ): Promise<void> => {
-      if (PayloadInitializeSchema.allows(event.data)) {
+      if (isPayloadInitialize(event.data)) {
         const { localStorageData, nodeId } = event.data;
         l.debug(null, "Setting up faux localStorage", localStorageData);
         new FauxLocalStorage(localStorageData).register(scope);
@@ -148,10 +147,13 @@ export function Server<Procedures extends ProceduresMap>(
         return;
       }
 
+      if (!isPayloadHeader(procedures, event.data)) {
+        l.error(null, "Received payload with invalid header", event.data);
+        return;
+      }
+
       // Decode the payload
-      const { requestId, functionName } = PayloadHeaderSchema(
-        type.enumerated(...Object.keys(procedures)),
-      ).assert(event.data);
+      const { requestId, functionName } = event.data;
 
       l.debug(requestId, `Received request for ${functionName}`, event.data);
 
@@ -225,7 +227,6 @@ export function Server<Procedures extends ProceduresMap>(
           {
             nodeId,
             abortSignal: abortControllers.get(requestId)?.signal,
-            logger: createLogger("server", loglevel, nodeId, requestId),
           },
         );
 

@@ -5,18 +5,21 @@
 
 /**
  * @ignore
+ * @internal
  */
 export function createLogger(
   side: "server" | "client",
   level: LogLevel,
   nid?: string,
 ): Logger;
+/** @internal */
 export function createLogger(
   side: "server" | "client",
   level: LogLevel,
   nid: string,
   rqid: string,
 ): RequestBoundLogger;
+/** @internal */
 export function createLogger(
   side: "server" | "client",
   level: LogLevel = "debug",
@@ -45,6 +48,7 @@ export function createLogger(
 
 /**
  * @ignore
+ * @internal
  */
 export type Logger = {
   debug: (rqid: string | null, message: string, ...args: any[]) => void;
@@ -53,6 +57,7 @@ export type Logger = {
   error: (rqid: string | null, message: string, ...args: any[]) => void;
 };
 
+/** @internal */
 export type RequestBoundLogger = {
   debug: (message: string, ...args: any[]) => void;
   info: (message: string, ...args: any[]) => void;
@@ -63,6 +68,7 @@ export type RequestBoundLogger = {
 /** @source */
 const LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
 
+/** @internal */
 export type LogLevel = (typeof LOG_LEVELS)[number];
 
 const PATCHABLE_LOG_METHODS = [
@@ -142,7 +148,7 @@ function log(
 }
 
 /**
- *
+ * @internal
  * @param scope
  */
 export function injectIntoConsoleGlobal(

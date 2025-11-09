@@ -11,6 +11,7 @@ const DedicatedWorkerGlobalScope =
 const ServiceWorkerGlobalScope =
   globalThis.ServiceWorkerGlobalScope ?? MockedWorkerGlobalScope;
 
+/** @internal */
 export function scopeIsShared(
   scope: WorkerGlobalScope,
   _scopeType?: "dedicated" | "shared" | "service",
@@ -18,6 +19,7 @@ export function scopeIsShared(
   return scope instanceof SharedWorkerGlobalScope || _scopeType === "shared";
 }
 
+/** @internal */
 export function scopeIsDedicated(
   scope: WorkerGlobalScope,
   _scopeType?: "dedicated" | "shared" | "service",
@@ -27,6 +29,7 @@ export function scopeIsDedicated(
   );
 }
 
+/** @internal */
 export function scopeIsService(
   scope: WorkerGlobalScope,
   _scopeType?: "dedicated" | "shared" | "service",

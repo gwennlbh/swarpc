@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Removed
+
+- **BREAKING:** The `logger` options in the third argument of procedure implementations has been removed. Just use `console.log` instead:
+
+  ```diff
+  - server.myProcedure(async (args, onProgress, { logger }) => {
+  + server.myProcedure(async (args, onProgress) => {
+  -   logger.info("Doing something")
+  +   console.log("Doing something")
+  });
+  ```
+
+- Functions and types for internal things have been removed from the public API. The only remaining API surface is the one documented in the README (`Server`, `Client` and their related types).
+
+### Changed
+
+- The package is now _much_ smaller, clocking in at around 3kB (minified + gzipped) instead of 44 kB ! This is thanks to the removal of internal APIs' type definitions, source maps, and the only runtime dependency, arktype (type-checking code is now hand-written, there wasn't a lot of it anyway).
+
 ## [0.15.1] - 2025-11-04
 
 ### Fixed

@@ -3,11 +3,7 @@
  * @mergeModuleWith <project>
  */
 
-import type {
-  StandardSchemaV1 as Schema,
-  StandardSchemaV1,
-} from "./standardschema.js";
-import { ArkErrors, type } from "arktype";
+import type { StandardSchemaV1 as Schema } from "./standardschema.js";
 import { RequestBoundLogger } from "./log.js";
 
 /**
@@ -83,10 +79,6 @@ export type ProcedureImplementation<
      */
     abortSignal?: AbortSignal;
     /**
-     * Logger instance to use for logging messages related to this procedure call, using the same format as SWARPC's built-in logging.
-     */
-    logger: RequestBoundLogger;
-    /**
      * ID of the Node the request is being processed on.
      */
     nodeId: string;
@@ -103,6 +95,7 @@ export type ProceduresMap = Record<string, Procedure<Schema, Schema, Schema>>;
 
 /**
  * Implementations of procedures by name
+ * @internal
  */
 export type ImplementationsMap<Procedures extends ProceduresMap> = {
   [F in keyof Procedures]: ProcedureImplementation<
@@ -139,25 +132,41 @@ export type Hooks<Procedures extends ProceduresMap> = {
   ) => void;
 };
 
-export const PayloadInitializeSchema = type({
-  by: '"sw&rpc"',
-  functionName: '"#initialize"',
-  isInitializeRequest: "true",
-  localStorageData: "Record<string, unknown>",
-  nodeId: "string",
-});
+/** @internal */
+export type PayloadInitialize = {
+  by: "sw&rpc";
+  functionName: "#initialize";
+  isInitializeRequest: true;
+  localStorageData: Record<string, unknown>;
+  nodeId: string;
+};
 
-export type PayloadInitialize = typeof PayloadInitializeSchema.infer;
+/** @internal */
+export function isPayloadInitialize(
+  payload: unknown,
+): payload is PayloadInitialize {
+  if (typeof payload !== "object") return false;
+  if (payload === null) return false;
+
+  if (!("by" in payload)) return false;
+  if (!("nodeId" in payload)) return false;
+  if (!("functionName" in payload)) return false;
+  if (!("localStorageData" in payload)) return false;
+  if (!("isInitializeRequest" in payload)) return false;
+
+  if (payload.by !== "sw&rpc") return false;
+  if (payload.functionName !== "#initialize") return false;
+  if (payload.isInitializeRequest !== true) return false;
+  if (typeof payload.nodeId !== "string") return false;
+  if (typeof payload.localStorageData !== "object") return false;
+  if (payload.localStorageData === null) return false;
+
+  return true;
+}
 
 /**
- * @source
+ * @internal
  */
-export const PayloadHeaderSchema = type("<Name extends string>", {
-  by: '"sw&rpc"',
-  functionName: "Name",
-  requestId: "string >= 1",
-});
-
 export type PayloadHeader<
   PM extends ProceduresMap,
   Name extends keyof PM = keyof PM,
@@ -167,16 +176,25 @@ export type PayloadHeader<
   requestId: string;
 };
 
-/**
- * @source
- */
-export const PayloadCoreSchema = type("<I, P, S>", {
-  "input?": "I",
-  "progress?": "P",
-  "result?": "S",
-  "abort?": { reason: "string" },
-  "error?": { message: "string" },
-});
+/** @internal */
+export function isPayloadHeader<PM extends ProceduresMap>(
+  procedures: PM,
+  payload: unknown,
+): payload is PayloadHeader<PM> {
+  if (typeof payload !== "object") return false;
+  if (payload === null) return false;
+
+  if (!("by" in payload)) return false;
+  if (!("requestId" in payload)) return false;
+  if (!("functionName" in payload)) return false;
+
+  if (payload.by !== "sw&rpc") return false;
+  if (typeof payload.requestId !== "string") return false;
+  if (typeof payload.functionName !== "string") return false;
+  if (!Object.keys(procedures).includes(payload.functionName)) return false;
+
+  return true;
+}
 
 export type PayloadCore<
   PM extends ProceduresMap,
@@ -198,13 +216,8 @@ export type PayloadCore<
       error: { message: string };
     };
 
-const AbortOrError = type.or(
-  { abort: { reason: "string" } },
-  { error: { message: "string" } },
-);
-
 /**
- * @source
+ * @internal
  */
 export function validatePayloadCore<
   PM extends ProceduresMap,
@@ -228,9 +241,24 @@ export function validatePayloadCore<
     if ("value" in result) return { result: result.value };
   }
 
-  const abortOrError = AbortOrError(payload);
-  if (!(abortOrError instanceof ArkErrors)) {
-    return abortOrError;
+  if (
+    "abort" in payload &&
+    typeof payload.abort === "object" &&
+    payload.abort !== null &&
+    "reason" in payload.abort &&
+    typeof payload.abort.reason === "string"
+  ) {
+    return { abort: { reason: payload.abort.reason } };
+  }
+
+  if (
+    "error" in payload &&
+    typeof payload.error === "object" &&
+    payload.error !== null &&
+    "message" in payload.error &&
+    typeof payload.error.message === "string"
+  ) {
+    return { error: { message: payload.error.message } };
   }
 
   throw new Error("invalid payload");
@@ -238,6 +266,7 @@ export function validatePayloadCore<
 
 /**
  * The effective payload as sent by the server to the client
+ * @internal
  */
 export type Payload<
   PM extends ProceduresMap,
@@ -282,14 +311,12 @@ export type ClientMethod<P extends Procedure<Schema, Schema, Schema>> = ((
 /**
  * Symbol used as the key for the procedures map on the server instance
  * @internal
- * @source
  */
 export const zImplementations = Symbol("SWARPC implementations");
 
 /**
  * Symbol used as the key for the procedures map on instances
  * @internal
- * @source
  */
 export const zProcedures = Symbol("SWARPC procedures");
 

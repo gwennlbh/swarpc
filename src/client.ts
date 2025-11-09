@@ -54,6 +54,7 @@ type Context<Procedures extends ProceduresMap> = {
  * This allows having a single listener for the client, and having multiple in-flight calls to the same procedure.
  */
 const pendingRequests = new Map<string, PendingRequest>();
+/** @internal */
 export type PendingRequest = {
   /** ID of the node the request was sent to. udefined if running on a service worker */
   nodeId?: string;
@@ -65,8 +66,6 @@ export type PendingRequest = {
 
 // Have we started the client listener?
 let _clientListenerStarted: Set<string> = new Set();
-
-export type ClientOptions = Parameters<typeof Client>[1];
 
 /**
  *
@@ -320,7 +319,7 @@ async function postMessage<Procedures extends ProceduresMap>(
  * @param message
  * @param options
  */
-export function postMessageSync<Procedures extends ProceduresMap>(
+function postMessageSync<Procedures extends ProceduresMap>(
   l: RequestBoundLogger,
   worker: Worker | SharedWorker | undefined,
   message: Payload<Procedures>,
@@ -349,7 +348,7 @@ export function postMessageSync<Procedures extends ProceduresMap>(
  * @param ctx.worker if provided, the client will use this worker to listen for messages, instead of using the service worker
  * @returns
  */
-export async function startClientListener<Procedures extends ProceduresMap>(
+async function startClientListener<Procedures extends ProceduresMap>(
   ctx: Context<Procedures>,
 ) {
   if (_clientListenerStarted.has(nodeIdOrSW(ctx.nodeId))) return;
@@ -443,6 +442,6 @@ export async function startClientListener<Procedures extends ProceduresMap>(
  * @source
  * @returns a 6-character hexadecimal string
  */
-export function makeRequestId(): string {
+function makeRequestId(): string {
   return Math.random().toString(16).substring(2, 8).toUpperCase();
 }

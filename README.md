@@ -12,6 +12,7 @@ RPC for Service (and other types of) Workers -- move that heavy computation off 
 ## Features
 
 - Fully typesafe
+- Lightweight: no dependencies, less than 5 kB (minified+gzipped)
 - Supports any [Standard Schema](https://standardschema.dev)-compliant validation library (ArkType, Zod, Valibot, etc.)
 - Cancelable requests
 - Parallelization with multiple worker instances
