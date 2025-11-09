@@ -8470,7 +8470,7 @@ const procedures = {
 };
 function WorkerWrapper$1(options) {
   return new SharedWorker(
-    "" + new URL("../workers/service-worker-BUt3WaiD.js", import.meta.url).href,
+    "" + new URL("../workers/service-worker-IFgQvuZE.js", import.meta.url).href,
     {
       type: "module",
       name: options?.name
@@ -8479,7 +8479,7 @@ function WorkerWrapper$1(options) {
 }
 function WorkerWrapper(options) {
   return new Worker(
-    "" + new URL("../workers/service-worker-BUt3WaiD.js", import.meta.url).href,
+    "" + new URL("../workers/service-worker-IFgQvuZE.js", import.meta.url).href,
     {
       type: "module",
       name: options?.name
@@ -8581,19 +8581,6 @@ const serviceWorkerNodeId = "(SW)";
 function nodeIdOrSW(id) {
   return id ?? serviceWorkerNodeId;
 }
-type({
-  by: '"sw&rpc"',
-  functionName: '"#initialize"',
-  isInitializeRequest: "true",
-  localStorageData: "Record<string, unknown>",
-  nodeId: "string"
-});
-type("<Name extends string>", {
-  by: '"sw&rpc"',
-  functionName: "Name",
-  requestId: "string >= 1"
-});
-type.or({ abort: { reason: "string" } }, { error: { message: "string" } });
 const zProcedures = Symbol("SWARPC procedures");
 const transferableClasses = [
   MessagePort,

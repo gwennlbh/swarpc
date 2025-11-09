@@ -79,6 +79,290 @@ function nodeIdFromScope(scope2, _scopeType) {
   }
   return "(SW)";
 }
+function isPayloadInitialize(payload) {
+  if (typeof payload !== "object")
+    return false;
+  if (payload === null)
+    return false;
+  if (!("by" in payload))
+    return false;
+  if (!("nodeId" in payload))
+    return false;
+  if (!("functionName" in payload))
+    return false;
+  if (!("localStorageData" in payload))
+    return false;
+  if (!("isInitializeRequest" in payload))
+    return false;
+  if (payload.by !== "sw&rpc")
+    return false;
+  if (payload.functionName !== "#initialize")
+    return false;
+  if (payload.isInitializeRequest !== true)
+    return false;
+  if (typeof payload.nodeId !== "string")
+    return false;
+  if (typeof payload.localStorageData !== "object")
+    return false;
+  if (payload.localStorageData === null)
+    return false;
+  return true;
+}
+function isPayloadHeader(procedures2, payload) {
+  if (typeof payload !== "object")
+    return false;
+  if (payload === null)
+    return false;
+  if (!("by" in payload))
+    return false;
+  if (!("requestId" in payload))
+    return false;
+  if (!("functionName" in payload))
+    return false;
+  if (payload.by !== "sw&rpc")
+    return false;
+  if (typeof payload.requestId !== "string")
+    return false;
+  if (typeof payload.functionName !== "string")
+    return false;
+  if (!Object.keys(procedures2).includes(payload.functionName))
+    return false;
+  return true;
+}
+function validatePayloadCore(procedure, payload) {
+  if (typeof payload !== "object")
+    throw new Error("payload is not an object");
+  if (payload === null)
+    throw new Error("payload is null");
+  if ("input" in payload) {
+    const input = procedure.input["~standard"].validate(payload.input);
+    if ("value" in input)
+      return { input: input.value };
+  }
+  if ("progress" in payload) {
+    const progress = procedure.progress["~standard"].validate(payload.progress);
+    if ("value" in progress)
+      return { progress: progress.value };
+  }
+  if ("result" in payload) {
+    const result = procedure.success["~standard"].validate(payload.result);
+    if ("value" in result)
+      return { result: result.value };
+  }
+  if ("abort" in payload && typeof payload.abort === "object" && payload.abort !== null && "reason" in payload.abort && typeof payload.abort.reason === "string") {
+    return { abort: { reason: payload.abort.reason } };
+  }
+  if ("error" in payload && typeof payload.error === "object" && payload.error !== null && "message" in payload.error && typeof payload.error.message === "string") {
+    return { error: { message: payload.error.message } };
+  }
+  throw new Error("invalid payload");
+}
+const zImplementations = Symbol("SWARPC implementations");
+const zProcedures = Symbol("SWARPC procedures");
+const transferableClasses = [
+  MessagePort,
+  ReadableStream,
+  WritableStream,
+  TransformStream,
+  ArrayBuffer
+];
+function findTransferables(value2) {
+  if (value2 === null || value2 === void 0) {
+    return [];
+  }
+  if (typeof value2 === "object") {
+    if (ArrayBuffer.isView(value2) || value2 instanceof ArrayBuffer) {
+      return [value2];
+    }
+    if (transferableClasses.some((cls) => value2 instanceof cls)) {
+      return [value2];
+    }
+    if (Array.isArray(value2)) {
+      return value2.flatMap(findTransferables);
+    }
+    return Object.values(value2).flatMap(findTransferables);
+  }
+  return [];
+}
+class FauxLocalStorage {
+  data;
+  keysOrder;
+  constructor(data) {
+    this.data = data;
+    this.keysOrder = Object.keys(data);
+  }
+  setItem(key, value2) {
+    if (!this.hasItem(key))
+      this.keysOrder.push(key);
+    this.data[key] = value2;
+  }
+  getItem(key) {
+    return this.data[key];
+  }
+  hasItem(key) {
+    return Object.hasOwn(this.data, key);
+  }
+  removeItem(key) {
+    if (!this.hasItem(key))
+      return;
+    delete this.data[key];
+    this.keysOrder = this.keysOrder.filter((k) => k !== key);
+  }
+  clear() {
+    this.data = {};
+    this.keysOrder = [];
+  }
+  key(index) {
+    return this.keysOrder[index];
+  }
+  get length() {
+    return this.keysOrder.length;
+  }
+  register(subject) {
+    subject.localStorage = this;
+  }
+}
+const abortControllers = /* @__PURE__ */ new Map();
+const abortedRequests = /* @__PURE__ */ new Set();
+function Server(procedures2, { loglevel = "debug", scope: scope2, _scopeType } = {}) {
+  scope2 ??= self;
+  const nodeId = nodeIdFromScope(scope2, _scopeType);
+  const l = createLogger("server", loglevel, nodeId);
+  const instance = {
+    [zProcedures]: procedures2,
+    [zImplementations]: {},
+    start: async () => {
+    }
+  };
+  for (const functionName in procedures2) {
+    instance[functionName] = (implementation2) => {
+      if (!instance[zProcedures][functionName]) {
+        throw new Error(`No procedure found for function name: ${functionName}`);
+      }
+      instance[zImplementations][functionName] = (input, onProgress, tools) => {
+        tools.abortSignal?.throwIfAborted();
+        return new Promise((resolve, reject) => {
+          tools.abortSignal?.addEventListener("abort", () => {
+            let { requestId, reason } = tools.abortSignal.reason;
+            l.debug(requestId, `Aborted ${functionName} request: ${reason}`);
+            reject({ aborted: reason });
+          });
+          implementation2(input, onProgress, tools).then(resolve).catch(reject);
+        });
+      };
+    };
+  }
+  instance.start = async () => {
+    const port = await new Promise((resolve) => {
+      if (!scopeIsShared(scope2, _scopeType))
+        return resolve(void 0);
+      l.debug(null, "Awaiting shared worker connection...");
+      scope2.addEventListener("connect", ({ ports: [port2] }) => {
+        l.debug(null, "Shared worker connected with port", port2);
+        resolve(port2);
+      });
+    });
+    const postMessage = async (autotransfer, data) => {
+      const transfer = autotransfer ? [] : findTransferables(data);
+      if (port) {
+        port.postMessage(data, { transfer });
+      } else if (scopeIsDedicated(scope2, _scopeType)) {
+        scope2.postMessage(data, { transfer });
+      } else if (scopeIsService(scope2, _scopeType)) {
+        await scope2.clients.matchAll().then((clients) => {
+          clients.forEach((client) => client.postMessage(data, { transfer }));
+        });
+      }
+    };
+    const listener = async (event) => {
+      if (isPayloadInitialize(event.data)) {
+        const { localStorageData, nodeId: nodeId2 } = event.data;
+        l.debug(null, "Setting up faux localStorage", localStorageData);
+        new FauxLocalStorage(localStorageData).register(scope2);
+        injectIntoConsoleGlobal(scope2, nodeId2, null);
+        return;
+      }
+      if (!isPayloadHeader(procedures2, event.data)) {
+        l.error(null, "Received payload with invalid header", event.data);
+        return;
+      }
+      const { requestId, functionName } = event.data;
+      l.debug(requestId, `Received request for ${functionName}`, event.data);
+      const { autotransfer = "output-only", ...schemas } = instance[zProcedures][functionName];
+      const postMsg = async (data) => {
+        if (abortedRequests.has(requestId))
+          return;
+        await postMessage(autotransfer !== "never", {
+          by: "sw&rpc",
+          functionName,
+          requestId,
+          ...data
+        });
+      };
+      const postError = async (error) => postMsg({
+        error: {
+          message: "message" in error ? error.message : String(error)
+        }
+      });
+      const implementation2 = instance[zImplementations][functionName];
+      if (!implementation2) {
+        await postError("No implementation found");
+        return;
+      }
+      const payload = validatePayloadCore(schemas, event.data);
+      if ("isInitializeRequest" in payload)
+        throw "Unreachable: #initialize request payload should've been handled already";
+      if ("abort" in payload) {
+        const controller = abortControllers.get(requestId);
+        if (!controller)
+          await postError("No abort controller found for request");
+        controller?.abort(payload.abort.reason);
+        return;
+      }
+      abortControllers.set(requestId, new AbortController());
+      if (!("input" in payload)) {
+        await postError("No input provided");
+        return;
+      }
+      try {
+        injectIntoConsoleGlobal(scope2, nodeId, requestId);
+        const result = await implementation2(payload.input, async (progress) => {
+          await postMsg({ progress });
+        }, {
+          nodeId,
+          abortSignal: abortControllers.get(requestId)?.signal
+        });
+        l.debug(requestId, `Result for ${functionName}`, result);
+        await postMsg({ result });
+      } catch (error) {
+        if ("aborted" in error) {
+          l.debug(requestId, `Received abort error for ${functionName}`, error.aborted);
+          abortedRequests.add(requestId);
+          abortControllers.delete(requestId);
+          return;
+        }
+        l.info(requestId, `Error in ${functionName}`, error);
+        await postError(error);
+      } finally {
+        abortedRequests.delete(requestId);
+      }
+    };
+    if (scopeIsShared(scope2, _scopeType)) {
+      if (!port)
+        throw new Error("SharedWorker port not initialized");
+      l.info(null, "Listening for shared worker messages on port", port);
+      port.addEventListener("message", listener);
+      port.start();
+    } else if (scopeIsDedicated(scope2, _scopeType)) {
+      scope2.addEventListener("message", listener);
+    } else if (scopeIsService(scope2, _scopeType)) {
+      scope2.addEventListener("message", listener);
+    } else {
+      throw new Error(`Unsupported worker scope ${scope2}`);
+    }
+  };
+  return instance;
+}
 const liftArray$1 = (data) => Array.isArray(data) ? data : [data];
 const spliterate = (arr, predicate) => {
   const result = [[], []];
@@ -8540,247 +8824,6 @@ ark.generic;
 ark.schema;
 ark.define;
 ark.declare;
-const PayloadInitializeSchema = type({
-  by: '"sw&rpc"',
-  functionName: '"#initialize"',
-  isInitializeRequest: "true",
-  localStorageData: "Record<string, unknown>",
-  nodeId: "string"
-});
-const PayloadHeaderSchema = type("<Name extends string>", {
-  by: '"sw&rpc"',
-  functionName: "Name",
-  requestId: "string >= 1"
-});
-const AbortOrError = type.or({ abort: { reason: "string" } }, { error: { message: "string" } });
-function validatePayloadCore(procedure, payload) {
-  if (typeof payload !== "object")
-    throw new Error("payload is not an object");
-  if (payload === null)
-    throw new Error("payload is null");
-  if ("input" in payload) {
-    const input = procedure.input["~standard"].validate(payload.input);
-    if ("value" in input)
-      return { input: input.value };
-  }
-  if ("progress" in payload) {
-    const progress = procedure.progress["~standard"].validate(payload.progress);
-    if ("value" in progress)
-      return { progress: progress.value };
-  }
-  if ("result" in payload) {
-    const result = procedure.success["~standard"].validate(payload.result);
-    if ("value" in result)
-      return { result: result.value };
-  }
-  const abortOrError = AbortOrError(payload);
-  if (!(abortOrError instanceof ArkErrors)) {
-    return abortOrError;
-  }
-  throw new Error("invalid payload");
-}
-const zImplementations = Symbol("SWARPC implementations");
-const zProcedures = Symbol("SWARPC procedures");
-const transferableClasses = [
-  MessagePort,
-  ReadableStream,
-  WritableStream,
-  TransformStream,
-  ArrayBuffer
-];
-function findTransferables(value2) {
-  if (value2 === null || value2 === void 0) {
-    return [];
-  }
-  if (typeof value2 === "object") {
-    if (ArrayBuffer.isView(value2) || value2 instanceof ArrayBuffer) {
-      return [value2];
-    }
-    if (transferableClasses.some((cls) => value2 instanceof cls)) {
-      return [value2];
-    }
-    if (Array.isArray(value2)) {
-      return value2.flatMap(findTransferables);
-    }
-    return Object.values(value2).flatMap(findTransferables);
-  }
-  return [];
-}
-class FauxLocalStorage {
-  data;
-  keysOrder;
-  constructor(data) {
-    this.data = data;
-    this.keysOrder = Object.keys(data);
-  }
-  setItem(key, value2) {
-    if (!this.hasItem(key))
-      this.keysOrder.push(key);
-    this.data[key] = value2;
-  }
-  getItem(key) {
-    return this.data[key];
-  }
-  hasItem(key) {
-    return Object.hasOwn(this.data, key);
-  }
-  removeItem(key) {
-    if (!this.hasItem(key))
-      return;
-    delete this.data[key];
-    this.keysOrder = this.keysOrder.filter((k) => k !== key);
-  }
-  clear() {
-    this.data = {};
-    this.keysOrder = [];
-  }
-  key(index) {
-    return this.keysOrder[index];
-  }
-  get length() {
-    return this.keysOrder.length;
-  }
-  register(subject) {
-    subject.localStorage = this;
-  }
-}
-const abortControllers = /* @__PURE__ */ new Map();
-const abortedRequests = /* @__PURE__ */ new Set();
-function Server(procedures2, { loglevel = "debug", scope: scope2, _scopeType } = {}) {
-  scope2 ??= self;
-  const nodeId = nodeIdFromScope(scope2, _scopeType);
-  const l = createLogger("server", loglevel, nodeId);
-  const instance = {
-    [zProcedures]: procedures2,
-    [zImplementations]: {},
-    start: async () => {
-    }
-  };
-  for (const functionName in procedures2) {
-    instance[functionName] = (implementation2) => {
-      if (!instance[zProcedures][functionName]) {
-        throw new Error(`No procedure found for function name: ${functionName}`);
-      }
-      instance[zImplementations][functionName] = (input, onProgress, tools) => {
-        tools.abortSignal?.throwIfAborted();
-        return new Promise((resolve, reject) => {
-          tools.abortSignal?.addEventListener("abort", () => {
-            let { requestId, reason } = tools.abortSignal.reason;
-            l.debug(requestId, `Aborted ${functionName} request: ${reason}`);
-            reject({ aborted: reason });
-          });
-          implementation2(input, onProgress, tools).then(resolve).catch(reject);
-        });
-      };
-    };
-  }
-  instance.start = async () => {
-    const port = await new Promise((resolve) => {
-      if (!scopeIsShared(scope2, _scopeType))
-        return resolve(void 0);
-      l.debug(null, "Awaiting shared worker connection...");
-      scope2.addEventListener("connect", ({ ports: [port2] }) => {
-        l.debug(null, "Shared worker connected with port", port2);
-        resolve(port2);
-      });
-    });
-    const postMessage = async (autotransfer, data) => {
-      const transfer = autotransfer ? [] : findTransferables(data);
-      if (port) {
-        port.postMessage(data, { transfer });
-      } else if (scopeIsDedicated(scope2, _scopeType)) {
-        scope2.postMessage(data, { transfer });
-      } else if (scopeIsService(scope2, _scopeType)) {
-        await scope2.clients.matchAll().then((clients) => {
-          clients.forEach((client) => client.postMessage(data, { transfer }));
-        });
-      }
-    };
-    const listener = async (event) => {
-      if (PayloadInitializeSchema.allows(event.data)) {
-        const { localStorageData, nodeId: nodeId2 } = event.data;
-        l.debug(null, "Setting up faux localStorage", localStorageData);
-        new FauxLocalStorage(localStorageData).register(scope2);
-        injectIntoConsoleGlobal(scope2, nodeId2, null);
-        return;
-      }
-      const { requestId, functionName } = PayloadHeaderSchema(type.enumerated(...Object.keys(procedures2))).assert(event.data);
-      l.debug(requestId, `Received request for ${functionName}`, event.data);
-      const { autotransfer = "output-only", ...schemas } = instance[zProcedures][functionName];
-      const postMsg = async (data) => {
-        if (abortedRequests.has(requestId))
-          return;
-        await postMessage(autotransfer !== "never", {
-          by: "sw&rpc",
-          functionName,
-          requestId,
-          ...data
-        });
-      };
-      const postError = async (error) => postMsg({
-        error: {
-          message: "message" in error ? error.message : String(error)
-        }
-      });
-      const implementation2 = instance[zImplementations][functionName];
-      if (!implementation2) {
-        await postError("No implementation found");
-        return;
-      }
-      const payload = validatePayloadCore(schemas, event.data);
-      if ("isInitializeRequest" in payload)
-        throw "Unreachable: #initialize request payload should've been handled already";
-      if ("abort" in payload) {
-        const controller = abortControllers.get(requestId);
-        if (!controller)
-          await postError("No abort controller found for request");
-        controller?.abort(payload.abort.reason);
-        return;
-      }
-      abortControllers.set(requestId, new AbortController());
-      if (!("input" in payload)) {
-        await postError("No input provided");
-        return;
-      }
-      try {
-        injectIntoConsoleGlobal(scope2, nodeId, requestId);
-        const result = await implementation2(payload.input, async (progress) => {
-          await postMsg({ progress });
-        }, {
-          nodeId,
-          abortSignal: abortControllers.get(requestId)?.signal
-        });
-        l.debug(requestId, `Result for ${functionName}`, result);
-        await postMsg({ result });
-      } catch (error) {
-        if ("aborted" in error) {
-          l.debug(requestId, `Received abort error for ${functionName}`, error.aborted);
-          abortedRequests.add(requestId);
-          abortControllers.delete(requestId);
-          return;
-        }
-        l.info(requestId, `Error in ${functionName}`, error);
-        await postError(error);
-      } finally {
-        abortedRequests.delete(requestId);
-      }
-    };
-    if (scopeIsShared(scope2, _scopeType)) {
-      if (!port)
-        throw new Error("SharedWorker port not initialized");
-      l.info(null, "Listening for shared worker messages on port", port);
-      port.addEventListener("message", listener);
-      port.start();
-    } else if (scopeIsDedicated(scope2, _scopeType)) {
-      scope2.addEventListener("message", listener);
-    } else if (scopeIsService(scope2, _scopeType)) {
-      scope2.addEventListener("message", listener);
-    } else {
-      throw new Error(`Unsupported worker scope ${scope2}`);
-    }
-  };
-  return instance;
-}
 const procedures = {
   multiply: {
     input: type({ a: "number", b: "number" }),
