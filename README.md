@@ -18,6 +18,7 @@ RPC for Service (and other types of) Workers -- move that heavy computation off 
 - Automatic [transfer](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Transferable_objects) of transferable values from- and to- worker code
 - A way to polyfill a pre-filled `localStorage` to be accessed within the worker code
 - Supports [Service workers](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorker), [Shared workers](https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker) and [Dedicated workers](https://developer.mozilla.org/en-US/docs/Web/API/Worker)
+- No dependencies
 
 ## Installation
 

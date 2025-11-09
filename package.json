@@ -82,8 +82,5 @@
       "oxlint --fix",
       "prettier --write"
     ]
-  },
-  "dependencies": {
-    "arktype": "^2.1.25"
   }
 }
