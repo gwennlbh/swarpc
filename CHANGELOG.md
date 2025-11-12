@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.16.1] - 2025-11-12
+
 ### Fixed
 
 - Type of procedure implementations' input argument was incorrectly specified as `Schema.InferInput<InputSchema>`, it is now <code>Schema.Infer<strong>Output</strong>&lt;InputSchema&gt;</code>, as the server receives the transformed input object.
@@ -177,7 +179,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - support for transferable objects via a new [`autotransfer` property on procedure declarations](https://gwennlbh.github.io/swarpc/docs/types/types.Procedure.html#autotransfer)
 
-[Unreleased]: https://github.com/gwennlbh/swarpc/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/gwennlbh/swarpc/compare/v0.16.1...HEAD
+[0.16.1]: https://github.com/gwennlbh/swarpc/compare/v0.16.0...v0.16.1
 [0.16.0]: https://github.com/gwennlbh/swarpc/compare/v0.15.1...v0.16.0
 [0.15.1]: https://github.com/gwennlbh/swarpc/compare/v0.15.0...v0.15.1
 [0.15.0]: https://github.com/gwennlbh/swarpc/compare/v0.14.0...v0.15.0
