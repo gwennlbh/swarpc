@@ -65,7 +65,7 @@ export type ProcedureImplementation<
   /**
    * Input data for the procedure
    */
-  input: Schema.InferInput<I>,
+  input: Schema.InferOutput<I>,
   /**
    * Callback to call with progress updates.
    */

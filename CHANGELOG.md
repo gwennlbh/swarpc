@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Type of procedure implementations' input argument was incorrectly specified as `Schema.InferInput<InputSchema>`, it is now <code>Schema.Infer<strong>Output</strong>&lt;InputSchema&gt;</code>, as the server receives the transformed input object.
+
+  For example, if you had the following procedure declaration:
+
+  ```ts
+  export const procedures = {
+    ...
+    foo: {
+      input: type('string.date.parse').
+      ...
+    }
+  }
+  ```
+
+  Before, the implementation would show this type
+
+  ```ts
+  server.foo((input, onProgress) => {
+    //        ^?: string
+    ...
+  })
+  ```
+
+  It now correctly shows
+
+  ```ts
+  server.foo((input, onProgress) => {
+    //        ^?: Date
+    ...
+  })
+  ```
+
 ## [0.16.0] - 2025-11-09
 
 ### Changed
