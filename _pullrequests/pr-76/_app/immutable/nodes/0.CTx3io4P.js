@@ -1,4 +1,4 @@
-import { L } from "../chunks/C6J4OK2s.js";
+import { L } from "../chunks/CH2ogSEB.js";
 const prerender = true;
 const trailingSlash = "always";
 const _layout = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({

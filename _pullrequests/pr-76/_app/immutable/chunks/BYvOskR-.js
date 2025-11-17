@@ -1,7 +1,7 @@
-import { aR as noop$1, aS as safe_not_equal, b as state, g as get$1, a as set$1, A as tick, aT as fork, aU as settled } from "./DADygvPx.js";
+import { aR as noop$1, aS as safe_not_equal, b as state, g as get$1, a as set$1, A as tick, aT as fork, aU as settled } from "./CeNyfUoB.js";
 import { b as base64_decode, H as HttpError, S as SvelteKitError, R as Redirect } from "./BHuZ28Z_.js";
-import { p as parse_route_id, e as exec, a as assets, b as base } from "./64KG2NSI.js";
-import { o as onMount } from "./NDlLW2Qk.js";
+import { p as parse_route_id, e as exec, a as assets, b as base } from "./D-eNi-Vc.js";
+import { o as onMount } from "./B_BxFn35.js";
 const subscriber_queue = [];
 function writable(value, start2 = noop$1) {
   let stop = null;
@@ -220,7 +220,7 @@ function set(key, value, stringify = JSON.stringify) {
   } catch {
   }
 }
-const version = "1763343526983";
+const version = "1763343751785";
 const SNAPSHOT_KEY = "sveltekit:snapshot";
 const SCROLL_KEY = "sveltekit:scroll";
 const STATES_KEY = "sveltekit:states";
@@ -659,8 +659,8 @@ let token;
 const preload_tokens = /* @__PURE__ */ new Set();
 const query_map = /* @__PURE__ */ new Map();
 async function start(_app, _target, hydrate) {
-  if (globalThis.__sveltekit_1qvajg1?.data) {
-    globalThis.__sveltekit_1qvajg1.data;
+  if (globalThis.__sveltekit_1m68vx7?.data) {
+    globalThis.__sveltekit_1m68vx7.data;
   }
   if (document.URL !== location.href) {
     location.href = location.href;
@@ -763,6 +763,7 @@ async function _goto(url, options, redirect_count, nav_token) {
 }
 async function _preload_data(intent) {
   if (intent.id !== load_cache?.id) {
+    discard_load_cache();
     const preload = {};
     preload_tokens.add(preload);
     load_cache = {
