@@ -1,47 +1,49 @@
-import { f as from_html, a as append } from "../chunks/bcO6asVP.js";
-import { q as create_text, d as block, k as set_hydrate_node, h as hydrating, X as get_first_child, e as hydrate_next, g as get, Y as derived_safe_equal, i as read_hydration_instruction, H as HYDRATION_START_ELSE, j as skip_nodes, l as set_hydrating, w as hydrate_node, Z as COMMENT_NODE, _ as HYDRATION_END, v as branch, y as should_defer_append, m as current_batch, $ as internal_set, a0 as mutable_source, a1 as source, a2 as array_from, a3 as is_array, a4 as EACH_INDEX_REACTIVE, n as resume_effect, p as pause_effect, a5 as EACH_ITEM_REACTIVE, a6 as EACH_ITEM_IMMUTABLE, a7 as INERT, o as destroy_effect, a8 as get_next_sibling, a9 as pause_children, aa as clear_text_content, ab as run_out_transitions, ac as active_effect, ad as proxy, f as first_child, s as sibling, u as user_derived, b as state, a as set, r as reset, c as child, t as template_effect } from "../chunks/DADygvPx.js";
-import { d as delegate, s as set_text } from "../chunks/ix0aUGLc.js";
-import { r as remove_input_defaults } from "../chunks/DJqz5-Mx.js";
-import { b as bind_value } from "../chunks/BZc3C4Jc.js";
+import { f as from_html, a as append } from "../chunks/D8EFpo4R.js";
+import { q as create_text, d as block, k as set_hydrate_node, h as hydrating, X as get_first_child, e as hydrate_next, g as get, Y as derived_safe_equal, i as read_hydration_instruction, H as HYDRATION_START_ELSE, j as skip_nodes, l as set_hydrating, w as hydrate_node, Z as COMMENT_NODE, _ as HYDRATION_END, $ as internal_set, m as current_batch, v as branch, y as should_defer_append, a0 as mutable_source, a1 as source, a2 as array_from, a3 as is_array, a4 as EACH_INDEX_REACTIVE, n as resume_effect, p as pause_effect, a5 as EACH_ITEM_REACTIVE, a6 as EACH_ITEM_IMMUTABLE, a7 as INERT, a8 as get_next_sibling, a9 as pause_children, aa as run_out_transitions, ab as clear_text_content, o as destroy_effect, ac as proxy, f as first_child, s as sibling, u as user_derived, b as state, a as set, c as child, r as reset, t as template_effect } from "../chunks/CeNyfUoB.js";
+import { d as delegate, s as set_text } from "../chunks/wvWGqTDQ.js";
+import { r as remove_input_defaults } from "../chunks/Dmz2I9dT.js";
+import { b as bind_value } from "../chunks/BIBDKWwV.js";
 function index(_, i) {
   return i;
 }
-function pause_effects(state2, items, controlled_anchor) {
-  var items_map = state2.items;
+function pause_effects(state2, to_destroy, controlled_anchor) {
   var transitions = [];
-  var length = items.length;
+  var length = to_destroy.length;
   for (var i = 0; i < length; i++) {
-    pause_children(items[i].e, transitions, true);
-  }
-  var is_controlled = length > 0 && transitions.length === 0 && controlled_anchor !== null;
-  if (is_controlled) {
-    var parent_node = (
-      /** @type {Element} */
-      /** @type {Element} */
-      controlled_anchor.parentNode
-    );
-    clear_text_content(parent_node);
-    parent_node.append(
-      /** @type {Element} */
-      controlled_anchor
-    );
-    items_map.clear();
-    link(state2, items[0].prev, items[length - 1].next);
+    pause_children(to_destroy[i].e, transitions, true);
   }
   run_out_transitions(transitions, () => {
+    var fast_path = transitions.length === 0 && controlled_anchor !== null;
+    if (fast_path) {
+      var anchor = (
+        /** @type {Element} */
+        controlled_anchor
+      );
+      var parent_node = (
+        /** @type {Element} */
+        anchor.parentNode
+      );
+      clear_text_content(parent_node);
+      parent_node.append(anchor);
+      state2.items.clear();
+      link(state2, to_destroy[0].prev, to_destroy[length - 1].next);
+    }
     for (var i2 = 0; i2 < length; i2++) {
-      var item = items[i2];
-      if (!is_controlled) {
-        items_map.delete(item.k);
+      var item = to_destroy[i2];
+      if (!fast_path) {
+        state2.items.delete(item.k);
         link(state2, item.prev, item.next);
       }
-      destroy_effect(item.e, !is_controlled);
+      destroy_effect(item.e, !fast_path);
+    }
+    if (state2.first === to_destroy[0]) {
+      state2.first = to_destroy[0].prev;
     }
   });
 }
 function each(node, flags, get_collection, get_key, render_fn, fallback_fn = null) {
   var anchor = node;
-  var state2 = { flags, items: /* @__PURE__ */ new Map(), first: null };
+  var state2 = { items: /* @__PURE__ */ new Map(), first: null };
   {
     var parent_node = (
       /** @type {Element} */
@@ -56,50 +58,34 @@ function each(node, flags, get_collection, get_key, render_fn, fallback_fn = nul
     hydrate_next();
   }
   var fallback = null;
-  var was_empty = false;
-  var offscreen_items = /* @__PURE__ */ new Map();
   var each_array = derived_safe_equal(() => {
     var collection = get_collection();
     return is_array(collection) ? collection : collection == null ? [] : array_from(collection);
   });
   var array;
-  var each_effect;
+  var first_run = true;
   function commit() {
-    reconcile(
-      each_effect,
-      array,
-      state2,
-      offscreen_items,
-      anchor,
-      render_fn,
-      flags,
-      get_key,
-      get_collection
-    );
-    if (fallback_fn !== null) {
+    reconcile(each_effect, array, state2, anchor, flags, get_key);
+    if (fallback !== null) {
       if (array.length === 0) {
-        if (fallback) {
-          resume_effect(fallback);
+        if (fallback.fragment) {
+          anchor.before(fallback.fragment);
+          fallback.fragment = null;
         } else {
-          fallback = branch(() => fallback_fn(anchor));
+          resume_effect(fallback.effect);
         }
-      } else if (fallback !== null) {
-        pause_effect(fallback, () => {
+        each_effect.first = fallback.effect;
+      } else {
+        pause_effect(fallback.effect, () => {
           fallback = null;
         });
       }
     }
   }
-  block(() => {
-    each_effect ??= /** @type {Effect} */
-    active_effect;
+  var each_effect = block(() => {
     array = /** @type {V[]} */
     get(each_array);
     var length = array.length;
-    if (was_empty && length === 0) {
-      return;
-    }
-    was_empty = length === 0;
     let mismatch = false;
     if (hydrating) {
       var is_else = read_hydration_instruction(anchor) === HYDRATION_START_ELSE;
@@ -110,25 +96,36 @@ function each(node, flags, get_collection, get_key, render_fn, fallback_fn = nul
         mismatch = true;
       }
     }
-    if (hydrating) {
-      var prev = null;
-      var item;
-      for (var i = 0; i < length; i++) {
-        if (hydrate_node.nodeType === COMMENT_NODE && /** @type {Comment} */
-        hydrate_node.data === HYDRATION_END) {
-          anchor = /** @type {Comment} */
-          hydrate_node;
-          mismatch = true;
-          set_hydrating(false);
-          break;
+    var keys = /* @__PURE__ */ new Set();
+    var batch = (
+      /** @type {Batch} */
+      current_batch
+    );
+    var prev = null;
+    var defer = should_defer_append();
+    for (var i = 0; i < length; i += 1) {
+      if (hydrating && hydrate_node.nodeType === COMMENT_NODE && /** @type {Comment} */
+      hydrate_node.data === HYDRATION_END) {
+        anchor = /** @type {Comment} */
+        hydrate_node;
+        mismatch = true;
+        set_hydrating(false);
+      }
+      var value = array[i];
+      var key = get_key(value, i);
+      var item = first_run ? null : state2.items.get(key);
+      if (item) {
+        {
+          internal_set(item.v, value);
         }
-        var value = array[i];
-        var key = get_key(value, i);
+        {
+          item.i = i;
+        }
+        batch.skipped_effects.delete(item.e);
+      } else {
         item = create_item(
-          hydrate_node,
-          state2,
+          first_run ? anchor : null,
           prev,
-          null,
           value,
           key,
           i,
@@ -136,56 +133,48 @@ function each(node, flags, get_collection, get_key, render_fn, fallback_fn = nul
           flags,
           get_collection
         );
+        if (first_run) {
+          item.o = true;
+          if (prev === null) {
+            state2.first = item;
+          } else {
+            prev.next = item;
+          }
+          prev = item;
+        }
         state2.items.set(key, item);
-        prev = item;
       }
-      if (length > 0) {
-        set_hydrate_node(skip_nodes());
+      keys.add(key);
+    }
+    if (length === 0 && fallback_fn && !fallback) {
+      if (first_run) {
+        fallback = {
+          fragment: null,
+          effect: branch(() => fallback_fn(anchor))
+        };
+      } else {
+        var fragment = document.createDocumentFragment();
+        var target = create_text();
+        fragment.append(target);
+        fallback = {
+          fragment,
+          effect: branch(() => fallback_fn(target))
+        };
       }
     }
-    if (hydrating) {
-      if (length === 0 && fallback_fn) {
-        fallback = branch(() => fallback_fn(anchor));
+    if (hydrating && length > 0) {
+      set_hydrate_node(skip_nodes());
+    }
+    for (const [key2, item2] of state2.items) {
+      if (!keys.has(key2)) {
+        batch.skipped_effects.add(item2.e);
       }
-    } else {
-      if (should_defer_append()) {
-        var keys = /* @__PURE__ */ new Set();
-        var batch = (
-          /** @type {Batch} */
-          current_batch
-        );
-        for (i = 0; i < length; i += 1) {
-          value = array[i];
-          key = get_key(value, i);
-          var existing = state2.items.get(key) ?? offscreen_items.get(key);
-          if (existing) {
-            {
-              update_item(existing, value, i);
-            }
-          } else {
-            item = create_item(
-              null,
-              state2,
-              null,
-              null,
-              value,
-              key,
-              i,
-              render_fn,
-              flags,
-              get_collection,
-              true
-            );
-            offscreen_items.set(key, item);
-          }
-          keys.add(key);
-        }
-        for (const [key2, item2] of state2.items) {
-          if (!keys.has(key2)) {
-            batch.skipped_effects.add(item2.e);
-          }
-        }
+    }
+    if (!first_run) {
+      if (defer) {
         batch.oncommit(commit);
+        batch.ondiscard(() => {
+        });
       } else {
         commit();
       }
@@ -195,15 +184,15 @@ function each(node, flags, get_collection, get_key, render_fn, fallback_fn = nul
     }
     get(each_array);
   });
+  first_run = false;
   if (hydrating) {
     anchor = hydrate_node;
   }
 }
-function reconcile(each_effect, array, state2, offscreen_items, anchor, render_fn, flags, get_key, get_collection) {
+function reconcile(each_effect, array, state2, anchor, flags, get_key) {
   var length = array.length;
   var items = state2.items;
-  var first = state2.first;
-  var current = first;
+  var current = state2.first;
   var seen;
   var prev = null;
   var matched = [];
@@ -215,43 +204,20 @@ function reconcile(each_effect, array, state2, offscreen_items, anchor, render_f
   for (i = 0; i < length; i += 1) {
     value = array[i];
     key = get_key(value, i);
-    item = items.get(key);
-    if (item === void 0) {
-      var pending = offscreen_items.get(key);
-      if (pending !== void 0) {
-        offscreen_items.delete(key);
-        items.set(key, pending);
-        var next = prev ? prev.next : current;
-        link(state2, prev, pending);
-        link(state2, pending, next);
-        move(pending, next, anchor);
-        prev = pending;
-      } else {
-        var child_anchor = current ? (
-          /** @type {TemplateNode} */
-          current.e.nodes_start
-        ) : anchor;
-        prev = create_item(
-          child_anchor,
-          state2,
-          prev,
-          prev === null ? state2.first : prev.next,
-          value,
-          key,
-          i,
-          render_fn,
-          flags,
-          get_collection
-        );
-      }
-      items.set(key, prev);
+    item = /** @type {EachItem} */
+    items.get(key);
+    state2.first ??= item;
+    if (!item.o) {
+      item.o = true;
+      var next = prev ? prev.next : current;
+      link(state2, prev, item);
+      link(state2, item, next);
+      move(item, next, anchor);
+      prev = item;
       matched = [];
       stashed = [];
       current = prev.next;
       continue;
-    }
-    {
-      update_item(item, value, i);
     }
     if ((item.e.f & INERT) !== 0) {
       resume_effect(item.e);
@@ -322,20 +288,11 @@ function reconcile(each_effect, array, state2, offscreen_items, anchor, render_f
   }
   each_effect.first = state2.first && state2.first.e;
   each_effect.last = prev && prev.e;
-  for (var unused of offscreen_items.values()) {
-    destroy_effect(unused.e);
-  }
-  offscreen_items.clear();
-}
-function update_item(item, value, index2, type) {
-  {
-    internal_set(item.v, value);
-  }
-  {
-    item.i = index2;
+  if (prev) {
+    prev.e.next = null;
   }
 }
-function create_item(anchor, state2, prev, next, value, key, index2, render_fn, flags, get_collection, deferred) {
+function create_item(anchor, prev, value, key, index2, render_fn, flags, get_collection) {
   var reactive = (flags & EACH_ITEM_REACTIVE) !== 0;
   var mutable = (flags & EACH_ITEM_IMMUTABLE) === 0;
   var v = reactive ? mutable ? mutable_source(value, false, false) : source(value) : value;
@@ -347,8 +304,9 @@ function create_item(anchor, state2, prev, next, value, key, index2, render_fn, 
     a: null,
     // @ts-expect-error
     e: null,
+    o: false,
     prev,
-    next
+    next: null
   };
   try {
     if (anchor === null) {
@@ -361,20 +319,11 @@ function create_item(anchor, state2, prev, next, value, key, index2, render_fn, 
       v,
       i,
       get_collection
-    ), hydrating);
+    ));
     item.e.prev = prev && prev.e;
-    item.e.next = next && next.e;
-    if (prev === null) {
-      if (!deferred) {
-        state2.first = item;
-      }
-    } else {
+    if (prev !== null) {
       prev.next = item;
       prev.e.next = item.e;
-    }
-    if (next !== null) {
-      next.prev = item;
-      next.e.prev = item.e;
     }
     return item;
   } finally {

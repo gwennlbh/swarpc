@@ -391,6 +391,9 @@ class Batch {
    */
   skipped_effects = /* @__PURE__ */ new Set();
   is_fork = false;
+  is_deferred() {
+    return this.is_fork || this.#blocking_pending > 0;
+  }
   /**
    *
    * @param {Effect[]} root_effects
@@ -412,7 +415,7 @@ class Batch {
     if (!this.is_fork) {
       this.#resolve();
     }
-    if (this.#blocking_pending > 0 || this.is_fork) {
+    if (this.is_deferred()) {
       this.#defer_effects(target.effects);
       this.#defer_effects(target.render_effects);
       this.#defer_effects(target.block_effects);
@@ -486,7 +489,24 @@ class Batch {
     for (const e of effects) {
       const target = (e.f & DIRTY) !== 0 ? this.#dirty_effects : this.#maybe_dirty_effects;
       target.push(e);
+      this.#clear_marked(e.deps);
       set_signal_status(e, CLEAN);
+    }
+  }
+  /**
+   * @param {Value[] | null} deps
+   */
+  #clear_marked(deps) {
+    if (deps === null) return;
+    for (const dep of deps) {
+      if ((dep.f & DERIVED) === 0 || (dep.f & WAS_MARKED) === 0) {
+        continue;
+      }
+      dep.f ^= WAS_MARKED;
+      this.#clear_marked(
+        /** @type {Derived} */
+        dep.deps
+      );
     }
   }
   /**
@@ -509,6 +529,7 @@ class Batch {
     this.apply();
   }
   deactivate() {
+    if (current_batch !== this) return;
     current_batch = null;
     batch_values = null;
   }
@@ -1646,7 +1667,7 @@ function push_effect(effect2, parent_effect) {
     parent_effect.last = effect2;
   }
 }
-function create_effect(type, fn, sync, push2 = true) {
+function create_effect(type, fn, sync) {
   var parent = active_effect;
   if (parent !== null && (parent.f & INERT) !== 0) {
     type |= INERT;
@@ -1680,27 +1701,25 @@ function create_effect(type, fn, sync, push2 = true) {
   } else if (fn !== null) {
     schedule_effect(effect2);
   }
-  if (push2) {
-    var e = effect2;
-    if (sync && e.deps === null && e.teardown === null && e.nodes_start === null && e.first === e.last && // either `null`, or a singular child
-    (e.f & EFFECT_PRESERVED) === 0) {
-      e = e.first;
-      if ((type & BLOCK_EFFECT) !== 0 && (type & EFFECT_TRANSPARENT) !== 0 && e !== null) {
-        e.f |= EFFECT_TRANSPARENT;
-      }
+  var e = effect2;
+  if (sync && e.deps === null && e.teardown === null && e.nodes_start === null && e.first === e.last && // either `null`, or a singular child
+  (e.f & EFFECT_PRESERVED) === 0) {
+    e = e.first;
+    if ((type & BLOCK_EFFECT) !== 0 && (type & EFFECT_TRANSPARENT) !== 0 && e !== null) {
+      e.f |= EFFECT_TRANSPARENT;
     }
-    if (e !== null) {
-      e.parent = parent;
-      if (parent !== null) {
-        push_effect(e, parent);
-      }
-      if (active_reaction !== null && (active_reaction.f & DERIVED) !== 0 && (type & ROOT_EFFECT) === 0) {
-        var derived2 = (
-          /** @type {Derived} */
-          active_reaction
-        );
-        (derived2.effects ??= []).push(e);
-      }
+  }
+  if (e !== null) {
+    e.parent = parent;
+    if (parent !== null) {
+      push_effect(e, parent);
+    }
+    if (active_reaction !== null && (active_reaction.f & DERIVED) !== 0 && (type & ROOT_EFFECT) === 0) {
+      var derived2 = (
+        /** @type {Derived} */
+        active_reaction
+      );
+      (derived2.effects ??= []).push(e);
     }
   }
   return effect2;
@@ -1764,17 +1783,17 @@ function async_effect(fn) {
 function render_effect(fn, flags = 0) {
   return create_effect(RENDER_EFFECT | flags, fn, true);
 }
-function template_effect(fn, sync = [], async = [], blockers = [], defer = false) {
+function template_effect(fn, sync = [], async = [], blockers = []) {
   flatten(blockers, sync, async, (values) => {
-    create_effect(defer ? EFFECT : RENDER_EFFECT, () => fn(...values.map(get)), true);
+    create_effect(RENDER_EFFECT, () => fn(...values.map(get)), true);
   });
 }
 function block(fn, flags = 0) {
   var effect2 = create_effect(BLOCK_EFFECT | flags, fn, true);
   return effect2;
 }
-function branch(fn, push2 = true) {
-  return create_effect(BRANCH_EFFECT | EFFECT_PRESERVED, fn, true, push2);
+function branch(fn) {
+  return create_effect(BRANCH_EFFECT | EFFECT_PRESERVED, fn, true);
 }
 function execute_effect_teardown(effect2) {
   var teardown2 = effect2.teardown;
@@ -2428,11 +2447,11 @@ export {
   safe_not_equal as aS,
   fork as aT,
   settled as aU,
-  clear_text_content as aa,
-  run_out_transitions as ab,
-  active_effect as ac,
-  proxy as ad,
-  is_firefox as ae,
+  run_out_transitions as aa,
+  clear_text_content as ab,
+  proxy as ac,
+  is_firefox as ad,
+  active_effect as ae,
   TEMPLATE_FRAGMENT as af,
   TEMPLATE_USE_IMPORT_NODE as ag,
   EFFECT_RAN as ah,

@@ -1,369 +1,6 @@
-Map.groupBy ??= function groupBy(iterable, callbackfn) {
-  const map = /* @__PURE__ */ new Map();
-  let i = 0;
-  for (const value2 of iterable) {
-    const key = callbackfn(value2, i++), list = map.get(key);
-    list ? list.push(value2) : map.set(key, [value2]);
-  }
-  return map;
-};
-function createLogger(side, level = "debug", nid, rqid) {
-  const lvls = LOG_LEVELS.slice(LOG_LEVELS.indexOf(level));
-  return {
-    debug: lvls.includes("debug") ? logger("debug", side, nid) : () => {
-    },
-    info: lvls.includes("info") ? logger("info", side, nid) : () => {
-    },
-    warn: lvls.includes("warn") ? logger("warn", side, nid) : () => {
-    },
-    error: lvls.includes("error") ? logger("error", side, nid) : () => {
-    }
-  };
-}
-const LOG_LEVELS = ["debug", "info", "warn", "error"];
-const PATCHABLE_LOG_METHODS = [
-  "debug",
-  "info",
-  "warn",
-  "error",
-  "log"
-];
-function logger(method, side, ids) {
-  if (ids === void 0 || typeof ids === "string") {
-    const nid = ids ?? null;
-    return (rqid, ...args) => log(method, side, { nid, rqid }, ...args);
-  }
-  return (...args) => log(method, side, ids, ...args);
-}
-const originalConsole = PATCHABLE_LOG_METHODS.reduce((result, method) => {
-  result[method] = console[method];
-  return result;
-}, {});
-function log(method, side, { rqid, nid }, ...args) {
-  const prefix = [
-    `[SWARPC ${side}]`,
-    rqid ? `%c${rqid}%c` : "",
-    nid ? `%c@ ${nid}%c` : ""
-  ].filter(Boolean).join(" ");
-  const prefixStyles = [];
-  if (rqid)
-    prefixStyles.push("color: cyan", "color: inherit");
-  if (nid)
-    prefixStyles.push("color: hotpink", "color: inherit");
-  return originalConsole[method](prefix, ...prefixStyles, ...args);
-}
-function injectIntoConsoleGlobal(scope2, nodeId, requestId) {
-  for (const method of PATCHABLE_LOG_METHODS) {
-    scope2.self.console[method] = (...args) => logger(method, "server", nodeId)(requestId, ...args);
-  }
-}
-class MockedWorkerGlobalScope {
-  constructor() {
-  }
-}
-const SharedWorkerGlobalScope = globalThis.SharedWorkerGlobalScope ?? MockedWorkerGlobalScope;
-const DedicatedWorkerGlobalScope = globalThis.DedicatedWorkerGlobalScope ?? MockedWorkerGlobalScope;
-const ServiceWorkerGlobalScope = globalThis.ServiceWorkerGlobalScope ?? MockedWorkerGlobalScope;
-function scopeIsShared(scope2, _scopeType) {
-  return scope2 instanceof SharedWorkerGlobalScope || _scopeType === "shared";
-}
-function scopeIsDedicated(scope2, _scopeType) {
-  return scope2 instanceof DedicatedWorkerGlobalScope || _scopeType === "dedicated";
-}
-function scopeIsService(scope2, _scopeType) {
-  return scope2 instanceof ServiceWorkerGlobalScope || _scopeType === "service";
-}
-function nodeIdFromScope(scope2, _scopeType) {
-  if (scopeIsDedicated(scope2, _scopeType) || scopeIsShared(scope2, _scopeType)) {
-    return scope2.name;
-  }
-  return "(SW)";
-}
-function isPayloadInitialize(payload) {
-  if (typeof payload !== "object")
-    return false;
-  if (payload === null)
-    return false;
-  if (!("by" in payload))
-    return false;
-  if (!("nodeId" in payload))
-    return false;
-  if (!("functionName" in payload))
-    return false;
-  if (!("localStorageData" in payload))
-    return false;
-  if (!("isInitializeRequest" in payload))
-    return false;
-  if (payload.by !== "sw&rpc")
-    return false;
-  if (payload.functionName !== "#initialize")
-    return false;
-  if (payload.isInitializeRequest !== true)
-    return false;
-  if (typeof payload.nodeId !== "string")
-    return false;
-  if (typeof payload.localStorageData !== "object")
-    return false;
-  if (payload.localStorageData === null)
-    return false;
-  return true;
-}
-function isPayloadHeader(procedures2, payload) {
-  if (typeof payload !== "object")
-    return false;
-  if (payload === null)
-    return false;
-  if (!("by" in payload))
-    return false;
-  if (!("requestId" in payload))
-    return false;
-  if (!("functionName" in payload))
-    return false;
-  if (payload.by !== "sw&rpc")
-    return false;
-  if (typeof payload.requestId !== "string")
-    return false;
-  if (typeof payload.functionName !== "string")
-    return false;
-  if (!Object.keys(procedures2).includes(payload.functionName))
-    return false;
-  return true;
-}
-function validatePayloadCore(procedure, payload) {
-  if (typeof payload !== "object")
-    throw new Error("payload is not an object");
-  if (payload === null)
-    throw new Error("payload is null");
-  if ("input" in payload) {
-    const input = procedure.input["~standard"].validate(payload.input);
-    if ("value" in input)
-      return { input: input.value };
-  }
-  if ("progress" in payload) {
-    const progress = procedure.progress["~standard"].validate(payload.progress);
-    if ("value" in progress)
-      return { progress: progress.value };
-  }
-  if ("result" in payload) {
-    const result = procedure.success["~standard"].validate(payload.result);
-    if ("value" in result)
-      return { result: result.value };
-  }
-  if ("abort" in payload && typeof payload.abort === "object" && payload.abort !== null && "reason" in payload.abort && typeof payload.abort.reason === "string") {
-    return { abort: { reason: payload.abort.reason } };
-  }
-  if ("error" in payload && typeof payload.error === "object" && payload.error !== null && "message" in payload.error && typeof payload.error.message === "string") {
-    return { error: { message: payload.error.message } };
-  }
-  throw new Error("invalid payload");
-}
-const zImplementations = Symbol("SWARPC implementations");
-const zProcedures = Symbol("SWARPC procedures");
-const transferableClasses = [
-  MessagePort,
-  ReadableStream,
-  WritableStream,
-  TransformStream,
-  ArrayBuffer
-];
-function findTransferables(value2) {
-  if (value2 === null || value2 === void 0) {
-    return [];
-  }
-  if (typeof value2 === "object") {
-    if (ArrayBuffer.isView(value2) || value2 instanceof ArrayBuffer) {
-      return [value2];
-    }
-    if (transferableClasses.some((cls) => value2 instanceof cls)) {
-      return [value2];
-    }
-    if (Array.isArray(value2)) {
-      return value2.flatMap(findTransferables);
-    }
-    return Object.values(value2).flatMap(findTransferables);
-  }
-  return [];
-}
-class FauxLocalStorage {
-  data;
-  keysOrder;
-  constructor(data) {
-    this.data = data;
-    this.keysOrder = Object.keys(data);
-  }
-  setItem(key, value2) {
-    if (!this.hasItem(key))
-      this.keysOrder.push(key);
-    this.data[key] = value2;
-  }
-  getItem(key) {
-    return this.data[key];
-  }
-  hasItem(key) {
-    return Object.hasOwn(this.data, key);
-  }
-  removeItem(key) {
-    if (!this.hasItem(key))
-      return;
-    delete this.data[key];
-    this.keysOrder = this.keysOrder.filter((k) => k !== key);
-  }
-  clear() {
-    this.data = {};
-    this.keysOrder = [];
-  }
-  key(index) {
-    return this.keysOrder[index];
-  }
-  get length() {
-    return this.keysOrder.length;
-  }
-  register(subject) {
-    subject.localStorage = this;
-  }
-}
-const abortControllers = /* @__PURE__ */ new Map();
-const abortedRequests = /* @__PURE__ */ new Set();
-function Server(procedures2, { loglevel = "debug", scope: scope2, _scopeType } = {}) {
-  scope2 ??= self;
-  const nodeId = nodeIdFromScope(scope2, _scopeType);
-  const l = createLogger("server", loglevel, nodeId);
-  const instance = {
-    [zProcedures]: procedures2,
-    [zImplementations]: {},
-    start: async () => {
-    }
-  };
-  for (const functionName in procedures2) {
-    instance[functionName] = (implementation2) => {
-      if (!instance[zProcedures][functionName]) {
-        throw new Error(`No procedure found for function name: ${functionName}`);
-      }
-      instance[zImplementations][functionName] = (input, onProgress, tools) => {
-        tools.abortSignal?.throwIfAborted();
-        return new Promise((resolve, reject) => {
-          tools.abortSignal?.addEventListener("abort", () => {
-            let { requestId, reason } = tools.abortSignal.reason;
-            l.debug(requestId, `Aborted ${functionName} request: ${reason}`);
-            reject({ aborted: reason });
-          });
-          implementation2(input, onProgress, tools).then(resolve).catch(reject);
-        });
-      };
-    };
-  }
-  instance.start = async () => {
-    const port = await new Promise((resolve) => {
-      if (!scopeIsShared(scope2, _scopeType))
-        return resolve(void 0);
-      l.debug(null, "Awaiting shared worker connection...");
-      scope2.addEventListener("connect", ({ ports: [port2] }) => {
-        l.debug(null, "Shared worker connected with port", port2);
-        resolve(port2);
-      });
-    });
-    const postMessage = async (autotransfer, data) => {
-      const transfer = autotransfer ? [] : findTransferables(data);
-      if (port) {
-        port.postMessage(data, { transfer });
-      } else if (scopeIsDedicated(scope2, _scopeType)) {
-        scope2.postMessage(data, { transfer });
-      } else if (scopeIsService(scope2, _scopeType)) {
-        await scope2.clients.matchAll().then((clients) => {
-          clients.forEach((client) => client.postMessage(data, { transfer }));
-        });
-      }
-    };
-    const listener = async (event) => {
-      if (isPayloadInitialize(event.data)) {
-        const { localStorageData, nodeId: nodeId2 } = event.data;
-        l.debug(null, "Setting up faux localStorage", localStorageData);
-        new FauxLocalStorage(localStorageData).register(scope2);
-        injectIntoConsoleGlobal(scope2, nodeId2, null);
-        return;
-      }
-      if (!isPayloadHeader(procedures2, event.data)) {
-        l.error(null, "Received payload with invalid header", event.data);
-        return;
-      }
-      const { requestId, functionName } = event.data;
-      l.debug(requestId, `Received request for ${functionName}`, event.data);
-      const { autotransfer = "output-only", ...schemas } = instance[zProcedures][functionName];
-      const postMsg = async (data) => {
-        if (abortedRequests.has(requestId))
-          return;
-        await postMessage(autotransfer !== "never", {
-          by: "sw&rpc",
-          functionName,
-          requestId,
-          ...data
-        });
-      };
-      const postError = async (error) => postMsg({
-        error: {
-          message: "message" in error ? error.message : String(error)
-        }
-      });
-      const implementation2 = instance[zImplementations][functionName];
-      if (!implementation2) {
-        await postError("No implementation found");
-        return;
-      }
-      const payload = validatePayloadCore(schemas, event.data);
-      if ("isInitializeRequest" in payload)
-        throw "Unreachable: #initialize request payload should've been handled already";
-      if ("abort" in payload) {
-        const controller = abortControllers.get(requestId);
-        if (!controller)
-          await postError("No abort controller found for request");
-        controller?.abort(payload.abort.reason);
-        return;
-      }
-      abortControllers.set(requestId, new AbortController());
-      if (!("input" in payload)) {
-        await postError("No input provided");
-        return;
-      }
-      try {
-        injectIntoConsoleGlobal(scope2, nodeId, requestId);
-        const result = await implementation2(payload.input, async (progress) => {
-          await postMsg({ progress });
-        }, {
-          nodeId,
-          abortSignal: abortControllers.get(requestId)?.signal
-        });
-        l.debug(requestId, `Result for ${functionName}`, result);
-        await postMsg({ result });
-      } catch (error) {
-        if ("aborted" in error) {
-          l.debug(requestId, `Received abort error for ${functionName}`, error.aborted);
-          abortedRequests.add(requestId);
-          abortControllers.delete(requestId);
-          return;
-        }
-        l.info(requestId, `Error in ${functionName}`, error);
-        await postError(error);
-      } finally {
-        abortedRequests.delete(requestId);
-      }
-    };
-    if (scopeIsShared(scope2, _scopeType)) {
-      if (!port)
-        throw new Error("SharedWorker port not initialized");
-      l.info(null, "Listening for shared worker messages on port", port);
-      port.addEventListener("message", listener);
-      port.start();
-    } else if (scopeIsDedicated(scope2, _scopeType)) {
-      scope2.addEventListener("message", listener);
-    } else if (scopeIsService(scope2, _scopeType)) {
-      scope2.addEventListener("message", listener);
-    } else {
-      throw new Error(`Unsupported worker scope ${scope2}`);
-    }
-  };
-  return instance;
-}
-const liftArray$1 = (data) => Array.isArray(data) ? data : [data];
+import { H as HttpError } from "../chunks/BHuZ28Z_.js";
+import { L } from "../chunks/CH2ogSEB.js";
+const liftArray = (data) => Array.isArray(data) ? data : [data];
 const spliterate = (arr, predicate) => {
   const result = [[], []];
   for (const item of arr) {
@@ -377,7 +14,7 @@ const spliterate = (arr, predicate) => {
 const ReadonlyArray = Array;
 const includes = (array, element) => array.includes(element);
 const range = (length, offset = 0) => [...new Array(length)].map((_, i) => i + offset);
-const append$1 = (to, value2, opts) => {
+const append = (to, value2, opts) => {
   if (to === void 0) {
     return value2 === void 0 ? [] : Array.isArray(value2) ? value2 : [value2];
   }
@@ -393,7 +30,7 @@ const conflatenate = (to, elementOrList) => {
   if (elementOrList === void 0 || elementOrList === null)
     return to ?? [];
   if (to === void 0 || to === null)
-    return liftArray$1(elementOrList);
+    return liftArray(elementOrList);
   return to.concat(elementOrList);
 };
 const conflatenateAll = (...elementsOrLists) => elementsOrLists.reduce(conflatenate, []);
@@ -401,19 +38,19 @@ const appendUnique = (to, value2, opts) => {
   if (to === void 0)
     return Array.isArray(value2) ? value2 : [value2];
   const isEqual = opts?.isEqual ?? ((l, r) => l === r);
-  for (const v of liftArray$1(value2))
+  for (const v of liftArray(value2))
     if (!to.some((existing) => isEqual(existing, v)))
       to.push(v);
   return to;
 };
-const groupBy2 = (array, discriminant) => array.reduce((result, item) => {
+const groupBy = (array, discriminant) => array.reduce((result, item) => {
   const key = item[discriminant];
-  result[key] = append$1(result[key], item);
+  result[key] = append(result[key], item);
   return result;
 }, {});
 const arrayEquals = (l, r, opts) => l.length === r.length && l.every(opts?.isEqual ? (lItem, i) => opts.isEqual(lItem, r[i]) : (lItem, i) => lItem === r[i]);
-const hasDomain$1 = (data, kind) => domainOf$1(data) === kind;
-const domainOf$1 = (data) => {
+const hasDomain = (data, kind) => domainOf(data) === kind;
+const domainOf = (data) => {
   const builtinType = typeof data;
   return builtinType === "object" ? data === null ? "null" : "object" : builtinType === "function" ? "object" : builtinType;
 };
@@ -431,19 +68,19 @@ const jsTypeOfDescriptions = {
   ...domainDescriptions,
   function: "a function"
 };
-let InternalArktypeError$1 = class InternalArktypeError extends Error {
-};
-const throwInternalError$1 = (message) => throwError$1(message, InternalArktypeError$1);
-const throwError$1 = (message, ctor = Error) => {
+class InternalArktypeError extends Error {
+}
+const throwInternalError = (message) => throwError(message, InternalArktypeError);
+const throwError = (message, ctor = Error) => {
   throw new ctor(message);
 };
-let ParseError$1 = class ParseError extends Error {
+class ParseError extends Error {
   name = "ParseError";
-};
-const throwParseError$1 = (message) => throwError$1(message, ParseError$1);
+}
+const throwParseError = (message) => throwError(message, ParseError);
 const noSuggest = (s) => ` ${s}`;
 const ZeroWidthSpace = "​";
-const flatMorph$1 = (o, flatMapEntry) => {
+const flatMorph = (o, flatMapEntry) => {
   const result = {};
   const inputIsArray = Array.isArray(o);
   let outputShouldBeArray = false;
@@ -457,7 +94,7 @@ const flatMorph$1 = (o, flatMapEntry) => {
     ) : [mapped];
     for (const [k, v] of flattenedEntries) {
       if (typeof k === "object")
-        result[k.group] = append$1(result[k.group], v);
+        result[k.group] = append(result[k.group], v);
       else
         result[k] = v;
     }
@@ -465,7 +102,7 @@ const flatMorph$1 = (o, flatMapEntry) => {
   return outputShouldBeArray ? Object.values(result) : result;
 };
 const entriesOf = Object.entries;
-const isKeyOf$1 = (k, o) => k in o;
+const isKeyOf = (k, o) => k in o;
 const hasKey = (o, k) => k in o;
 class DynamicBase {
   constructor(properties) {
@@ -489,8 +126,8 @@ const splitByKeys = (o, leftKeys) => {
   return [l, r];
 };
 const omit = (o, keys) => splitByKeys(o, keys)[1];
-const isEmptyObject$1 = (o) => Object.keys(o).length === 0;
-const stringAndSymbolicEntriesOf$1 = (o) => [
+const isEmptyObject = (o) => Object.keys(o).length === 0;
+const stringAndSymbolicEntriesOf = (o) => [
   ...Object.entries(o),
   ...Object.getOwnPropertySymbols(o).map((k) => [k, o[k]])
 ];
@@ -506,7 +143,12 @@ const withAlphabetizedKeys = (o) => {
   return result;
 };
 const unset = noSuggest(`unset${ZeroWidthSpace}`);
-const ecmascriptConstructors$1 = {
+const enumValues = (tsEnum) => Object.values(tsEnum).filter((v) => {
+  if (typeof v === "number")
+    return true;
+  return typeof tsEnum[v] !== "number";
+});
+const ecmascriptConstructors = {
   Array,
   Boolean,
   Date,
@@ -521,18 +163,18 @@ const ecmascriptConstructors$1 = {
   WeakMap,
   WeakSet
 };
-const FileConstructor$1 = globalThis.File ?? Blob;
-const platformConstructors$1 = {
+const FileConstructor = globalThis.File ?? Blob;
+const platformConstructors = {
   ArrayBuffer,
   Blob,
-  File: FileConstructor$1,
+  File: FileConstructor,
   FormData,
   Headers,
   Request,
   Response,
   URL
 };
-const typedArrayConstructors$1 = {
+const typedArrayConstructors = {
   Int8Array,
   Uint8Array,
   Uint8ClampedArray,
@@ -545,25 +187,25 @@ const typedArrayConstructors$1 = {
   BigInt64Array,
   BigUint64Array
 };
-const builtinConstructors$1 = {
-  ...ecmascriptConstructors$1,
-  ...platformConstructors$1,
-  ...typedArrayConstructors$1,
+const builtinConstructors = {
+  ...ecmascriptConstructors,
+  ...platformConstructors,
+  ...typedArrayConstructors,
   String,
   Number,
   Boolean
 };
-const objectKindOf$1 = (data) => {
+const objectKindOf = (data) => {
   let prototype = Object.getPrototypeOf(data);
-  while (prototype?.constructor && (!isKeyOf$1(prototype.constructor.name, builtinConstructors$1) || !(data instanceof builtinConstructors$1[prototype.constructor.name])))
+  while (prototype?.constructor && (!isKeyOf(prototype.constructor.name, builtinConstructors) || !(data instanceof builtinConstructors[prototype.constructor.name])))
     prototype = Object.getPrototypeOf(prototype);
   const name = prototype?.constructor?.name;
   if (name === void 0 || name === "Object")
     return void 0;
   return name;
 };
-const objectKindOrDomainOf$1 = (data) => typeof data === "object" && data !== null ? objectKindOf$1(data) ?? "object" : domainOf$1(data);
-const isArray$1 = Array.isArray;
+const objectKindOrDomainOf = (data) => typeof data === "object" && data !== null ? objectKindOf(data) ?? "object" : domainOf(data);
+const isArray = Array.isArray;
 const ecmascriptDescriptions = {
   Array: "an array",
   Function: "a function",
@@ -609,7 +251,7 @@ const objectKindDescriptions = {
 };
 const getBuiltinNameOfConstructor = (ctor) => {
   const constructorName = Object(ctor).name ?? null;
-  return constructorName && isKeyOf$1(constructorName, builtinConstructors$1) && builtinConstructors$1[constructorName] === ctor ? constructorName : null;
+  return constructorName && isKeyOf(constructorName, builtinConstructors) && builtinConstructors[constructorName] === ctor ? constructorName : null;
 };
 const constructorExtends = (ctor, base) => {
   let current = ctor.prototype;
@@ -649,27 +291,27 @@ const cached = (thunk) => {
   let result = unset;
   return () => result === unset ? result = thunk() : result;
 };
-const isThunk$1 = (value2) => typeof value2 === "function" && value2.length === 0;
+const isThunk = (value2) => typeof value2 === "function" && value2.length === 0;
 const DynamicFunction = class extends Function {
   constructor(...args) {
     const params = args.slice(0, -1);
-    const body = args.at(-1);
+    const body = args[args.length - 1];
     try {
       super(...params, body);
     } catch (e) {
-      return throwInternalError$1(`Encountered an unexpected error while compiling your definition:
+      return throwInternalError(`Encountered an unexpected error while compiling your definition:
                 Message: ${e} 
                 Source: (${args.slice(0, -1)}) => {
-                    ${args.at(-1)}
+                    ${args[args.length - 1]}
                 }`);
     }
   }
 };
-let Callable$1 = class Callable {
+class Callable {
   constructor(fn, ...[opts]) {
     return Object.assign(Object.setPrototypeOf(fn.bind(opts?.bind ?? this), this.constructor.prototype), opts?.attach);
   }
-};
+}
 const envHasCsp = cached(() => {
   try {
     return new Function("return false")();
@@ -677,126 +319,178 @@ const envHasCsp = cached(() => {
     return true;
   }
 });
-var define_globalThis_process_env_default$1 = {};
-const fileName$1 = () => {
+class Hkt {
+  constructor() {
+  }
+}
+var define_globalThis_process_env_default = {};
+const fileName = () => {
   try {
-    const error = new Error();
-    const stackLine = error.stack?.split("\n")[2]?.trim() || "";
+    const error2 = new Error();
+    const stackLine = error2.stack?.split("\n")[2]?.trim() || "";
     const filePath = stackLine.match(/\(?(.+?)(?::\d+:\d+)?\)?$/)?.[1] || "unknown";
     return filePath.replace(/^file:\/\//, "");
   } catch {
     return "unknown";
   }
 };
-const env$1 = define_globalThis_process_env_default$1 ?? {};
-const isomorphic$1 = {
-  fileName: fileName$1,
-  env: env$1
+const env = define_globalThis_process_env_default ?? {};
+const isomorphic = {
+  fileName,
+  env
 };
 const capitalize$1 = (s) => s[0].toUpperCase() + s.slice(1);
-const anchoredRegex$1 = (regex2) => new RegExp(anchoredSource$1(regex2), typeof regex2 === "string" ? "" : regex2.flags);
-const anchoredSource$1 = (regex2) => {
+const anchoredRegex = (regex2) => new RegExp(anchoredSource(regex2), typeof regex2 === "string" ? "" : regex2.flags);
+const anchoredSource = (regex2) => {
   const source = typeof regex2 === "string" ? regex2 : regex2.source;
   return `^(?:${source})$`;
 };
-const RegexPatterns$1 = {
+const RegexPatterns = {
   negativeLookahead: (pattern) => `(?!${pattern})`,
   nonCapturingGroup: (pattern) => `(?:${pattern})`
 };
-const anchoredNegativeZeroPattern$1 = /^-0\.?0*$/.source;
-const positiveIntegerPattern$1 = /[1-9]\d*/.source;
-const looseDecimalPattern$1 = /\.\d+/.source;
-const strictDecimalPattern$1 = /\.\d*[1-9]/.source;
-const createNumberMatcher$1 = (opts) => anchoredRegex$1(RegexPatterns$1.negativeLookahead(anchoredNegativeZeroPattern$1) + RegexPatterns$1.nonCapturingGroup("-?" + RegexPatterns$1.nonCapturingGroup(RegexPatterns$1.nonCapturingGroup("0|" + positiveIntegerPattern$1) + RegexPatterns$1.nonCapturingGroup(opts.decimalPattern) + "?") + (opts.allowDecimalOnly ? "|" + opts.decimalPattern : "") + "?"));
-const wellFormedNumberMatcher$1 = createNumberMatcher$1({
-  decimalPattern: strictDecimalPattern$1,
+const Backslash = "\\";
+const whitespaceChars = {
+  " ": 1,
+  "\n": 1,
+  "	": 1
+};
+const anchoredNegativeZeroPattern = /^-0\.?0*$/.source;
+const positiveIntegerPattern = /[1-9]\d*/.source;
+const looseDecimalPattern = /\.\d+/.source;
+const strictDecimalPattern = /\.\d*[1-9]/.source;
+const createNumberMatcher = (opts) => anchoredRegex(RegexPatterns.negativeLookahead(anchoredNegativeZeroPattern) + RegexPatterns.nonCapturingGroup("-?" + RegexPatterns.nonCapturingGroup(RegexPatterns.nonCapturingGroup("0|" + positiveIntegerPattern) + RegexPatterns.nonCapturingGroup(opts.decimalPattern) + "?") + (opts.allowDecimalOnly ? "|" + opts.decimalPattern : "") + "?"));
+const wellFormedNumberMatcher = createNumberMatcher({
+  decimalPattern: strictDecimalPattern,
   allowDecimalOnly: false
 });
-wellFormedNumberMatcher$1.test.bind(wellFormedNumberMatcher$1);
-const numericStringMatcher$1 = createNumberMatcher$1({
-  decimalPattern: looseDecimalPattern$1,
+const isWellFormedNumber = wellFormedNumberMatcher.test.bind(wellFormedNumberMatcher);
+const numericStringMatcher = createNumberMatcher({
+  decimalPattern: looseDecimalPattern,
   allowDecimalOnly: true
 });
-numericStringMatcher$1.test.bind(numericStringMatcher$1);
-const wellFormedIntegerMatcher$1 = anchoredRegex$1(RegexPatterns$1.negativeLookahead("^-0$") + "-?" + RegexPatterns$1.nonCapturingGroup(RegexPatterns$1.nonCapturingGroup("0|" + positiveIntegerPattern$1)));
-wellFormedIntegerMatcher$1.test.bind(wellFormedIntegerMatcher$1);
-const integerLikeMatcher$1 = /^-?\d+$/;
-integerLikeMatcher$1.test.bind(integerLikeMatcher$1);
-const arkUtilVersion$1 = "0.53.0";
-const initialRegistryContents$1 = {
-  version: arkUtilVersion$1,
-  filename: isomorphic$1.fileName(),
-  FileConstructor: FileConstructor$1
+numericStringMatcher.test.bind(numericStringMatcher);
+const numberLikeMatcher = /^-?\d*\.?\d*$/;
+const isNumberLike = (s) => s.length !== 0 && numberLikeMatcher.test(s);
+const wellFormedIntegerMatcher = anchoredRegex(RegexPatterns.negativeLookahead("^-0$") + "-?" + RegexPatterns.nonCapturingGroup(RegexPatterns.nonCapturingGroup("0|" + positiveIntegerPattern)));
+const isWellFormedInteger = wellFormedIntegerMatcher.test.bind(wellFormedIntegerMatcher);
+const integerLikeMatcher = /^-?\d+$/;
+const isIntegerLike = integerLikeMatcher.test.bind(integerLikeMatcher);
+const numericLiteralDescriptions = {
+  number: "a number",
+  bigint: "a bigint",
+  integer: "an integer"
 };
-const registry$1 = initialRegistryContents$1;
-const namesByResolution$1 = /* @__PURE__ */ new Map();
-const nameCounts$1 = /* @__PURE__ */ Object.create(null);
-const register$1 = (value2) => {
-  const existingName = namesByResolution$1.get(value2);
+const writeMalformedNumericLiteralMessage = (def, kind) => `'${def}' was parsed as ${numericLiteralDescriptions[kind]} but could not be narrowed to a literal value. Avoid unnecessary leading or trailing zeros and other abnormal notation`;
+const isWellFormed = (def, kind) => kind === "number" ? isWellFormedNumber(def) : isWellFormedInteger(def);
+const parseKind = (def, kind) => kind === "number" ? Number(def) : Number.parseInt(def);
+const isKindLike = (def, kind) => kind === "number" ? isNumberLike(def) : isIntegerLike(def);
+const tryParseNumber = (token, options) => parseNumeric(token, "number", options);
+const tryParseWellFormedNumber = (token, options) => parseNumeric(token, "number", { ...options, strict: true });
+const tryParseInteger = (token, options) => parseNumeric(token, "integer", options);
+const parseNumeric = (token, kind, options) => {
+  const value2 = parseKind(token, kind);
+  if (!Number.isNaN(value2)) {
+    if (isKindLike(token, kind)) {
+      if (options?.strict) {
+        return isWellFormed(token, kind) ? value2 : throwParseError(writeMalformedNumericLiteralMessage(token, kind));
+      }
+      return value2;
+    }
+  }
+  return options?.errorOnFail ? throwParseError(options?.errorOnFail === true ? `Failed to parse ${numericLiteralDescriptions[kind]} from '${token}'` : options?.errorOnFail) : void 0;
+};
+const tryParseWellFormedBigint = (def) => {
+  if (def[def.length - 1] !== "n")
+    return;
+  const maybeIntegerLiteral = def.slice(0, -1);
+  let value2;
+  try {
+    value2 = BigInt(maybeIntegerLiteral);
+  } catch {
+    return;
+  }
+  if (wellFormedIntegerMatcher.test(maybeIntegerLiteral))
+    return value2;
+  if (integerLikeMatcher.test(maybeIntegerLiteral)) {
+    return throwParseError(writeMalformedNumericLiteralMessage(def, "bigint"));
+  }
+};
+const arkUtilVersion = "0.54.0";
+const initialRegistryContents = {
+  version: arkUtilVersion,
+  filename: isomorphic.fileName(),
+  FileConstructor
+};
+const registry = initialRegistryContents;
+const namesByResolution = /* @__PURE__ */ new Map();
+const nameCounts = /* @__PURE__ */ Object.create(null);
+const register = (value2) => {
+  const existingName = namesByResolution.get(value2);
   if (existingName)
     return existingName;
-  let name = baseNameFor$1(value2);
-  if (nameCounts$1[name])
-    name = `${name}${nameCounts$1[name]++}`;
+  let name = baseNameFor(value2);
+  if (nameCounts[name])
+    name = `${name}${nameCounts[name]++}`;
   else
-    nameCounts$1[name] = 1;
-  registry$1[name] = value2;
-  namesByResolution$1.set(value2, name);
+    nameCounts[name] = 1;
+  registry[name] = value2;
+  namesByResolution.set(value2, name);
   return name;
 };
-const isDotAccessible$1 = (keyName) => /^[$A-Z_a-z][\w$]*$/.test(keyName);
-const baseNameFor$1 = (value2) => {
+const isDotAccessible = (keyName) => /^[$A-Z_a-z][\w$]*$/.test(keyName);
+const baseNameFor = (value2) => {
   switch (typeof value2) {
     case "object": {
       if (value2 === null)
         break;
-      const prefix = objectKindOf$1(value2) ?? "object";
+      const prefix = objectKindOf(value2) ?? "object";
       return prefix[0].toLowerCase() + prefix.slice(1);
     }
     case "function":
-      return isDotAccessible$1(value2.name) ? value2.name : "fn";
+      return isDotAccessible(value2.name) ? value2.name : "fn";
     case "symbol":
-      return value2.description && isDotAccessible$1(value2.description) ? value2.description : "symbol";
+      return value2.description && isDotAccessible(value2.description) ? value2.description : "symbol";
   }
-  return throwInternalError$1(`Unexpected attempt to register serializable value of type ${domainOf$1(value2)}`);
+  return throwInternalError(`Unexpected attempt to register serializable value of type ${domainOf(value2)}`);
 };
-const serializePrimitive$1 = (value2) => typeof value2 === "string" ? JSON.stringify(value2) : typeof value2 === "bigint" ? `${value2}n` : `${value2}`;
-const snapshot = (data, opts = {}) => _serialize$1(data, {
+const serializePrimitive = (value2) => typeof value2 === "string" ? JSON.stringify(value2) : typeof value2 === "bigint" ? `${value2}n` : `${value2}`;
+const snapshot = (data, opts = {}) => _serialize(data, {
   onUndefined: `$ark.undefined`,
   onBigInt: (n) => `$ark.bigint-${n}`,
   ...opts
 }, []);
-const printable$1 = (data, opts) => {
-  switch (domainOf$1(data)) {
+const printable = (data, opts) => {
+  switch (domainOf(data)) {
     case "object":
       const o = data;
       const ctorName = o.constructor.name;
-      return ctorName === "Object" || ctorName === "Array" ? opts?.quoteKeys === false ? stringifyUnquoted$1(o, opts?.indent ?? 0, "") : JSON.stringify(_serialize$1(o, printableOpts$1, []), null, opts?.indent) : stringifyUnquoted$1(o, opts?.indent ?? 0, "");
+      return ctorName === "Object" || ctorName === "Array" ? opts?.quoteKeys === false ? stringifyUnquoted(o, opts?.indent ?? 0, "") : JSON.stringify(_serialize(o, printableOpts, []), null, opts?.indent) : stringifyUnquoted(o, opts?.indent ?? 0, "");
     case "symbol":
-      return printableOpts$1.onSymbol(data);
+      return printableOpts.onSymbol(data);
     default:
-      return serializePrimitive$1(data);
+      return serializePrimitive(data);
   }
 };
-const stringifyUnquoted$1 = (value2, indent2, currentIndent) => {
+const stringifyUnquoted = (value2, indent2, currentIndent) => {
   if (typeof value2 === "function")
-    return printableOpts$1.onFunction(value2);
+    return printableOpts.onFunction(value2);
   if (typeof value2 !== "object" || value2 === null)
-    return serializePrimitive$1(value2);
+    return serializePrimitive(value2);
   const nextIndent = currentIndent + " ".repeat(indent2);
   if (Array.isArray(value2)) {
     if (value2.length === 0)
       return "[]";
-    const items = value2.map((item) => stringifyUnquoted$1(item, indent2, nextIndent)).join(",\n" + nextIndent);
+    const items = value2.map((item) => stringifyUnquoted(item, indent2, nextIndent)).join(",\n" + nextIndent);
     return indent2 ? `[
 ${nextIndent}${items}
 ${currentIndent}]` : `[${items}]`;
   }
   const ctorName = value2.constructor.name;
   if (ctorName === "Object") {
-    const keyValues = stringAndSymbolicEntriesOf$1(value2).map(([key, val]) => {
-      const stringifiedKey = typeof key === "symbol" ? printableOpts$1.onSymbol(key) : isDotAccessible$1(key) ? key : JSON.stringify(key);
-      const stringifiedValue = stringifyUnquoted$1(val, indent2, nextIndent);
+    const keyValues = stringAndSymbolicEntriesOf(value2).map(([key, val]) => {
+      const stringifiedKey = typeof key === "symbol" ? printableOpts.onSymbol(key) : isDotAccessible(key) ? key : JSON.stringify(key);
+      const stringifiedValue = stringifyUnquoted(val, indent2, nextIndent);
       return `${nextIndent}${stringifiedKey}: ${stringifiedValue}`;
     });
     if (keyValues.length === 0)
@@ -806,52 +500,52 @@ ${keyValues.join(",\n")}
 ${currentIndent}}` : `{${keyValues.join(", ")}}`;
   }
   if (value2 instanceof Date)
-    return describeCollapsibleDate$1(value2);
+    return describeCollapsibleDate(value2);
   if ("expression" in value2 && typeof value2.expression === "string")
     return value2.expression;
   return ctorName;
 };
-const printableOpts$1 = {
+const printableOpts = {
   onCycle: () => "(cycle)",
-  onSymbol: (v) => `Symbol(${register$1(v)})`,
-  onFunction: (v) => `Function(${register$1(v)})`
+  onSymbol: (v) => `Symbol(${register(v)})`,
+  onFunction: (v) => `Function(${register(v)})`
 };
-const _serialize$1 = (data, opts, seen) => {
-  switch (domainOf$1(data)) {
+const _serialize = (data, opts, seen) => {
+  switch (domainOf(data)) {
     case "object": {
       const o = data;
       if ("toJSON" in o && typeof o.toJSON === "function")
         return o.toJSON();
       if (typeof o === "function")
-        return printableOpts$1.onFunction(o);
+        return printableOpts.onFunction(o);
       if (seen.includes(o))
         return "(cycle)";
       const nextSeen = [...seen, o];
       if (Array.isArray(o))
-        return o.map((item) => _serialize$1(item, opts, nextSeen));
+        return o.map((item) => _serialize(item, opts, nextSeen));
       if (o instanceof Date)
         return o.toDateString();
       const result = {};
       for (const k in o)
-        result[k] = _serialize$1(o[k], opts, nextSeen);
+        result[k] = _serialize(o[k], opts, nextSeen);
       for (const s of Object.getOwnPropertySymbols(o)) {
-        result[opts.onSymbol?.(s) ?? s.toString()] = _serialize$1(o[s], opts, nextSeen);
+        result[opts.onSymbol?.(s) ?? s.toString()] = _serialize(o[s], opts, nextSeen);
       }
       return result;
     }
     case "symbol":
-      return printableOpts$1.onSymbol(data);
+      return printableOpts.onSymbol(data);
     case "bigint":
       return opts.onBigInt?.(data) ?? `${data}n`;
     case "undefined":
       return opts.onUndefined ?? "undefined";
     case "string":
-      return data.replaceAll("\\", "\\\\");
+      return data.replace(/\\/g, "\\\\");
     default:
       return data;
   }
 };
-const describeCollapsibleDate$1 = (date) => {
+const describeCollapsibleDate = (date) => {
   const year = date.getFullYear();
   const month = date.getMonth();
   const dayOfMonth = date.getDate();
@@ -861,7 +555,7 @@ const describeCollapsibleDate$1 = (date) => {
   const milliseconds = date.getMilliseconds();
   if (month === 0 && dayOfMonth === 1 && hours === 0 && minutes === 0 && seconds === 0 && milliseconds === 0)
     return `${year}`;
-  const datePortion = `${months$1[month]} ${dayOfMonth}, ${year}`;
+  const datePortion = `${months[month]} ${dayOfMonth}, ${year}`;
   if (hours === 0 && minutes === 0 && seconds === 0 && milliseconds === 0)
     return datePortion;
   let timePortion = date.toLocaleTimeString();
@@ -869,12 +563,12 @@ const describeCollapsibleDate$1 = (date) => {
   if (suffix2)
     timePortion = timePortion.slice(0, -suffix2.length);
   if (milliseconds)
-    timePortion += `.${pad$1(milliseconds, 3)}`;
-  else if (timeWithUnnecessarySeconds$1.test(timePortion))
+    timePortion += `.${pad(milliseconds, 3)}`;
+  else if (timeWithUnnecessarySeconds.test(timePortion))
     timePortion = timePortion.slice(0, -3);
   return `${timePortion + suffix2}, ${datePortion}`;
 };
-const months$1 = [
+const months = [
   "January",
   "February",
   "March",
@@ -888,14 +582,14 @@ const months$1 = [
   "November",
   "December"
 ];
-const timeWithUnnecessarySeconds$1 = /:\d\d:00$/;
-const pad$1 = (value2, length) => String(value2).padStart(length, "0");
+const timeWithUnnecessarySeconds = /:\d\d:00$/;
+const pad = (value2, length) => String(value2).padStart(length, "0");
 const appendStringifiedKey = (path, prop, ...[opts]) => {
-  const stringifySymbol = opts?.stringifySymbol ?? printable$1;
+  const stringifySymbol = opts?.stringifySymbol ?? printable;
   let propAccessChain = path;
   switch (typeof prop) {
     case "string":
-      propAccessChain = isDotAccessible$1(prop) ? path === "" ? prop : `${path}.${prop}` : `${path}[${JSON.stringify(prop)}]`;
+      propAccessChain = isDotAccessible(prop) ? path === "" ? prop : `${path}.${prop}` : `${path}[${JSON.stringify(prop)}]`;
       break;
     case "number":
       propAccessChain = `${path}[${prop}]`;
@@ -907,7 +601,7 @@ const appendStringifiedKey = (path, prop, ...[opts]) => {
       if (opts?.stringifyNonKey)
         propAccessChain = `${path}[${opts.stringifyNonKey(prop)}]`;
       else {
-        throwParseError$1(`${printable$1(prop)} must be a PropertyKey or stringifyNonKey must be passed to options`);
+        throwParseError(`${printable(prop)} must be a PropertyKey or stringifyNonKey must be passed to options`);
       }
   }
   return propAccessChain;
@@ -925,7 +619,7 @@ class ReadonlyPath extends ReadonlyArray {
       return this.cache.json;
     this.cache.json = [];
     for (let i = 0; i < this.length; i++) {
-      this.cache.json.push(typeof this[i] === "symbol" ? printable$1(this[i]) : this[i]);
+      this.cache.json.push(typeof this[i] === "symbol" ? printable(this[i]) : this[i]);
     }
     return this.cache.json;
   }
@@ -946,15 +640,98 @@ class ReadonlyPath extends ReadonlyArray {
     return this.cache.stringifyAncestors = result;
   }
 }
+class Scanner {
+  chars;
+  i;
+  def;
+  constructor(def) {
+    this.def = def;
+    this.chars = [...def];
+    this.i = 0;
+  }
+  /** Get lookahead and advance scanner by one */
+  shift() {
+    return this.chars[this.i++] ?? "";
+  }
+  get lookahead() {
+    return this.chars[this.i] ?? "";
+  }
+  get nextLookahead() {
+    return this.chars[this.i + 1] ?? "";
+  }
+  get length() {
+    return this.chars.length;
+  }
+  shiftUntil(condition) {
+    let shifted = "";
+    while (this.lookahead) {
+      if (condition(this, shifted))
+        break;
+      else
+        shifted += this.shift();
+    }
+    return shifted;
+  }
+  shiftUntilEscapable(condition) {
+    let shifted = "";
+    while (this.lookahead) {
+      if (this.lookahead === Backslash) {
+        this.shift();
+        if (condition(this, shifted))
+          shifted += this.shift();
+        else if (this.lookahead === Backslash)
+          shifted += this.shift();
+        else
+          shifted += `${Backslash}${this.shift()}`;
+      } else if (condition(this, shifted))
+        break;
+      else
+        shifted += this.shift();
+    }
+    return shifted;
+  }
+  shiftUntilLookahead(charOrSet) {
+    return typeof charOrSet === "string" ? this.shiftUntil((s) => s.lookahead === charOrSet) : this.shiftUntil((s) => s.lookahead in charOrSet);
+  }
+  shiftUntilNonWhitespace() {
+    return this.shiftUntil(() => !(this.lookahead in whitespaceChars));
+  }
+  jumpToIndex(i) {
+    this.i = i < 0 ? this.length + i : i;
+  }
+  jumpForward(count) {
+    this.i += count;
+  }
+  get location() {
+    return this.i;
+  }
+  get unscanned() {
+    return this.chars.slice(this.i, this.length).join("");
+  }
+  get scanned() {
+    return this.chars.slice(0, this.i).join("");
+  }
+  sliceChars(start, end) {
+    return this.chars.slice(start, end).join("");
+  }
+  lookaheadIs(char) {
+    return this.lookahead === char;
+  }
+  lookaheadIsIn(tokens) {
+    return this.lookahead in tokens;
+  }
+}
+const writeUnmatchedGroupCloseMessage = (char, unscanned) => `Unmatched ${char}${unscanned === "" ? "" : ` before ${unscanned}`}`;
+const writeUnclosedGroupMessage = (missingChar) => `Missing ${missingChar}`;
 let _registryName = "$ark";
 let suffix = 2;
 while (_registryName in globalThis)
   _registryName = `$ark${suffix++}`;
 const registryName = _registryName;
-globalThis[registryName] = registry$1;
-const $ark = registry$1;
+globalThis[registryName] = registry;
+const $ark = registry;
 const reference = (name) => `${registryName}.${name}`;
-const registeredReference = (value2) => reference(register$1(value2));
+const registeredReference = (value2) => reference(register(value2));
 class CompiledFunction extends CastableBase {
   argNames;
   body = "";
@@ -1032,9 +809,9 @@ class CompiledFunction extends CastableBase {
     return new DynamicFunction(...this.argNames, this.body);
   }
 }
-const compileSerializedValue = (value2) => hasDomain$1(value2, "object") || typeof value2 === "symbol" ? registeredReference(value2) : serializePrimitive$1(value2);
+const compileSerializedValue = (value2) => hasDomain(value2, "object") || typeof value2 === "symbol" ? registeredReference(value2) : serializePrimitive(value2);
 const compileLiteralPropAccess = (key, optional = false) => {
-  if (typeof key === "string" && isDotAccessible$1(key))
+  if (typeof key === "string" && isDotAccessible(key))
     return `${optional ? "?" : ""}.${key}`;
   return indexPropAccess(serializeLiteralKey(key), optional);
 };
@@ -1091,7 +868,7 @@ class NodeCompiler extends CompiledFunction {
 const makeRootAndArrayPropertiesMutable = (o) => (
   // this cast should not be required, but it seems TS is referencing
   // the wrong parameters here?
-  flatMorph$1(o, (k, v) => [k, isArray$1(v) ? [...v] : v])
+  flatMorph(o, (k, v) => [k, isArray(v) ? [...v] : v])
 );
 const arkKind = noSuggest("arkKind");
 const hasArkKind = (value2, kind) => value2?.[arkKind] === kind;
@@ -1130,9 +907,9 @@ const rootKinds = [
   "domain"
 ];
 const nodeKinds = [...rootKinds, ...constraintKinds];
-const constraintKeys = flatMorph$1(constraintKinds, (i, kind) => [kind, 1]);
-const structureKeys = flatMorph$1([...structuralKinds, "undeclared"], (i, k) => [k, 1]);
-const precedenceByKind = flatMorph$1(nodeKinds, (i, kind) => [kind, i]);
+const constraintKeys = flatMorph(constraintKinds, (i, kind) => [kind, 1]);
+const structureKeys = flatMorph([...structuralKinds, "undeclared"], (i, k) => [k, 1]);
+const precedenceByKind = flatMorph(nodeKinds, (i, kind) => [kind, i]);
 const isNodeKind = (value2) => typeof value2 === "string" && value2 in precedenceByKind;
 const precedenceOfKind = (kind) => precedenceByKind[kind];
 const schemaKindsRightOf = (kind) => rootKinds.slice(precedenceOfKind(kind) + 1);
@@ -1168,7 +945,7 @@ const implementNode = (_) => {
   const implementation2 = _;
   if (implementation2.hasAssociatedError) {
     implementation2.defaults.expected ??= (ctx) => "description" in ctx ? ctx.description : implementation2.defaults.description(ctx);
-    implementation2.defaults.actual ??= (data) => printable$1(data);
+    implementation2.defaults.actual ??= (data) => printable(data);
     implementation2.defaults.problem ??= (ctx) => `must be ${ctx.expected}${ctx.actual ? ` (was ${ctx.actual})` : ""}`;
     implementation2.defaults.message ??= (ctx) => {
       if (ctx.path.length === 0)
@@ -1187,7 +964,7 @@ class ToJsonSchemaError extends Error {
   code;
   context;
   constructor(code, context) {
-    super(printable$1(context, { quoteKeys: false, indent: 4 }));
+    super(printable(context, { quoteKeys: false, indent: 4 }));
     this.code = code;
     this.context = context;
   }
@@ -1217,7 +994,7 @@ const ToJsonSchema = {
   throw: (...args) => {
     throw new ToJsonSchema.Error(...args);
   },
-  throwInternalOperandError: (kind, schema) => throwInternalError$1(`Unexpected JSON Schema input for ${kind}: ${printable$1(schema)}`),
+  throwInternalOperandError: (kind, schema) => throwInternalError(`Unexpected JSON Schema input for ${kind}: ${printable(schema)}`),
   defaultConfig
 };
 $ark.config ??= {};
@@ -1386,13 +1163,13 @@ class ArkErrors extends ReadonlyArray {
    * they will never be directly present in this representation.
    */
   get flatByPath() {
-    return flatMorph$1(this.byPath, (k, v) => [k, v.flat]);
+    return flatMorph(this.byPath, (k, v) => [k, v.flat]);
   }
   /**
    * {@link byPath} flattened so that each value is an array of problem strings at that path.
    */
   get flatProblemsByPath() {
-    return flatMorph$1(this.byPath, (k, v) => [k, v.flat.map((e) => e.problem)]);
+    return flatMorph(this.byPath, (k, v) => [k, v.flat.map((e) => e.problem)]);
   }
   /**
    * All pathStrings at which errors are present mapped to the errors occuring
@@ -1417,25 +1194,25 @@ class ArkErrors extends ReadonlyArray {
   /**
    * Append an ArkError to this array, ignoring duplicates.
    */
-  add(error) {
-    const existing = this.byPath[error.propString];
+  add(error2) {
+    const existing = this.byPath[error2.propString];
     if (existing) {
-      if (error === existing)
+      if (error2 === existing)
         return;
       if (existing.hasCode("union") && existing.errors.length === 0)
         return;
-      const errorIntersection = error.hasCode("union") && error.errors.length === 0 ? error : new ArkError({
+      const errorIntersection = error2.hasCode("union") && error2.errors.length === 0 ? error2 : new ArkError({
         code: "intersection",
-        errors: existing.hasCode("intersection") ? [...existing.errors, error] : [existing, error]
+        errors: existing.hasCode("intersection") ? [...existing.errors, error2] : [existing, error2]
       }, this.ctx);
       const existingIndex = this.indexOf(existing);
       this.mutable[existingIndex === -1 ? this.length : existingIndex] = errorIntersection;
-      this.byPath[error.propString] = errorIntersection;
-      this.addAncestorPaths(error);
+      this.byPath[error2.propString] = errorIntersection;
+      this.addAncestorPaths(error2);
     } else {
-      this.byPath[error.propString] = error;
-      this.addAncestorPaths(error);
-      this.mutable.push(error);
+      this.byPath[error2.propString] = error2;
+      this.addAncestorPaths(error2);
+      this.mutable.push(error2);
     }
     this.count++;
   }
@@ -1486,9 +1263,9 @@ class ArkErrors extends ReadonlyArray {
   toString() {
     return this.join("\n");
   }
-  addAncestorPaths(error) {
-    for (const propString of error.path.stringifyAncestors()) {
-      this.byAncestorPath[propString] = append$1(this.byAncestorPath[propString], error);
+  addAncestorPaths(error2) {
+    for (const propString of error2.path.stringifyAncestors()) {
+      this.byAncestorPath[propString] = append(this.byAncestorPath[propString], error2);
     }
   }
 }
@@ -1498,14 +1275,14 @@ class TraversalError extends Error {
     if (errors.length === 1)
       super(errors.summary);
     else
-      super("\n" + errors.map((error) => `  • ${indent(error)}`).join("\n"));
+      super("\n" + errors.map((error2) => `  • ${indent(error2)}`).join("\n"));
     Object.defineProperty(this, "arkErrors", {
       value: errors,
       enumerable: false
     });
   }
 }
-const indent = (error) => error.toString().split("\n").join("\n  ");
+const indent = (error2) => error2.toString().split("\n").join("\n  ");
 class Traversal {
   /**
    * #### the path being validated or morphed
@@ -1589,7 +1366,7 @@ class Traversal {
     return this.currentErrorCount !== 0;
   }
   get currentBranch() {
-    return this.branches.at(-1);
+    return this.branches[this.branches.length - 1];
   }
   queueMorphs(morphs) {
     const input = {
@@ -1639,12 +1416,12 @@ class Traversal {
     return this.errorFromContext(input);
   }
   errorFromContext(errCtx) {
-    const error = new ArkError(errCtx, this);
+    const error2 = new ArkError(errCtx, this);
     if (this.currentBranch)
-      this.currentBranch.error = error;
+      this.currentBranch.error = error2;
     else
-      this.errors.add(error);
-    return error;
+      this.errors.add(error2);
+    return error2;
   }
   applyQueuedMorphs() {
     while (this.queuedMorphs.length) {
@@ -1658,7 +1435,7 @@ class Traversal {
     }
   }
   applyMorphsAtPath(path, morphs) {
-    const key = path.at(-1);
+    const key = path[path.length - 1];
     let parent;
     if (key !== void 0) {
       parent = this.root;
@@ -1696,7 +1473,7 @@ const traverseKey = (key, fn, ctx) => {
   ctx.path.pop();
   return result;
 };
-class BaseNode extends Callable$1 {
+class BaseNode extends Callable {
   attachments;
   $;
   onFail;
@@ -1798,7 +1575,7 @@ class BaseNode extends Callable$1 {
         return this.createBranchedOptimisticRootApply();
       default:
         this.rootApplyStrategy;
-        return throwInternalError$1(`Unexpected rootApplyStrategy ${this.rootApplyStrategy}`);
+        return throwInternalError(`Unexpected rootApplyStrategy ${this.rootApplyStrategy}`);
     }
   }
   compiledMeta = compileMeta(this.metaJson);
@@ -1848,7 +1625,7 @@ class BaseNode extends Callable$1 {
         keySchemaImplementation.reduceIo(ioKind, ioInner, v);
       else if (keySchemaImplementation.child) {
         const childValue = v;
-        ioInner[k] = isArray$1(childValue) ? childValue.map((child) => ioKind === "in" ? child.rawIn : child.rawOut) : ioKind === "in" ? childValue.rawIn : childValue.rawOut;
+        ioInner[k] = isArray(childValue) ? childValue.map((child) => ioKind === "in" ? child.rawIn : child.rawOut) : ioKind === "in" ? childValue.rawIn : childValue.rawOut;
       } else
         ioInner[k] = v;
     }
@@ -1872,7 +1649,7 @@ class BaseNode extends Callable$1 {
   }
   assertHasKind(kind) {
     if (this.kind !== kind)
-      throwError$1(`${this.kind} node was not of asserted kind ${kind}`);
+      throwError(`${this.kind} node was not of asserted kind ${kind}`);
     return this;
   }
   hasKindIn(...kinds) {
@@ -1880,7 +1657,7 @@ class BaseNode extends Callable$1 {
   }
   assertHasKindIn(...kinds) {
     if (!includes(kinds, this.kind))
-      throwError$1(`${this.kind} node was not one of asserted kinds ${kinds}`);
+      throwError(`${this.kind} node was not one of asserted kinds ${kinds}`);
     return this;
   }
   isBasis() {
@@ -1955,11 +1732,11 @@ class BaseNode extends Callable$1 {
         undeclaredKeyHandling: this.undeclared
       };
     }
-    const innerWithTransformedChildren = flatMorph$1(this.inner, (k, v) => {
+    const innerWithTransformedChildren = flatMorph(this.inner, (k, v) => {
       if (!this.impl.keys[k].child)
         return [k, v];
       const children = v;
-      if (!isArray$1(children)) {
+      if (!isArray(children)) {
         const transformed2 = children._transform(mapper, ctx);
         return transformed2 ? [k, transformed2] : [];
       }
@@ -1983,7 +1760,7 @@ class BaseNode extends Callable$1 {
     const transformedKeys = Object.keys(transformedInner);
     const hasNoTypedKeys = transformedKeys.length === 0 || transformedKeys.length === 1 && transformedKeys[0] === "meta";
     if (hasNoTypedKeys && // if inner was previously an empty object (e.g. unknown) ensure it is not pruned
-    !isEmptyObject$1(this.inner))
+    !isEmptyObject(this.inner))
       return null;
     if ((this.kind === "required" || this.kind === "optional" || this.kind === "index") && !("value" in transformedInner)) {
       return ctx.undeclaredKeyHandling ? { ...transformedInner, value: $ark.intrinsic.unknown } : null;
@@ -2006,7 +1783,7 @@ class BaseNode extends Callable$1 {
       return this.$.node(this.kind, mapper(this.kind, { ...this.inner, meta: this.meta }));
     }
     const rawSelected = this._select(normalized);
-    const selected = rawSelected && liftArray$1(rawSelected);
+    const selected = rawSelected && liftArray(rawSelected);
     const shouldTransform = normalized.boundary === "child" ? (node2, ctx) => ctx.root.children.includes(node2) : normalized.boundary === "shallow" ? (node2) => node2.kind !== "structure" : () => true;
     return this.$.finalize(this.transform(mapper, {
       shouldTransform,
@@ -2025,24 +1802,24 @@ const NodeSelector = {
     filter: (nodes) => nodes,
     assertFilter: (nodes, from, selector) => {
       if (nodes.length === 0)
-        throwError$1(writeSelectAssertionMessage(from, selector));
+        throwError(writeSelectAssertionMessage(from, selector));
       return nodes;
     },
     find: (nodes) => nodes[0],
     assertFind: (nodes, from, selector) => {
       if (nodes.length === 0)
-        throwError$1(writeSelectAssertionMessage(from, selector));
+        throwError(writeSelectAssertionMessage(from, selector));
       return nodes[0];
     }
   },
-  normalize: (selector) => typeof selector === "function" ? { boundary: "references", method: "filter", where: selector } : typeof selector === "string" ? isKeyOf$1(selector, NodeSelector.applyBoundary) ? { method: "filter", boundary: selector } : { boundary: "references", method: "filter", kind: selector } : { boundary: "references", method: "filter", ...selector }
+  normalize: (selector) => typeof selector === "function" ? { boundary: "references", method: "filter", where: selector } : typeof selector === "string" ? isKeyOf(selector, NodeSelector.applyBoundary) ? { method: "filter", boundary: selector } : { boundary: "references", method: "filter", kind: selector } : { boundary: "references", method: "filter", ...selector }
 };
-const writeSelectAssertionMessage = (from, selector) => `${from} had no references matching ${printable$1(selector)}.`;
+const writeSelectAssertionMessage = (from, selector) => `${from} had no references matching ${printable(selector)}.`;
 const typePathToPropString = (path) => stringifyPath(path, {
   stringifyNonKey: (node2) => node2.expression
 });
 const referenceMatcher = /"(\$ark\.[^"]+)"/g;
-const compileMeta = (metaJson) => JSON.stringify(metaJson).replaceAll(referenceMatcher, "$1");
+const compileMeta = (metaJson) => JSON.stringify(metaJson).replace(referenceMatcher, "$1");
 const flatRef = (path, node2) => ({
   path,
   node: node2,
@@ -2088,7 +1865,7 @@ class Disjoint extends Array {
 • ${this.map(({ path, l, r }) => `${path}: ${describeReasons(l, r)}`).join("\n• ")}`;
   }
   throw() {
-    return throwParseError$1(this.describeReasons());
+    return throwParseError(this.describeReasons());
   }
   invert() {
     const result = this.map((entry) => ({
@@ -2112,7 +1889,7 @@ class Disjoint extends Array {
   }
 }
 const describeReasons = (l, r) => `${describeReason(l)} and ${describeReason(r)}`;
-const describeReason = (value2) => isNode(value2) ? value2.expression : isArray$1(value2) ? value2.map(describeReason).join(" | ") || "never" : String(value2);
+const describeReason = (value2) => isNode(value2) ? value2.expression : isArray(value2) ? value2.map(describeReason).join(" | ") || "never" : String(value2);
 const writeUnsatisfiableExpressionError = (expression) => `${expression} results in an unsatisfiable type`;
 const intersectionCache = {};
 const intersectNodesRoot = (l, r, $) => intersectOrPipeNodes(l, r, {
@@ -2253,7 +2030,7 @@ class InternalPrimitiveConstraint extends BaseConstraint {
   }
 }
 const constraintKeyParser = (kind) => (schema, ctx) => {
-  if (isArray$1(schema)) {
+  if (isArray(schema)) {
     if (schema.length === 0) {
       return;
     }
@@ -2292,7 +2069,7 @@ const intersectConstraints = (s) => {
       s.l[i] = result;
       matched = true;
     } else if (!s.l.includes(result)) {
-      return throwInternalError$1(`Unexpectedly encountered multiple distinct intersection results for refinement ${head}`);
+      return throwInternalError(`Unexpectedly encountered multiple distinct intersection results for refinement ${head}`);
     }
   }
   if (!matched)
@@ -2312,25 +2089,25 @@ const unflattenConstraints = (constraints) => {
   const inner = {};
   for (const constraint of constraints) {
     if (constraint.hasOpenIntersection()) {
-      inner[constraint.kind] = append$1(inner[constraint.kind], constraint);
+      inner[constraint.kind] = append(inner[constraint.kind], constraint);
     } else {
       if (inner[constraint.kind]) {
-        return throwInternalError$1(`Unexpected intersection of closed refinements of kind ${constraint.kind}`);
+        return throwInternalError(`Unexpected intersection of closed refinements of kind ${constraint.kind}`);
       }
       inner[constraint.kind] = constraint;
     }
   }
   return inner;
 };
-const throwInvalidOperandError = (...args) => throwParseError$1(writeInvalidOperandMessage(...args));
+const throwInvalidOperandError = (...args) => throwParseError(writeInvalidOperandMessage(...args));
 const writeInvalidOperandMessage = (kind, expected, actual) => {
   const actualDescription = actual.hasKind("morph") ? "a morph" : actual.isUnknown() ? "unknown" : actual.exclude(expected).defaultShortDescription;
   return `${capitalize$1(kind)} operand must be ${expected.description} (was ${actualDescription})`;
 };
 const parseGeneric = (paramDefs, bodyDef, $) => new GenericRoot(paramDefs, bodyDef, $, $, null);
-class LazyGenericBody extends Callable$1 {
+class LazyGenericBody extends Callable {
 }
-class GenericRoot extends Callable$1 {
+class GenericRoot extends Callable {
   [arkKind] = "generic";
   paramDefs;
   bodyDef;
@@ -2341,10 +2118,10 @@ class GenericRoot extends Callable$1 {
   description;
   constructor(paramDefs, bodyDef, $, arg$, hkt) {
     super((...args) => {
-      const argNodes = flatMorph$1(this.names, (i, name) => {
+      const argNodes = flatMorph(this.names, (i, name) => {
         const arg = this.arg$.parse(args[i]);
         if (!arg.extends(this.constraints[i])) {
-          throwParseError$1(writeUnsatisfiedParameterConstraintMessage(name, this.constraints[i].expression, arg.expression));
+          throwParseError(writeUnsatisfiedParameterConstraintMessage(name, this.constraints[i].expression, arg.expression));
         }
         return [name, arg];
       });
@@ -2455,7 +2232,7 @@ const implementation$k = implementNode({
   collapsibleKey: "rule",
   keys: {
     rule: {
-      parse: (divisor) => Number.isInteger(divisor) ? divisor : throwParseError$1(writeNonIntegerDivisorMessage(divisor))
+      parse: (divisor) => Number.isInteger(divisor) ? divisor : throwParseError(writeNonIntegerDivisorMessage(divisor))
     }
   },
   normalize: (schema) => typeof schema === "number" ? { rule: schema } : schema,
@@ -2567,7 +2344,7 @@ const parseDateLimit = (limit) => typeof limit === "string" || typeof limit === 
 const writeInvalidLengthBoundMessage = (kind, limit) => `${kind} bound must be a positive integer (was ${limit})`;
 const createLengthRuleParser = (kind) => (limit) => {
   if (!Number.isInteger(limit) || limit < 0)
-    throwParseError$1(writeInvalidLengthBoundMessage(kind, limit));
+    throwParseError(writeInvalidLengthBoundMessage(kind, limit));
   return limit;
 };
 const operandKindsByBoundKind = {
@@ -2578,7 +2355,7 @@ const operandKindsByBoundKind = {
   after: "date",
   before: "date"
 };
-const compileComparator = (kind, exclusive) => `${isKeyOf$1(kind, boundKindPairsByLower) ? ">" : "<"}${exclusive ? "" : "="}`;
+const compileComparator = (kind, exclusive) => `${isKeyOf(kind, boundKindPairsByLower) ? ">" : "<"}${exclusive ? "" : "="}`;
 const dateLimitToString = (limit) => typeof limit === "string" ? limit : new Date(limit).toLocaleString();
 const writeUnboundableMessage = (root) => `Bounded expression ${root} must be exactly one of number, string, Array, or Date`;
 const implementation$j = implementNode({
@@ -2594,7 +2371,7 @@ const implementation$j = implementNode({
   normalize: createDateSchemaNormalizer("after"),
   defaults: {
     description: (node2) => `${node2.collapsibleLimitString} or later`,
-    actual: describeCollapsibleDate$1
+    actual: describeCollapsibleDate
   },
   intersections: {
     after: (l, r) => l.isStricterThan(r) ? l : r
@@ -2602,7 +2379,7 @@ const implementation$j = implementNode({
 });
 class AfterNode extends BaseRange {
   impliedBasis = $ark.intrinsic.Date.internal;
-  collapsibleLimitString = describeCollapsibleDate$1(this.rule);
+  collapsibleLimitString = describeCollapsibleDate(this.rule);
   traverseAllows = (data) => data >= this.rule;
   reduceJsonSchema(base, ctx) {
     return ctx.fallback.date({ code: "date", base, after: this.rule });
@@ -2625,7 +2402,7 @@ const implementation$i = implementNode({
   normalize: createDateSchemaNormalizer("before"),
   defaults: {
     description: (node2) => `${node2.collapsibleLimitString} or earlier`,
-    actual: describeCollapsibleDate$1
+    actual: describeCollapsibleDate
   },
   intersections: {
     before: (l, r) => l.isStricterThan(r) ? l : r,
@@ -2633,7 +2410,7 @@ const implementation$i = implementNode({
   }
 });
 class BeforeNode extends BaseRange {
-  collapsibleLimitString = describeCollapsibleDate$1(this.rule);
+  collapsibleLimitString = describeCollapsibleDate(this.rule);
   traverseAllows = (data) => data <= this.rule;
   impliedBasis = $ark.intrinsic.Date.internal;
   reduceJsonSchema(base, ctx) {
@@ -2910,7 +2687,7 @@ const Pattern = {
 const schemaKindOf = (schema, allowedKinds) => {
   const kind = discriminateRootKind(schema);
   if (allowedKinds && !allowedKinds.includes(kind)) {
-    return throwParseError$1(`Root of kind ${kind} should be one of ${allowedKinds}`);
+    return throwParseError(`Root of kind ${kind} should be one of ${allowedKinds}`);
   }
   return kind;
 };
@@ -2923,10 +2700,10 @@ const discriminateRootKind = (schema) => {
   if (typeof schema === "function")
     return "proto";
   if (typeof schema !== "object" || schema === null)
-    return throwParseError$1(writeInvalidSchemaMessage(schema));
+    return throwParseError(writeInvalidSchemaMessage(schema));
   if ("morphs" in schema)
     return "morph";
-  if ("branches" in schema || isArray$1(schema))
+  if ("branches" in schema || isArray(schema))
     return "union";
   if ("unit" in schema)
     return "unit";
@@ -2939,11 +2716,11 @@ const discriminateRootKind = (schema) => {
     return "proto";
   if ("domain" in schema)
     return "domain";
-  return throwParseError$1(writeInvalidSchemaMessage(schema));
+  return throwParseError(writeInvalidSchemaMessage(schema));
 };
-const writeInvalidSchemaMessage = (schema) => `${printable$1(schema)} is not a valid type schema`;
+const writeInvalidSchemaMessage = (schema) => `${printable(schema)} is not a valid type schema`;
 const nodeCountsByPrefix = {};
-const serializeListableChild = (listableNode) => isArray$1(listableNode) ? listableNode.map((node2) => node2.collapsibleJson) : listableNode.collapsibleJson;
+const serializeListableChild = (listableNode) => isArray(listableNode) ? listableNode.map((node2) => node2.collapsibleJson) : listableNode.collapsibleJson;
 const nodesByRegisteredId = {};
 $ark.nodesByRegisteredId = nodesByRegisteredId;
 const registerNodeId = (prefix) => {
@@ -2968,7 +2745,7 @@ const parseNode = (ctx) => {
     const k = entry[0];
     const keyImpl = impl.keys[k];
     if (!keyImpl)
-      return throwParseError$1(`Key ${k} is not valid on ${ctx.kind} schema`);
+      return throwParseError(`Key ${k} is not valid on ${ctx.kind} schema`);
     const v = keyImpl.parse ? keyImpl.parse(entry[1], ctx) : entry[1];
     if (v !== unset && (v !== void 0 || keyImpl.preserveUndefined))
       inner[k] = v;
@@ -3001,7 +2778,7 @@ const createNode = ({ id, kind, inner, meta, $, ignoreCache }) => {
     innerJson[k] = serialize(v);
     if (keyImpl.child === true) {
       const listableNode = v;
-      if (isArray$1(listableNode))
+      if (isArray(listableNode))
         children.push(...listableNode);
       else
         children.push(listableNode);
@@ -3012,8 +2789,8 @@ const createNode = ({ id, kind, inner, meta, $, ignoreCache }) => {
     innerJson = impl.finalizeInnerJson(innerJson);
   let json2 = { ...innerJson };
   let metaJson = {};
-  if (!isEmptyObject$1(meta)) {
-    metaJson = flatMorph$1(meta, (k, v) => [
+  if (!isEmptyObject(meta)) {
+    metaJson = flatMorph(meta, (k, v) => [
       k,
       k === "examples" ? v : defaultValueSerializer(v)
     ]);
@@ -3053,7 +2830,7 @@ const withId = (node2, id) => {
   if (node2.id === id)
     return node2;
   if (isNode(nodesByRegisteredId[id]))
-    throwInternalError$1(`Unexpected attempt to overwrite node id ${id}`);
+    throwInternalError(`Unexpected attempt to overwrite node id ${id}`);
   return createNode({
     id,
     kind: node2.kind,
@@ -3080,7 +2857,7 @@ const possiblyCollapse = (json2, toKey, allowPrimitive) => {
       return collapsed;
     if (
       // if the collapsed value is still an object
-      hasDomain$1(collapsed, "object") && // and the JSON did not include any implied keys
+      hasDomain(collapsed, "object") && // and the JSON did not include any implied keys
       (Object.keys(collapsed).length === 1 || Array.isArray(collapsed))
     ) {
       return collapsed;
@@ -3107,7 +2884,7 @@ const intersectProps = (l, r, ctx) => {
       value: value2
     });
   }
-  const defaultIntersection = l.hasDefault() ? r.hasDefault() ? l.default === r.default ? l.default : throwParseError$1(writeDefaultIntersectionMessage(l.default, r.default)) : l.default : r.hasDefault() ? r.default : unset;
+  const defaultIntersection = l.hasDefault() ? r.hasDefault() ? l.default === r.default ? l.default : throwParseError(writeDefaultIntersectionMessage(l.default, r.default)) : l.default : r.hasDefault() ? r.default : unset;
   return ctx.$.node("optional", {
     key,
     value: value2,
@@ -3121,7 +2898,7 @@ class BaseProp extends BaseConstraint {
   impliedBasis = $ark.intrinsic.object.internal;
   serializedKey = compileSerializedValue(this.key);
   compiledKey = typeof this.key === "string" ? this.key : this.serializedKey;
-  flatRefs = append$1(this.value.flatRefs.map((ref) => flatRef([this.key, ...ref.path], ref.node)), flatRef([this.key], this.value));
+  flatRefs = append(this.value.flatRefs.map((ref) => flatRef([this.key, ...ref.path], ref.node)), flatRef([this.key], this.value));
   _transform(mapper, ctx) {
     ctx.path.push(this.key);
     const result = super._transform(mapper, ctx);
@@ -3152,7 +2929,7 @@ class BaseProp extends BaseConstraint {
       js.return(true);
   }
 }
-const writeDefaultIntersectionMessage = (lValue, rValue) => `Invalid intersection of default values ${printable$1(lValue)} & ${printable$1(rValue)}`;
+const writeDefaultIntersectionMessage = (lValue, rValue) => `Invalid intersection of default values ${printable(lValue)} & ${printable(rValue)}`;
 const implementation$b = implementNode({
   kind: "optional",
   hasAssociatedError: false,
@@ -3202,7 +2979,7 @@ class OptionalNode extends BaseProp {
     const { default: defaultValue, ...requiredInner } = this.inner;
     return this.cacheGetter("outProp", this.$.node("required", requiredInner, { prereduced: true }));
   }
-  expression = this.hasDefault() ? `${this.compiledKey}: ${this.value.expression} = ${printable$1(this.inner.default)}` : `${this.compiledKey}?: ${this.value.expression}`;
+  expression = this.hasDefault() ? `${this.compiledKey}: ${this.value.expression} = ${printable(this.inner.default)}` : `${this.compiledKey}?: ${this.value.expression}`;
   defaultValueMorph = getDefaultableMorph(this);
   defaultValueMorphRef = this.defaultValueMorph && registeredReference(this.defaultValueMorph);
 }
@@ -3228,7 +3005,7 @@ const computeDefaultValueMorph = (key, value2, defaultInput) => {
     };
   }
   const precomputedMorphedDefault = value2.includesTransform ? value2.assert(defaultInput) : defaultInput;
-  return hasDomain$1(precomputedMorphedDefault, "object") ? (
+  return hasDomain(precomputedMorphedDefault, "object") ? (
     // the type signature only allows this if the value was morphed
     (data, ctx) => {
       traverseKey(key, () => value2(data[key] = defaultInput, ctx), ctx);
@@ -3240,16 +3017,16 @@ const computeDefaultValueMorph = (key, value2, defaultInput) => {
   };
 };
 const assertDefaultValueAssignability = (node2, value2, key) => {
-  const wrapped = isThunk$1(value2);
-  if (hasDomain$1(value2, "object") && !wrapped)
-    throwParseError$1(writeNonPrimitiveNonFunctionDefaultValueMessage(key));
+  const wrapped = isThunk(value2);
+  if (hasDomain(value2, "object") && !wrapped)
+    throwParseError(writeNonPrimitiveNonFunctionDefaultValueMessage(key));
   const out = node2.in(wrapped ? value2() : value2);
   if (out instanceof ArkErrors) {
     if (key === null) {
-      throwParseError$1(`Default ${out.summary}`);
+      throwParseError(`Default ${out.summary}`);
     }
     const atPath = out.transform((e) => e.transform((input) => ({ ...input, prefixPath: [key] })));
-    throwParseError$1(`Default for ${atPath.summary}`);
+    throwParseError(`Default for ${atPath.summary}`);
   }
   return value2;
 };
@@ -3285,7 +3062,7 @@ class BaseRoot extends BaseNode {
       },
       toJSONSchema: (opts) => {
         if (opts.target && opts.target !== "draft-2020-12") {
-          return throwParseError$1(`JSONSchema target '${opts.target}' is not supported (must be "draft-2020-12")`);
+          return throwParseError(`JSONSchema target '${opts.target}' is not supported (must be "draft-2020-12")`);
         }
         if (opts.io === "input")
           return this.rawIn.toJsonSchema();
@@ -3298,7 +3075,7 @@ class BaseRoot extends BaseNode {
   }
   brand(name) {
     if (name === "")
-      return throwParseError$1(emptyBrandNameMessage);
+      return throwParseError(emptyBrandNameMessage);
     return this;
   }
   readonly() {
@@ -3318,7 +3095,7 @@ class BaseRoot extends BaseNode {
     const schema = typeof ctx.dialect === "string" ? { $schema: ctx.dialect } : {};
     Object.assign(schema, this.toJsonSchemaRecurse(ctx));
     if (ctx.useRefs) {
-      schema.$defs = flatMorph$1(this.references, (i, ref) => ref.isRoot() && !ref.alwaysExpandJsonSchema ? [ref.id, ref.toResolvedJsonSchema(ctx)] : []);
+      schema.$defs = flatMorph(this.references, (i, ref) => ref.isRoot() && !ref.alwaysExpandJsonSchema ? [ref.id, ref.toResolvedJsonSchema(ctx)] : []);
     }
     return schema;
   }
@@ -3384,19 +3161,19 @@ class BaseRoot extends BaseNode {
       return this._keyof;
     const result = this.applyStructuralOperation("keyof", []).reduce((result2, branch) => result2.intersect(branch).toNeverIfDisjoint(), $ark.intrinsic.unknown.internal);
     if (result.branches.length === 0) {
-      throwParseError$1(writeUnsatisfiableExpressionError(`keyof ${this.expression}`));
+      throwParseError(writeUnsatisfiableExpressionError(`keyof ${this.expression}`));
     }
     return this._keyof = this.$.finalize(result);
   }
   get props() {
     if (this.branches.length !== 1)
-      return throwParseError$1(writeLiteralUnionEntriesMessage(this.expression));
+      return throwParseError(writeLiteralUnionEntriesMessage(this.expression));
     return [...this.applyStructuralOperation("props", [])[0]];
   }
   merge(r) {
     const rNode = this.$.parseDefinition(r);
     return this.$.schema(rNode.distribute((branch) => this.applyStructuralOperation("merge", [
-      structureOf(branch) ?? throwParseError$1(writeNonStructuralOperandMessage("merge", branch.expression))
+      structureOf(branch) ?? throwParseError(writeNonStructuralOperandMessage("merge", branch.expression))
     ])));
   }
   applyStructuralOperation(operation, args) {
@@ -3405,7 +3182,7 @@ class BaseRoot extends BaseNode {
         return branch;
       const structure = structureOf(branch);
       if (!structure) {
-        throwParseError$1(writeNonStructuralOperandMessage(operation, branch.expression));
+        throwParseError(writeNonStructuralOperandMessage(operation, branch.expression));
       }
       if (operation === "keyof")
         return structure.keyof();
@@ -3534,7 +3311,7 @@ class BaseRoot extends BaseNode {
   _constrain(io, kind, schema) {
     const constraint = this.$.node(kind, schema);
     if (constraint.isRoot()) {
-      return constraint.isUnknown() ? this : throwInternalError$1(`Unexpected constraint node ${constraint}`);
+      return constraint.isUnknown() ? this : throwInternalError(`Unexpected constraint node ${constraint}`);
     }
     const operand = io === "root" ? this : io === "in" ? this.rawIn : this.rawOut;
     if (operand.hasKind("morph") || constraint.impliedBasis && !operand.extends(constraint.impliedBasis)) {
@@ -3637,7 +3414,7 @@ const structureOf = (branch) => {
 const writeLiteralUnionEntriesMessage = (expression) => `Props cannot be extracted from a union. Use .distribute to extract props from each branch instead. Received:
 ${expression}`;
 const writeNonStructuralOperandMessage = (operation, operand) => `${operation} operand must be an object (was ${operand})`;
-const defineRightwardIntersections = (kind, implementation2) => flatMorph$1(schemaKindsRightOf(kind), (i, kind2) => [
+const defineRightwardIntersections = (kind, implementation2) => flatMorph(schemaKindsRightOf(kind), (i, kind2) => [
   kind2,
   implementation2
 ]);
@@ -3688,15 +3465,15 @@ class AliasNode extends BaseRoot {
     const seen = [];
     while (hasArkKind(resolution, "context")) {
       if (seen.includes(resolution.id)) {
-        return throwParseError$1(writeShallowCycleErrorMessage(resolution.id, seen));
+        return throwParseError(writeShallowCycleErrorMessage(resolution.id, seen));
       }
       seen.push(resolution.id);
       resolution = nodesByRegisteredId[resolution.id];
     }
     if (!hasArkKind(resolution, "root")) {
-      return throwInternalError$1(`Unexpected resolution for reference ${this.reference}
+      return throwInternalError(`Unexpected resolution for reference ${this.reference}
 Seen: [${seen.join("->")}] 
-Resolution: ${printable$1(resolution)}`);
+Resolution: ${printable(resolution)}`);
     }
     return resolution;
   }
@@ -3711,7 +3488,7 @@ Resolution: ${printable$1(resolution)}`);
       return resolution;
     if (hasArkKind(resolution, "root"))
       return resolution.id;
-    return throwInternalError$1(`Unexpected resolution for reference ${this.reference}: ${printable$1(resolution)}`);
+    return throwInternalError(`Unexpected resolution for reference ${this.reference}: ${printable(resolution)}`);
   }
   get defaultShortDescription() {
     return domainDescriptions.object;
@@ -3723,14 +3500,14 @@ Resolution: ${printable$1(resolution)}`);
     const seen = ctx.seen[this.reference];
     if (seen?.includes(data))
       return true;
-    ctx.seen[this.reference] = append$1(seen, data);
+    ctx.seen[this.reference] = append(seen, data);
     return this.resolution.traverseAllows(data, ctx);
   };
   traverseApply = (data, ctx) => {
     const seen = ctx.seen[this.reference];
     if (seen?.includes(data))
       return;
-    ctx.seen[this.reference] = append$1(seen, data);
+    ctx.seen[this.reference] = append(seen, data);
     this.resolution.traverseApply(data, ctx);
   };
   compile(js) {
@@ -3778,11 +3555,11 @@ const implementation$9 = implementNode({
     domain: {},
     numberAllowsNaN: {}
   },
-  normalize: (schema) => typeof schema === "string" ? { domain: schema } : hasKey(schema, "numberAllowsNaN") && schema.domain !== "number" ? throwParseError$1(Domain.writeBadAllowNanMessage(schema.domain)) : schema,
+  normalize: (schema) => typeof schema === "string" ? { domain: schema } : hasKey(schema, "numberAllowsNaN") && schema.domain !== "number" ? throwParseError(Domain.writeBadAllowNanMessage(schema.domain)) : schema,
   applyConfig: (schema, config) => schema.numberAllowsNaN === void 0 && schema.domain === "number" && config.numberAllowsNaN ? { ...schema, numberAllowsNaN: true } : schema,
   defaults: {
     description: (node2) => domainDescriptions[node2.domain],
-    actual: (data) => Number.isNaN(data) ? "NaN" : domainDescriptions[domainOf$1(data)]
+    actual: (data) => Number.isNaN(data) ? "NaN" : domainDescriptions[domainOf(data)]
   },
   intersections: {
     domain: (l, r) => (
@@ -3794,7 +3571,7 @@ const implementation$9 = implementNode({
 });
 class DomainNode extends InternalBasis {
   requiresNaNCheck = this.domain === "number" && !this.numberAllowsNaN;
-  traverseAllows = this.requiresNaNCheck ? (data) => typeof data === "number" && !Number.isNaN(data) : (data) => domainOf$1(data) === this.domain;
+  traverseAllows = this.requiresNaNCheck ? (data) => typeof data === "number" && !Number.isNaN(data) : (data) => domainOf(data) === this.domain;
   compiledCondition = this.domain === "object" ? `((typeof data === "object" && data !== null) || typeof data === "function")` : `typeof data === "${this.domain}"${this.requiresNaNCheck ? " && !Number.isNaN(data)" : ""}`;
   compiledNegation = this.domain === "object" ? `((typeof data !== "object" || data === null) && typeof data !== "function")` : `typeof data !== "${this.domain}"${this.requiresNaNCheck ? " || Number.isNaN(data)" : ""}`;
   expression = this.numberAllowsNaN ? "number | NaN" : this.domain;
@@ -3831,21 +3608,21 @@ const implementation$8 = implementNode({
     const { structure, ...schema } = rawSchema;
     const hasRootStructureKey = !!structure;
     const normalizedStructure = structure ?? {};
-    const normalized = flatMorph$1(schema, (k, v) => {
-      if (isKeyOf$1(k, structureKeys)) {
+    const normalized = flatMorph(schema, (k, v) => {
+      if (isKeyOf(k, structureKeys)) {
         if (hasRootStructureKey) {
-          throwParseError$1(`Flattened structure key ${k} cannot be specified alongside a root 'structure' key.`);
+          throwParseError(`Flattened structure key ${k} cannot be specified alongside a root 'structure' key.`);
         }
         normalizedStructure[k] = v;
         return [];
       }
       return [k, v];
     });
-    if (hasArkKind(normalizedStructure, "constraint") || !isEmptyObject$1(normalizedStructure))
+    if (hasArkKind(normalizedStructure, "constraint") || !isEmptyObject(normalizedStructure))
       normalized.structure = normalizedStructure;
     return normalized;
   },
-  finalizeInnerJson: ({ structure, ...rest }) => hasDomain$1(structure, "object") ? { ...structure, ...rest } : rest,
+  finalizeInnerJson: ({ structure, ...rest }) => hasDomain(structure, "object") ? { ...structure, ...rest } : rest,
   keys: {
     domain: {
       child: true,
@@ -3929,7 +3706,7 @@ const implementation$8 = implementNode({
       if (node2.basis && !node2.prestructurals.some((r) => r.impl.obviatesBasisDescription))
         childDescriptions.push(node2.basis.description);
       if (node2.prestructurals.length) {
-        const sortedRefinementDescriptions = node2.prestructurals.toSorted((l, r) => l.kind === "min" && r.kind === "max" ? -1 : 0).map((r) => r.description);
+        const sortedRefinementDescriptions = node2.prestructurals.slice().sort((l, r) => l.kind === "min" && r.kind === "max" ? -1 : 0).map((r) => r.description);
         childDescriptions.push(...sortedRefinementDescriptions);
       }
       if (node2.inner.predicate) {
@@ -3995,7 +3772,7 @@ class IntersectionNode extends BaseRoot {
         if (ctx.failFast && ctx.currentErrorCount > errorCount)
           return;
       }
-      this.prestructurals.at(-1).traverseApply(data, ctx);
+      this.prestructurals[this.prestructurals.length - 1].traverseApply(data, ctx);
       if (ctx.currentErrorCount > errorCount)
         return;
     }
@@ -4010,7 +3787,7 @@ class IntersectionNode extends BaseRoot {
         if (ctx.failFast && ctx.currentErrorCount > errorCount)
           return;
       }
-      this.inner.predicate.at(-1).traverseApply(data, ctx);
+      this.inner.predicate[this.inner.predicate.length - 1].traverseApply(data, ctx);
     }
   };
   compile(js) {
@@ -4031,7 +3808,7 @@ class IntersectionNode extends BaseRoot {
         js.check(this.prestructurals[i]);
         js.returnIfFailFast();
       }
-      js.check(this.prestructurals.at(-1));
+      js.check(this.prestructurals[this.prestructurals.length - 1]);
       if (this.structure || this.inner.predicate)
         js.returnIfFail();
     }
@@ -4045,7 +3822,7 @@ class IntersectionNode extends BaseRoot {
         js.check(this.inner.predicate[i]);
         js.returnIfFail();
       }
-      js.check(this.inner.predicate.at(-1));
+      js.check(this.inner.predicate[this.inner.predicate.length - 1]);
     }
   }
 }
@@ -4090,7 +3867,7 @@ const implementation$7 = implementNode({
       parse: (schema, ctx) => ctx.$.parseSchema(schema)
     },
     morphs: {
-      parse: liftArray$1,
+      parse: liftArray,
       serialize: (morphs) => morphs.map((m) => hasArkKind(m, "root") ? m.json : registeredReference(m))
     },
     declaredIn: {
@@ -4109,7 +3886,7 @@ const implementation$7 = implementNode({
   intersections: {
     morph: (l, r, ctx) => {
       if (!l.hasEqualMorphs(r)) {
-        return throwParseError$1(writeMorphIntersectionMessage(l.expression, r.expression));
+        return throwParseError(writeMorphIntersectionMessage(l.expression, r.expression));
       }
       const inTersection = intersectOrPipeNodes(l.rawIn, r.rawIn, ctx);
       if (inTersection instanceof Disjoint)
@@ -4148,7 +3925,7 @@ const implementation$7 = implementNode({
 class MorphNode extends BaseRoot {
   serializedMorphs = this.morphs.map(registeredReference);
   compiledMorphs = `[${this.serializedMorphs}]`;
-  lastMorph = this.inner.morphs.at(-1);
+  lastMorph = this.inner.morphs[this.inner.morphs.length - 1];
   lastMorphIfNode = hasArkKind(this.lastMorph, "root") ? this.lastMorph : void 0;
   introspectableIn = this.inner.in;
   introspectableOut = this.lastMorphIfNode ? Object.assign(this.referencesById, this.lastMorphIfNode.referencesById) && this.lastMorphIfNode.rawOut : void 0;
@@ -4226,11 +4003,11 @@ const implementation$6 = implementNode({
     dateAllowsInvalid: {}
   },
   normalize: (schema) => {
-    const normalized = typeof schema === "string" ? { proto: builtinConstructors$1[schema] } : typeof schema === "function" ? isNode(schema) ? schema : { proto: schema } : typeof schema.proto === "string" ? { ...schema, proto: builtinConstructors$1[schema.proto] } : schema;
+    const normalized = typeof schema === "string" ? { proto: builtinConstructors[schema] } : typeof schema === "function" ? isNode(schema) ? schema : { proto: schema } : typeof schema.proto === "string" ? { ...schema, proto: builtinConstructors[schema.proto] } : schema;
     if (typeof normalized.proto !== "function")
-      throwParseError$1(Proto.writeInvalidSchemaMessage(normalized.proto));
+      throwParseError(Proto.writeInvalidSchemaMessage(normalized.proto));
     if (hasKey(normalized, "dateAllowsInvalid") && normalized.proto !== Date)
-      throwParseError$1(Proto.writeBadInvalidDateMessage(normalized.proto));
+      throwParseError(Proto.writeBadInvalidDateMessage(normalized.proto));
     return normalized;
   },
   applyConfig: (schema, config) => {
@@ -4240,7 +4017,7 @@ const implementation$6 = implementNode({
   },
   defaults: {
     description: (node2) => node2.builtinName ? objectKindDescriptions[node2.builtinName] : `an instance of ${node2.proto.name}`,
-    actual: (data) => data instanceof Date && data.toString() === "Invalid Date" ? "an invalid Date" : objectKindOrDomainOf$1(data)
+    actual: (data) => data instanceof Date && data.toString() === "Invalid Date" ? "an invalid Date" : objectKindOrDomainOf(data)
   },
   intersections: {
     proto: (l, r) => l.proto === Date && r.proto === Date ? (
@@ -4287,7 +4064,7 @@ const Proto = {
   implementation: implementation$6,
   Node: ProtoNode,
   writeBadInvalidDateMessage: (actual) => `dateAllowsInvalid may only be specified with constructor Date (was ${actual.name})`,
-  writeInvalidSchemaMessage: (actual) => `instanceOf operand must be a function (was ${domainOf$1(actual)})`
+  writeInvalidSchemaMessage: (actual) => `instanceOf operand must be a function (was ${domainOf(actual)})`
 };
 const implementation$5 = implementNode({
   kind: "union",
@@ -4323,7 +4100,7 @@ const implementation$5 = implementNode({
       }
     }
   },
-  normalize: (schema) => isArray$1(schema) ? { branches: schema } : schema,
+  normalize: (schema) => isArray(schema) ? { branches: schema } : schema,
   reduce: (inner, $) => {
     const reducedBranches = reduceBranches(inner);
     if (reducedBranches.length === 1)
@@ -4338,13 +4115,13 @@ const implementation$5 = implementNode({
   defaults: {
     description: (node2) => node2.distribute((branch) => branch.description, describeBranches),
     expected: (ctx) => {
-      const byPath = groupBy2(ctx.errors, "propString");
+      const byPath = groupBy(ctx.errors, "propString");
       const pathDescriptions = Object.entries(byPath).map(([path, errors]) => {
         const branchesAtPath = [];
         for (const errorAtPath of errors)
           appendUnique(branchesAtPath, errorAtPath.expected);
         const expected = describeBranches(branchesAtPath);
-        const actual = errors.every((e) => e.actual === errors[0].actual) ? errors[0].actual : printable$1(errors[0].data);
+        const actual = errors.every((e) => e.actual === errors[0].actual) ? errors[0].actual : printable(errors[0].data);
         return `${path && `${path} `}must be ${expected}${actual && ` (was ${actual})`}`;
       });
       return describeBranches(pathDescriptions);
@@ -4365,7 +4142,7 @@ const implementation$5 = implementNode({
       let resultBranches;
       if (l.ordered) {
         if (r.ordered) {
-          throwParseError$1(writeOrderedIntersectionMessage(l.expression, r.expression));
+          throwParseError(writeOrderedIntersectionMessage(l.expression, r.expression));
         }
         resultBranches = intersectBranches(r.branches, l.branches, ctx);
         if (resultBranches instanceof Disjoint)
@@ -4544,7 +4321,7 @@ class UnionNode extends BaseRoot {
     if (this.branches.length < 2 || this.isCyclic)
       return null;
     if (this.unitBranches.length === this.branches.length) {
-      const cases2 = flatMorph$1(this.unitBranches, (i, n) => [
+      const cases2 = flatMorph(this.unitBranches, (i, n) => [
         `${n.rawIn.serializedValue}`,
         n.hasKind("morph") ? n : true
       ]);
@@ -4744,7 +4521,7 @@ const discriminantCaseToNode = (caseDiscriminant, path, $) => {
 };
 const optionallyChainPropString = (path) => path.reduce((acc, k) => acc + compileLiteralPropAccess(k, true), "data");
 const serializedTypeOfDescriptions = registeredReference(jsTypeOfDescriptions);
-const serializedPrintable = registeredReference(printable$1);
+const serializedPrintable = registeredReference(printable);
 const Union = {
   implementation: implementation$5,
   Node: UnionNode
@@ -4752,7 +4529,7 @@ const Union = {
 const discriminantToJson = (discriminant) => ({
   kind: discriminant.kind,
   path: discriminant.path.map((k) => typeof k === "string" ? k : compileSerializedValue(k)),
-  cases: flatMorph$1(discriminant.cases, (k, node2) => [
+  cases: flatMorph(discriminant.cases, (k, node2) => [
     k,
     node2 === true ? node2 : node2.hasKind("union") && node2.discriminantJson ? node2.discriminantJson : node2.json
   ])
@@ -4841,12 +4618,12 @@ const assertDeterminateOverlap = (l, r) => {
   if (!l.includesTransform && !r.includesTransform)
     return;
   if (!arrayEquals(l.shallowMorphs, r.shallowMorphs)) {
-    throwParseError$1(writeIndiscriminableMorphMessage(l.expression, r.expression));
+    throwParseError(writeIndiscriminableMorphMessage(l.expression, r.expression));
   }
   if (!arrayEquals(l.flatMorphs, r.flatMorphs, {
     isEqual: (l2, r2) => l2.propString === r2.propString && (l2.node.hasKind("morph") && r2.node.hasKind("morph") ? l2.node.hasEqualMorphs(r2.node) : l2.node.hasKind("intersection") && r2.node.hasKind("intersection") ? l2.node.structure?.structuralMorphRef === r2.node.structure?.structuralMorphRef : false)
   })) {
-    throwParseError$1(writeIndiscriminableMorphMessage(l.expression, r.expression));
+    throwParseError(writeIndiscriminableMorphMessage(l.expression, r.expression));
   }
 };
 const pruneDiscriminant = (discriminantBranch, discriminantCtx) => discriminantBranch.transform((nodeKind, inner) => {
@@ -4882,7 +4659,7 @@ const implementation$4 = implementNode({
   },
   normalize: (schema) => schema,
   defaults: {
-    description: (node2) => printable$1(node2.unit),
+    description: (node2) => printable(node2.unit),
     problem: ({ expected, actual }) => `${expected === actual ? `must be reference equal to ${expected} (serialized to the same value)` : `must be ${expected} (was ${actual})`}`
   },
   intersections: {
@@ -4907,8 +4684,8 @@ class UnitNode extends InternalBasis {
   serializedValue = typeof this.unit === "string" || this.unit instanceof Date ? JSON.stringify(this.compiledValue) : `${this.compiledValue}`;
   compiledCondition = compileEqualityCheck(this.unit, this.serializedValue);
   compiledNegation = compileEqualityCheck(this.unit, this.serializedValue, "negated");
-  expression = printable$1(this.unit);
-  domain = domainOf$1(this.unit);
+  expression = printable(this.unit);
+  domain = domainOf(this.unit);
   get defaultShortDescription() {
     return this.domain === "object" ? domainDescriptions.object : this.description;
   }
@@ -4943,11 +4720,11 @@ const implementation$3 = implementNode({
       parse: (schema, ctx) => {
         const key = ctx.$.parseSchema(schema);
         if (!key.extends($ark.intrinsic.key)) {
-          return throwParseError$1(writeInvalidPropertyKeyMessage(key.expression));
+          return throwParseError(writeInvalidPropertyKeyMessage(key.expression));
         }
         const enumerableBranches = key.branches.filter((b) => b.hasKind("unit"));
         if (enumerableBranches.length) {
-          return throwParseError$1(writeEnumerableIndexBranches(enumerableBranches.map((b) => printable$1(b.unit))));
+          return throwParseError(writeEnumerableIndexBranches(enumerableBranches.map((b) => printable(b.unit))));
         }
         return key;
       }
@@ -4979,15 +4756,15 @@ const implementation$3 = implementNode({
 class IndexNode extends BaseConstraint {
   impliedBasis = $ark.intrinsic.object.internal;
   expression = `[${this.signature.expression}]: ${this.value.expression}`;
-  flatRefs = append$1(this.value.flatRefs.map((ref) => flatRef([this.signature, ...ref.path], ref.node)), flatRef([this.signature], this.value));
-  traverseAllows = (data, ctx) => stringAndSymbolicEntriesOf$1(data).every((entry) => {
+  flatRefs = append(this.value.flatRefs.map((ref) => flatRef([this.signature, ...ref.path], ref.node)), flatRef([this.signature], this.value));
+  traverseAllows = (data, ctx) => stringAndSymbolicEntriesOf(data).every((entry) => {
     if (this.signature.traverseAllows(entry[0], ctx)) {
       return traverseKey(entry[0], () => this.value.traverseAllows(entry[1], ctx), ctx);
     }
     return true;
   });
   traverseApply = (data, ctx) => {
-    for (const entry of stringAndSymbolicEntriesOf$1(data)) {
+    for (const entry of stringAndSymbolicEntriesOf(data)) {
       if (this.signature.traverseAllows(entry[0], ctx)) {
         traverseKey(entry[0], () => this.value.traverseApply(entry[1], ctx), ctx);
       }
@@ -5114,12 +4891,12 @@ const implementation$1 = implementNode({
     if ("variadic" in schema || "prefix" in schema || "defaultables" in schema || "optionals" in schema || "postfix" in schema || "minVariadicLength" in schema) {
       if (schema.postfix?.length) {
         if (!schema.variadic)
-          return throwParseError$1(postfixWithoutVariadicMessage);
+          return throwParseError(postfixWithoutVariadicMessage);
         if (schema.optionals?.length || schema.defaultables?.length)
-          return throwParseError$1(postfixAfterOptionalOrDefaultableMessage);
+          return throwParseError(postfixAfterOptionalOrDefaultableMessage);
       }
       if (schema.minVariadicLength && !schema.variadic) {
-        return throwParseError$1("minVariadicLength may not be specified without a variadic element");
+        return throwParseError("minVariadicLength may not be specified without a variadic element");
       }
       return schema;
     }
@@ -5132,10 +4909,10 @@ const implementation$1 = implementNode({
     const optionals = raw.optionals?.slice() ?? [];
     const postfix = raw.postfix?.slice() ?? [];
     if (raw.variadic) {
-      while (optionals.at(-1)?.equals(raw.variadic))
+      while (optionals[optionals.length - 1]?.equals(raw.variadic))
         optionals.pop();
       if (optionals.length === 0 && defaultables.length === 0) {
-        while (prefix.at(-1)?.equals(raw.variadic)) {
+        while (prefix[prefix.length - 1]?.equals(raw.variadic)) {
           prefix.pop();
           minVariadicLength++;
         }
@@ -5167,7 +4944,7 @@ const implementation$1 = implementNode({
     description: (node2) => {
       if (node2.isVariadicOnly)
         return `${node2.variadic.nestableExpression}[]`;
-      const innerDescription = node2.tuple.map((element) => element.kind === "defaultables" ? `${element.node.nestableExpression} = ${printable$1(element.default)}` : element.kind === "optionals" ? `${element.node.nestableExpression}?` : element.kind === "variadic" ? `...${element.node.nestableExpression}[]` : element.node.expression).join(", ");
+      const innerDescription = node2.tuple.map((element) => element.kind === "defaultables" ? `${element.node.nestableExpression} = ${printable(element.default)}` : element.kind === "optionals" ? `${element.node.nestableExpression}?` : element.kind === "variadic" ? `...${element.node.nestableExpression}[]` : element.node.expression).join(", ");
       return `[${innerDescription}]`;
     }
   },
@@ -5212,11 +4989,11 @@ class SequenceNode extends BaseConstraint {
   // have to wait until prevariadic and variadicOrPostfix are set to calculate
   flatRefs = this.addFlatRefs();
   addFlatRefs() {
-    appendUniqueFlatRefs(this.flatRefs, this.prevariadic.flatMap((element, i) => append$1(element.node.flatRefs.map((ref) => flatRef([`${i}`, ...ref.path], ref.node)), flatRef([`${i}`], element.node))));
+    appendUniqueFlatRefs(this.flatRefs, this.prevariadic.flatMap((element, i) => append(element.node.flatRefs.map((ref) => flatRef([`${i}`, ...ref.path], ref.node)), flatRef([`${i}`], element.node))));
     appendUniqueFlatRefs(this.flatRefs, this.variadicOrPostfix.flatMap((element) => (
       // a postfix index can't be directly represented as a type
       // key, so we just use the same matcher for variadic
-      append$1(element.flatRefs.map((ref) => flatRef([$ark.intrinsic.nonNegativeIntegerString.internal, ...ref.path], ref.node)), flatRef([$ark.intrinsic.nonNegativeIntegerString.internal], element))
+      append(element.flatRefs.map((ref) => flatRef([$ark.intrinsic.nonNegativeIntegerString.internal, ...ref.path], ref.node)), flatRef([$ark.intrinsic.nonNegativeIntegerString.internal], element))
     )));
     return this.flatRefs;
   }
@@ -5237,7 +5014,7 @@ class SequenceNode extends BaseConstraint {
       return { kind: "postfix", node: this.postfix[index - firstPostfixIndex] };
     return {
       kind: "variadic",
-      node: this.variadic ?? throwInternalError$1(`Unexpected attempt to access index ${index} on ${this}`)
+      node: this.variadic ?? throwInternalError(`Unexpected attempt to access index ${index} on ${this}`)
     };
   }
   // minLength/maxLength should be checked by Intersection before either traversal
@@ -5371,11 +5148,11 @@ const sequenceTupleToInner = (tuple) => tuple.reduce((result, element) => {
   if (element.kind === "variadic")
     result.variadic = element.node;
   else if (element.kind === "defaultables") {
-    result.defaultables = append$1(result.defaultables, [
+    result.defaultables = append(result.defaultables, [
       [element.node, element.default]
     ]);
   } else
-    result[element.kind] = append$1(result[element.kind], element.node);
+    result[element.kind] = append(result[element.kind], element.node);
   return result;
 }, {});
 const postfixAfterOptionalOrDefaultableMessage = "A postfix required element cannot follow an optional or defaultable element";
@@ -5385,8 +5162,8 @@ const _intersectSequences = (s) => {
   const [rHead, ...rTail] = s.r;
   if (!lHead || !rHead)
     return s;
-  const lHasPostfix = lTail.at(-1)?.kind === "postfix";
-  const rHasPostfix = rTail.at(-1)?.kind === "postfix";
+  const lHasPostfix = lTail[lTail.length - 1]?.kind === "postfix";
+  const rHasPostfix = rTail[rTail.length - 1]?.kind === "postfix";
   const kind = lHead.kind === "prefix" || rHead.kind === "prefix" ? "prefix" : lHead.kind === "postfix" || rHead.kind === "postfix" ? "postfix" : lHead.kind === "variadic" && rHead.kind === "variadic" ? "variadic" : lHasPostfix || rHasPostfix ? "prefix" : lHead.kind === "defaultables" || rHead.kind === "defaultables" ? "defaultables" : "optionals";
   if (lHead.kind === "prefix" && rHead.kind === "variadic" && rHasPostfix) {
     const postfixBranchResult = _intersectSequences({
@@ -5430,14 +5207,14 @@ const _intersectSequences = (s) => {
     }
   } else if (kind === "defaultables") {
     if (lHead.kind === "defaultables" && rHead.kind === "defaultables" && lHead.default !== rHead.default) {
-      throwParseError$1(writeDefaultIntersectionMessage(lHead.default, rHead.default));
+      throwParseError(writeDefaultIntersectionMessage(lHead.default, rHead.default));
     }
     s.result = [
       ...s.result,
       {
         kind,
         node: result,
-        default: lHead.kind === "defaultables" ? lHead.default : rHead.kind === "defaultables" ? rHead.default : throwInternalError$1(`Unexpected defaultable intersection from ${lHead.kind} and ${rHead.kind} elements.`)
+        default: lHead.kind === "defaultables" ? lHead.default : rHead.kind === "defaultables" ? rHead.default : throwInternalError(`Unexpected defaultable intersection from ${lHead.kind} and ${rHead.kind} elements.`)
       }
     ];
   } else
@@ -5496,7 +5273,7 @@ const implementation = implementNode({
       child: true,
       parse: constraintKeyParser("required"),
       reduceIo: (ioKind, inner, nodes) => {
-        inner.required = append$1(inner.required, nodes.map((node2) => ioKind === "in" ? node2.rawIn : node2.rawOut));
+        inner.required = append(inner.required, nodes.map((node2) => ioKind === "in" ? node2.rawIn : node2.rawOut));
         return;
       }
     },
@@ -5509,7 +5286,7 @@ const implementation = implementNode({
           return;
         }
         for (const node2 of nodes) {
-          inner[node2.outProp.kind] = append$1(inner[node2.outProp.kind], node2.outProp.rawOut);
+          inner[node2.outProp.kind] = append(inner[node2.outProp.kind], node2.outProp.rawOut);
         }
       }
     },
@@ -5630,7 +5407,7 @@ const implementation = implementNode({
       for (let i = 0; i < inner.required.length; i++) {
         const requiredProp = inner.required[i];
         if (requiredProp.key in seen)
-          throwParseError$1(writeDuplicateKeyMessage(requiredProp.key));
+          throwParseError(writeDuplicateKeyMessage(requiredProp.key));
         seen[requiredProp.key] = true;
         if (inner.index) {
           for (const index of inner.index) {
@@ -5645,7 +5422,7 @@ const implementation = implementNode({
       for (let i = 0; i < inner.optional.length; i++) {
         const optionalProp = inner.optional[i];
         if (optionalProp.key in seen)
-          throwParseError$1(writeDuplicateKeyMessage(optionalProp.key));
+          throwParseError(writeDuplicateKeyMessage(optionalProp.key));
         seen[optionalProp.key] = true;
         if (inner.index) {
           for (const index of inner.index) {
@@ -5669,7 +5446,7 @@ class StructureNode extends BaseConstraint {
   impliedBasis = $ark.intrinsic.object.internal;
   impliedSiblings = this.children.flatMap((n) => n.impliedSiblings ?? []);
   props = conflatenate(this.required, this.optional);
-  propsByKey = flatMorph$1(this.props, (i, node2) => [node2.key, node2]);
+  propsByKey = flatMorph(this.props, (i, node2) => [node2.key, node2]);
   propsByKeyReference = registeredReference(this.propsByKey);
   expression = structuralExpression(this);
   requiredKeys = this.required?.map((node2) => node2.key) ?? [];
@@ -5691,21 +5468,21 @@ class StructureNode extends BaseConstraint {
       const originalProp = this.propsByKey[mapped.key];
       if (isNode(mapped)) {
         if (mapped.kind !== "required" && mapped.kind !== "optional") {
-          return throwParseError$1(`Map result must have kind "required" or "optional" (was ${mapped.kind})`);
+          return throwParseError(`Map result must have kind "required" or "optional" (was ${mapped.kind})`);
         }
-        structureInner[mapped.kind] = append$1(structureInner[mapped.kind], mapped);
+        structureInner[mapped.kind] = append(structureInner[mapped.kind], mapped);
         return structureInner;
       }
       const mappedKind = mapped.kind ?? originalProp?.kind ?? "required";
-      const mappedPropInner = flatMorph$1(mapped, (k, v) => k in Optional.implementation.keys ? [k, v] : []);
-      structureInner[mappedKind] = append$1(structureInner[mappedKind], this.$.node(mappedKind, mappedPropInner));
+      const mappedPropInner = flatMorph(mapped, (k, v) => k in Optional.implementation.keys ? [k, v] : []);
+      structureInner[mappedKind] = append(structureInner[mappedKind], this.$.node(mappedKind, mappedPropInner));
       return structureInner;
     }, {}));
   }
   assertHasKeys(keys) {
     const invalidKeys = keys.filter((k) => !typeOrTermExtends(k, this.keyof()));
     if (invalidKeys.length) {
-      return throwParseError$1(writeInvalidKeysMessage(this.expression, invalidKeys));
+      return throwParseError(writeInvalidKeysMessage(this.expression, invalidKeys));
     }
   }
   get(indexer, ...path) {
@@ -5740,9 +5517,9 @@ class StructureNode extends BaseConstraint {
     }
     if (!value2) {
       if (this.sequence?.variadic && hasArkKind(key, "root") && key.extends($ark.intrinsic.number)) {
-        return throwParseError$1(writeNumberIndexMessage(key.expression, this.sequence.expression));
+        return throwParseError(writeNumberIndexMessage(key.expression, this.sequence.expression));
       }
-      return throwParseError$1(writeInvalidKeysMessage(this.expression, [key]));
+      return throwParseError(writeInvalidKeysMessage(this.expression, [key]));
     }
     const result = value2.get(...path);
     return required ? result : result.or($ark.intrinsic.undefined);
@@ -5775,11 +5552,11 @@ class StructureNode extends BaseConstraint {
   merge(r) {
     const inner = this.filterKeys("omit", [r.keyof()]);
     if (r.required)
-      inner.required = append$1(inner.required, r.required);
+      inner.required = append(inner.required, r.required);
     if (r.optional)
-      inner.optional = append$1(inner.optional, r.optional);
+      inner.optional = append(inner.optional, r.optional);
     if (r.index)
-      inner.index = append$1(inner.index, r.index);
+      inner.index = append(inner.index, r.index);
     if (r.sequence)
       inner.sequence = r.sequence;
     if (r.undeclared)
@@ -6003,7 +5780,7 @@ class StructureNode extends BaseConstraint {
             });
           }
           if (!keyBranch.hasKind("intersection")) {
-            return throwInternalError$1(`Unexpected index branch kind ${keyBranch.kind}.`);
+            return throwInternalError(`Unexpected index branch kind ${keyBranch.kind}.`);
           }
           const { pattern } = keyBranch.inner;
           if (pattern) {
@@ -6118,7 +5895,7 @@ const normalizeIndex = (signature, value2, $) => {
   const normalized = {};
   for (const n of enumerableBranches) {
     const prop = $.node("required", { key: n.unit, value: value2 });
-    normalized[prop.kind] = append$1(normalized[prop.kind], prop);
+    normalized[prop.kind] = append(normalized[prop.kind], prop);
   }
   if (nonEnumerableBranches.length) {
     normalized.index = $.node("index", {
@@ -6128,7 +5905,7 @@ const normalizeIndex = (signature, value2, $) => {
   }
   return normalized;
 };
-const typeKeyToString = (k) => hasArkKind(k, "root") ? k.expression : printable$1(k);
+const typeKeyToString = (k) => hasArkKind(k, "root") ? k.expression : printable(k);
 const writeInvalidKeysMessage = (o, keys) => `Key${keys.length === 1 ? "" : "s"} ${keys.map(typeKeyToString).join(", ")} ${keys.length === 1 ? "does" : "do"} not exist on ${o}`;
 const writeDuplicateKeyMessage = (key) => `Duplicate key ${compileSerializedValue(key)}`;
 const nodeImplementationsByKind = {
@@ -6149,7 +5926,7 @@ const nodeImplementationsByKind = {
   sequence: Sequence.implementation,
   structure: Structure.implementation
 };
-$ark.defaultConfig = withAlphabetizedKeys(Object.assign(flatMorph$1(nodeImplementationsByKind, (kind, implementation2) => [
+$ark.defaultConfig = withAlphabetizedKeys(Object.assign(flatMorph(nodeImplementationsByKind, (kind, implementation2) => [
   kind,
   implementation2.defaults
 ]), {
@@ -6188,12 +5965,12 @@ class RootModule extends DynamicBase {
     return "module";
   }
 }
-const bindModule = (module, $) => new RootModule(flatMorph$1(module, (alias, value2) => [
+const bindModule = (module, $) => new RootModule(flatMorph(module, (alias, value2) => [
   alias,
   hasArkKind(value2, "module") ? bindModule(value2, $) : $.bindReference(value2)
 ]));
-const schemaBranchesOf = (schema) => isArray$1(schema) ? schema : "branches" in schema && isArray$1(schema.branches) ? schema.branches : void 0;
-const throwMismatchedNodeRootError = (expected, actual) => throwParseError$1(`Node of kind ${actual} is not valid as a ${expected} definition`);
+const schemaBranchesOf = (schema) => isArray(schema) ? schema : "branches" in schema && isArray(schema.branches) ? schema.branches : void 0;
+const throwMismatchedNodeRootError = (expected, actual) => throwParseError(`Node of kind ${actual} is not valid as a ${expected} definition`);
 const writeDuplicateAliasError = (alias) => `#${alias} duplicates public alias ${alias}`;
 const scopesByName = {};
 $ark.ambient ??= {};
@@ -6259,7 +6036,7 @@ class BaseScope {
     this.resolvedConfig = mergeConfigs($ark.resolvedConfig, config);
     this.name = this.resolvedConfig.name ?? `anonymousScope${Object.keys(scopesByName).length}`;
     if (this.name in scopesByName)
-      throwParseError$1(`A Scope already named ${this.name} already exists`);
+      throwParseError(`A Scope already named ${this.name} already exists`);
     scopesByName[this.name] = this;
     const aliasEntries = Object.entries(def).map((entry) => this.preparseOwnAliasEntry(...entry));
     for (const [k, v] of aliasEntries) {
@@ -6267,15 +6044,15 @@ class BaseScope {
       if (k[0] === "#") {
         name = k.slice(1);
         if (name in this.aliases)
-          throwParseError$1(writeDuplicateAliasError(name));
+          throwParseError(writeDuplicateAliasError(name));
         this.aliases[name] = v;
       } else {
         if (name in this.aliases)
-          throwParseError$1(writeDuplicateAliasError(k));
+          throwParseError(writeDuplicateAliasError(k));
         this.aliases[name] = v;
         this.exportedNames.push(name);
       }
-      if (!hasArkKind(v, "module") && !hasArkKind(v, "generic") && !isThunk$1(v)) {
+      if (!hasArkKind(v, "module") && !hasArkKind(v, "generic") && !isThunk(v)) {
         const preparsed = this.preparseOwnDefinitionFormat(v, { alias: name });
         this.resolutions[name] = hasArkKind(preparsed, "root") ? this.bindReference(preparsed) : this.createParseContext(preparsed).id;
       }
@@ -6294,7 +6071,7 @@ class BaseScope {
       ]
     }, { prereduced: true });
     this.nodesByHash[rawUnknownUnion.hash] = this.node("intersection", {}, { prereduced: true });
-    this.intrinsic = $ark.intrinsic ? flatMorph$1($ark.intrinsic, (k, v) => (
+    this.intrinsic = $ark.intrinsic ? flatMorph($ark.intrinsic, (k, v) => (
       // don't include cyclic aliases from JSON scope
       k.startsWith("json") ? [] : [k, this.bindReference(v)]
     )) : {};
@@ -6355,7 +6132,7 @@ class BaseScope {
         schema = resolution;
         kind = resolution.kind;
       }
-    } else if (kind === "union" && hasDomain$1(schema, "object")) {
+    } else if (kind === "union" && hasDomain(schema, "object")) {
       const branches = schemaBranchesOf(schema);
       if (branches?.length === 1) {
         schema = branches[0];
@@ -6390,7 +6167,7 @@ class BaseScope {
     return bound;
   }
   resolveRoot(name) {
-    return this.maybeResolveRoot(name) ?? throwParseError$1(writeUnresolvableMessage(name));
+    return this.maybeResolveRoot(name) ?? throwParseError(writeUnresolvableMessage(name));
   }
   maybeResolveRoot(name) {
     const result = this.maybeResolve(name);
@@ -6418,7 +6195,7 @@ class BaseScope {
           return this.node("alias", { reference: `$${name}` }, { prereduced: true });
         }
         if (v.phase === "resolved") {
-          return throwInternalError$1(`Unexpected resolved context for was uncached by its scope: ${printable$1(v)}`);
+          return throwInternalError(`Unexpected resolved context for was uncached by its scope: ${printable(v)}`);
         }
         v.phase = "resolving";
         const node2 = this.bindReference(this.parseOwnDefinitionFormat(v.def, v));
@@ -6427,7 +6204,7 @@ class BaseScope {
         nodesByRegisteredId[v.id] = node2;
         return this.resolutions[name] = node2;
       }
-      return throwInternalError$1(`Unexpected nodesById entry for ${cached2}: ${printable$1(v)}`);
+      return throwInternalError(`Unexpected nodesById entry for ${cached2}: ${printable(v)}`);
     }
     let def = this.aliases[name] ?? this.ambient?.[name];
     if (!def)
@@ -6437,7 +6214,7 @@ class BaseScope {
       return this.resolutions[name] = this.bindReference(def);
     if (hasArkKind(def, "module")) {
       if (!def.root)
-        throwParseError$1(writeMissingSubmoduleAccessMessage(name));
+        throwParseError(writeMissingSubmoduleAccessMessage(name));
       return this.resolutions[name] = this.bindReference(def.root);
     }
     return this.resolutions[name] = this.parse(def, {
@@ -6457,7 +6234,7 @@ class BaseScope {
     return new Traversal(root, this.resolvedConfig);
   }
   import(...names) {
-    return new RootModule(flatMorph$1(this.export(...names), (alias, value2) => [
+    return new RootModule(flatMorph(this.export(...names), (alias, value2) => [
       `#${alias}`,
       value2
     ]));
@@ -6486,7 +6263,7 @@ class BaseScope {
       this.resolved = true;
     }
     const namesToExport = names.length ? names : this.exportedNames;
-    return new RootModule(flatMorph$1(namesToExport, (_, name) => [
+    return new RootModule(flatMorph(namesToExport, (_, name) => [
       name,
       this._exports[name]
     ]));
@@ -6550,9 +6327,9 @@ const bootstrapAliasReferences = (resolution) => {
   }
   return resolution;
 };
-const resolutionsToJson = (resolutions) => flatMorph$1(resolutions, (k, v) => [
+const resolutionsToJson = (resolutions) => flatMorph(resolutions, (k, v) => [
   k,
-  hasArkKind(v, "root") || hasArkKind(v, "generic") ? v.json : hasArkKind(v, "module") ? resolutionsToJson(v) : throwInternalError$1(`Unexpected resolution ${printable$1(v)}`)
+  hasArkKind(v, "root") || hasArkKind(v, "generic") ? v.json : hasArkKind(v, "module") ? resolutionsToJson(v) : throwInternalError(`Unexpected resolution ${printable(v)}`)
 ]);
 const maybeResolveSubalias = (base, name) => {
   const dotIndex = name.indexOf(".");
@@ -6563,7 +6340,7 @@ const maybeResolveSubalias = (base, name) => {
   if (prefixSchema === void 0)
     return;
   if (!hasArkKind(prefixSchema, "module"))
-    return throwParseError$1(writeNonSubmoduleDotMessage(dotPrefix));
+    return throwParseError(writeNonSubmoduleDotMessage(dotPrefix));
   const subalias = name.slice(dotIndex + 1);
   const resolution = prefixSchema[subalias];
   if (resolution === void 0)
@@ -6571,9 +6348,9 @@ const maybeResolveSubalias = (base, name) => {
   if (hasArkKind(resolution, "root") || hasArkKind(resolution, "generic"))
     return resolution;
   if (hasArkKind(resolution, "module")) {
-    return resolution.root ?? throwParseError$1(writeMissingSubmoduleAccessMessage(name));
+    return resolution.root ?? throwParseError(writeMissingSubmoduleAccessMessage(name));
   }
-  throwInternalError$1(`Unexpected resolution for alias '${name}': ${printable$1(resolution)}`);
+  throwInternalError(`Unexpected resolution for alias '${name}': ${printable(resolution)}`);
 };
 const schemaScope = (aliases, config) => new SchemaScope(aliases, config);
 const rootSchemaScope = new SchemaScope({});
@@ -6583,12 +6360,12 @@ const resolutionsOfModule = ($, typeSet) => {
     const v = typeSet[k];
     if (hasArkKind(v, "module")) {
       const innerResolutions = resolutionsOfModule($, v);
-      const prefixedResolutions = flatMorph$1(innerResolutions, (innerK, innerV) => [`${k}.${innerK}`, innerV]);
+      const prefixedResolutions = flatMorph(innerResolutions, (innerK, innerV) => [`${k}.${innerK}`, innerV]);
       Object.assign(result, prefixedResolutions);
     } else if (hasArkKind(v, "root") || hasArkKind(v, "generic"))
       result[k] = v;
     else
-      throwInternalError$1(`Unexpected scope resolution ${printable$1(v)}`);
+      throwInternalError(`Unexpected scope resolution ${printable(v)}`);
   }
   return result;
 };
@@ -6655,475 +6432,9 @@ const intrinsic = {
   emptyStructure: node("structure", {}, { prereduced: true })
 };
 $ark.intrinsic = { ...intrinsic };
-const liftArray = (data) => Array.isArray(data) ? data : [data];
-const append = (to, value2, opts) => {
-  if (to === void 0) {
-    return value2 === void 0 ? [] : Array.isArray(value2) ? value2 : [value2];
-  }
-  {
-    if (Array.isArray(value2))
-      to.push(...value2);
-    else
-      to.push(value2);
-  }
-  return to;
-};
-const hasDomain = (data, kind) => domainOf(data) === kind;
-const domainOf = (data) => {
-  const builtinType = typeof data;
-  return builtinType === "object" ? data === null ? "null" : "object" : builtinType === "function" ? "object" : builtinType;
-};
-class InternalArktypeError2 extends Error {
-}
-const throwInternalError = (message) => throwError(message, InternalArktypeError2);
-const throwError = (message, ctor = Error) => {
-  throw new ctor(message);
-};
-class ParseError2 extends Error {
-  name = "ParseError";
-}
-const throwParseError = (message) => throwError(message, ParseError2);
-const flatMorph = (o, flatMapEntry) => {
-  const result = {};
-  const inputIsArray = Array.isArray(o);
-  let outputShouldBeArray = false;
-  for (const [i, entry] of Object.entries(o).entries()) {
-    const mapped = inputIsArray ? flatMapEntry(i, entry[1]) : flatMapEntry(...entry, i);
-    outputShouldBeArray ||= typeof mapped[0] === "number";
-    const flattenedEntries = Array.isArray(mapped[0]) || mapped.length === 0 ? (
-      // if we have an empty array (for filtering) or an array with
-      // another array as its first element, treat it as a list
-      mapped
-    ) : [mapped];
-    for (const [k, v] of flattenedEntries) {
-      if (typeof k === "object")
-        result[k.group] = append(result[k.group], v);
-      else
-        result[k] = v;
-    }
-  }
-  return outputShouldBeArray ? Object.values(result) : result;
-};
-const isKeyOf = (k, o) => k in o;
-const isEmptyObject = (o) => Object.keys(o).length === 0;
-const stringAndSymbolicEntriesOf = (o) => [
-  ...Object.entries(o),
-  ...Object.getOwnPropertySymbols(o).map((k) => [k, o[k]])
-];
-const enumValues = (tsEnum) => Object.values(tsEnum).filter((v) => {
-  if (typeof v === "number")
-    return true;
-  return typeof tsEnum[v] !== "number";
-});
-const ecmascriptConstructors = {
-  Array,
-  Boolean,
-  Date,
-  Error,
-  Function,
-  Map,
-  Number,
-  Promise,
-  RegExp,
-  Set,
-  String,
-  WeakMap,
-  WeakSet
-};
-const FileConstructor = globalThis.File ?? Blob;
-const platformConstructors = {
-  ArrayBuffer,
-  Blob,
-  File: FileConstructor,
-  FormData,
-  Headers,
-  Request,
-  Response,
-  URL
-};
-const typedArrayConstructors = {
-  Int8Array,
-  Uint8Array,
-  Uint8ClampedArray,
-  Int16Array,
-  Uint16Array,
-  Int32Array,
-  Uint32Array,
-  Float32Array,
-  Float64Array,
-  BigInt64Array,
-  BigUint64Array
-};
-const builtinConstructors = {
-  ...ecmascriptConstructors,
-  ...platformConstructors,
-  ...typedArrayConstructors,
-  String,
-  Number,
-  Boolean
-};
-const objectKindOf = (data) => {
-  let prototype = Object.getPrototypeOf(data);
-  while (prototype?.constructor && (!isKeyOf(prototype.constructor.name, builtinConstructors) || !(data instanceof builtinConstructors[prototype.constructor.name])))
-    prototype = Object.getPrototypeOf(prototype);
-  const name = prototype?.constructor?.name;
-  if (name === void 0 || name === "Object")
-    return void 0;
-  return name;
-};
-const objectKindOrDomainOf = (data) => typeof data === "object" && data !== null ? objectKindOf(data) ?? "object" : domainOf(data);
-const isArray = Array.isArray;
-const isThunk = (value2) => typeof value2 === "function" && value2.length === 0;
-class Callable2 {
-  constructor(fn, ...[opts]) {
-    return Object.assign(Object.setPrototypeOf(fn.bind(opts?.bind ?? this), this.constructor.prototype), opts?.attach);
-  }
-}
-class Hkt {
-  constructor() {
-  }
-}
-var define_globalThis_process_env_default = {};
-const fileName = () => {
-  try {
-    const error = new Error();
-    const stackLine = error.stack?.split("\n")[2]?.trim() || "";
-    const filePath = stackLine.match(/\(?(.+?)(?::\d+:\d+)?\)?$/)?.[1] || "unknown";
-    return filePath.replace(/^file:\/\//, "");
-  } catch {
-    return "unknown";
-  }
-};
-const env = define_globalThis_process_env_default ?? {};
-const isomorphic = {
-  fileName,
-  env
-};
-const anchoredRegex = (regex2) => new RegExp(anchoredSource(regex2), typeof regex2 === "string" ? "" : regex2.flags);
-const anchoredSource = (regex2) => {
-  const source = typeof regex2 === "string" ? regex2 : regex2.source;
-  return `^(?:${source})$`;
-};
-const RegexPatterns = {
-  negativeLookahead: (pattern) => `(?!${pattern})`,
-  nonCapturingGroup: (pattern) => `(?:${pattern})`
-};
-const Backslash = "\\";
-const whitespaceChars = {
-  " ": 1,
-  "\n": 1,
-  "	": 1
-};
-const anchoredNegativeZeroPattern = /^-0\.?0*$/.source;
-const positiveIntegerPattern = /[1-9]\d*/.source;
-const looseDecimalPattern = /\.\d+/.source;
-const strictDecimalPattern = /\.\d*[1-9]/.source;
-const createNumberMatcher = (opts) => anchoredRegex(RegexPatterns.negativeLookahead(anchoredNegativeZeroPattern) + RegexPatterns.nonCapturingGroup("-?" + RegexPatterns.nonCapturingGroup(RegexPatterns.nonCapturingGroup("0|" + positiveIntegerPattern) + RegexPatterns.nonCapturingGroup(opts.decimalPattern) + "?") + (opts.allowDecimalOnly ? "|" + opts.decimalPattern : "") + "?"));
-const wellFormedNumberMatcher = createNumberMatcher({
-  decimalPattern: strictDecimalPattern,
-  allowDecimalOnly: false
-});
-const isWellFormedNumber = wellFormedNumberMatcher.test.bind(wellFormedNumberMatcher);
-const numericStringMatcher = createNumberMatcher({
-  decimalPattern: looseDecimalPattern,
-  allowDecimalOnly: true
-});
-numericStringMatcher.test.bind(numericStringMatcher);
-const numberLikeMatcher = /^-?\d*\.?\d*$/;
-const isNumberLike = (s) => s.length !== 0 && numberLikeMatcher.test(s);
-const wellFormedIntegerMatcher = anchoredRegex(RegexPatterns.negativeLookahead("^-0$") + "-?" + RegexPatterns.nonCapturingGroup(RegexPatterns.nonCapturingGroup("0|" + positiveIntegerPattern)));
-const isWellFormedInteger = wellFormedIntegerMatcher.test.bind(wellFormedIntegerMatcher);
-const integerLikeMatcher = /^-?\d+$/;
-const isIntegerLike = integerLikeMatcher.test.bind(integerLikeMatcher);
-const numericLiteralDescriptions = {
-  number: "a number",
-  bigint: "a bigint",
-  integer: "an integer"
-};
-const writeMalformedNumericLiteralMessage = (def, kind) => `'${def}' was parsed as ${numericLiteralDescriptions[kind]} but could not be narrowed to a literal value. Avoid unnecessary leading or trailing zeros and other abnormal notation`;
-const isWellFormed = (def, kind) => kind === "number" ? isWellFormedNumber(def) : isWellFormedInteger(def);
-const parseKind = (def, kind) => kind === "number" ? Number(def) : Number.parseInt(def);
-const isKindLike = (def, kind) => kind === "number" ? isNumberLike(def) : isIntegerLike(def);
-const tryParseNumber = (token, options) => parseNumeric(token, "number", options);
-const tryParseWellFormedNumber = (token, options) => parseNumeric(token, "number", { ...options, strict: true });
-const tryParseInteger = (token, options) => parseNumeric(token, "integer", options);
-const parseNumeric = (token, kind, options) => {
-  const value2 = parseKind(token, kind);
-  if (!Number.isNaN(value2)) {
-    if (isKindLike(token, kind)) {
-      if (options?.strict) {
-        return isWellFormed(token, kind) ? value2 : throwParseError(writeMalformedNumericLiteralMessage(token, kind));
-      }
-      return value2;
-    }
-  }
-  return options?.errorOnFail ? throwParseError(options?.errorOnFail === true ? `Failed to parse ${numericLiteralDescriptions[kind]} from '${token}'` : options?.errorOnFail) : void 0;
-};
-const tryParseWellFormedBigint = (def) => {
-  if (def[def.length - 1] !== "n")
-    return;
-  const maybeIntegerLiteral = def.slice(0, -1);
-  let value2;
-  try {
-    value2 = BigInt(maybeIntegerLiteral);
-  } catch {
-    return;
-  }
-  if (wellFormedIntegerMatcher.test(maybeIntegerLiteral))
-    return value2;
-  if (integerLikeMatcher.test(maybeIntegerLiteral)) {
-    return throwParseError(writeMalformedNumericLiteralMessage(def, "bigint"));
-  }
-};
-const arkUtilVersion = "0.53.0";
-const initialRegistryContents = {
-  version: arkUtilVersion,
-  filename: isomorphic.fileName(),
-  FileConstructor
-};
-const registry = initialRegistryContents;
-const namesByResolution = /* @__PURE__ */ new Map();
-const nameCounts = /* @__PURE__ */ Object.create(null);
-const register = (value2) => {
-  const existingName = namesByResolution.get(value2);
-  if (existingName)
-    return existingName;
-  let name = baseNameFor(value2);
-  if (nameCounts[name])
-    name = `${name}${nameCounts[name]++}`;
-  else
-    nameCounts[name] = 1;
-  registry[name] = value2;
-  namesByResolution.set(value2, name);
-  return name;
-};
-const isDotAccessible = (keyName) => /^[$A-Z_a-z][\w$]*$/.test(keyName);
-const baseNameFor = (value2) => {
-  switch (typeof value2) {
-    case "object": {
-      if (value2 === null)
-        break;
-      const prefix = objectKindOf(value2) ?? "object";
-      return prefix[0].toLowerCase() + prefix.slice(1);
-    }
-    case "function":
-      return isDotAccessible(value2.name) ? value2.name : "fn";
-    case "symbol":
-      return value2.description && isDotAccessible(value2.description) ? value2.description : "symbol";
-  }
-  return throwInternalError(`Unexpected attempt to register serializable value of type ${domainOf(value2)}`);
-};
-const serializePrimitive = (value2) => typeof value2 === "string" ? JSON.stringify(value2) : typeof value2 === "bigint" ? `${value2}n` : `${value2}`;
-const printable = (data, opts) => {
-  switch (domainOf(data)) {
-    case "object":
-      const o = data;
-      const ctorName = o.constructor.name;
-      return ctorName === "Object" || ctorName === "Array" ? opts?.quoteKeys === false ? stringifyUnquoted(o, 0, "") : JSON.stringify(_serialize(o, printableOpts, []), null, opts?.indent) : stringifyUnquoted(o, 0, "");
-    case "symbol":
-      return printableOpts.onSymbol(data);
-    default:
-      return serializePrimitive(data);
-  }
-};
-const stringifyUnquoted = (value2, indent2, currentIndent) => {
-  if (typeof value2 === "function")
-    return printableOpts.onFunction(value2);
-  if (typeof value2 !== "object" || value2 === null)
-    return serializePrimitive(value2);
-  const nextIndent = currentIndent + " ".repeat(indent2);
-  if (Array.isArray(value2)) {
-    if (value2.length === 0)
-      return "[]";
-    const items = value2.map((item) => stringifyUnquoted(item, indent2, nextIndent)).join(",\n" + nextIndent);
-    return indent2 ? `[
-${nextIndent}${items}
-${currentIndent}]` : `[${items}]`;
-  }
-  const ctorName = value2.constructor.name;
-  if (ctorName === "Object") {
-    const keyValues = stringAndSymbolicEntriesOf(value2).map(([key, val]) => {
-      const stringifiedKey = typeof key === "symbol" ? printableOpts.onSymbol(key) : isDotAccessible(key) ? key : JSON.stringify(key);
-      const stringifiedValue = stringifyUnquoted(val, indent2, nextIndent);
-      return `${nextIndent}${stringifiedKey}: ${stringifiedValue}`;
-    });
-    if (keyValues.length === 0)
-      return "{}";
-    return indent2 ? `{
-${keyValues.join(",\n")}
-${currentIndent}}` : `{${keyValues.join(", ")}}`;
-  }
-  if (value2 instanceof Date)
-    return describeCollapsibleDate(value2);
-  if ("expression" in value2 && typeof value2.expression === "string")
-    return value2.expression;
-  return ctorName;
-};
-const printableOpts = {
-  onCycle: () => "(cycle)",
-  onSymbol: (v) => `Symbol(${register(v)})`,
-  onFunction: (v) => `Function(${register(v)})`
-};
-const _serialize = (data, opts, seen) => {
-  switch (domainOf(data)) {
-    case "object": {
-      const o = data;
-      if ("toJSON" in o && typeof o.toJSON === "function")
-        return o.toJSON();
-      if (typeof o === "function")
-        return printableOpts.onFunction(o);
-      if (seen.includes(o))
-        return "(cycle)";
-      const nextSeen = [...seen, o];
-      if (Array.isArray(o))
-        return o.map((item) => _serialize(item, opts, nextSeen));
-      if (o instanceof Date)
-        return o.toDateString();
-      const result = {};
-      for (const k in o)
-        result[k] = _serialize(o[k], opts, nextSeen);
-      for (const s of Object.getOwnPropertySymbols(o)) {
-        result[opts.onSymbol?.(s) ?? s.toString()] = _serialize(o[s], opts, nextSeen);
-      }
-      return result;
-    }
-    case "symbol":
-      return printableOpts.onSymbol(data);
-    case "bigint":
-      return opts.onBigInt?.(data) ?? `${data}n`;
-    case "undefined":
-      return opts.onUndefined ?? "undefined";
-    case "string":
-      return data.replaceAll("\\", "\\\\");
-    default:
-      return data;
-  }
-};
-const describeCollapsibleDate = (date) => {
-  const year = date.getFullYear();
-  const month = date.getMonth();
-  const dayOfMonth = date.getDate();
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
-  const seconds = date.getSeconds();
-  const milliseconds = date.getMilliseconds();
-  if (month === 0 && dayOfMonth === 1 && hours === 0 && minutes === 0 && seconds === 0 && milliseconds === 0)
-    return `${year}`;
-  const datePortion = `${months[month]} ${dayOfMonth}, ${year}`;
-  if (hours === 0 && minutes === 0 && seconds === 0 && milliseconds === 0)
-    return datePortion;
-  let timePortion = date.toLocaleTimeString();
-  const suffix2 = timePortion.endsWith(" AM") || timePortion.endsWith(" PM") ? timePortion.slice(-3) : "";
-  if (suffix2)
-    timePortion = timePortion.slice(0, -suffix2.length);
-  if (milliseconds)
-    timePortion += `.${pad(milliseconds, 3)}`;
-  else if (timeWithUnnecessarySeconds.test(timePortion))
-    timePortion = timePortion.slice(0, -3);
-  return `${timePortion + suffix2}, ${datePortion}`;
-};
-const months = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December"
-];
-const timeWithUnnecessarySeconds = /:\d\d:00$/;
-const pad = (value2, length) => String(value2).padStart(length, "0");
-class Scanner {
-  chars;
-  i;
-  def;
-  constructor(def) {
-    this.def = def;
-    this.chars = [...def];
-    this.i = 0;
-  }
-  /** Get lookahead and advance scanner by one */
-  shift() {
-    return this.chars[this.i++] ?? "";
-  }
-  get lookahead() {
-    return this.chars[this.i] ?? "";
-  }
-  get nextLookahead() {
-    return this.chars[this.i + 1] ?? "";
-  }
-  get length() {
-    return this.chars.length;
-  }
-  shiftUntil(condition) {
-    let shifted = "";
-    while (this.lookahead) {
-      if (condition(this, shifted))
-        break;
-      else
-        shifted += this.shift();
-    }
-    return shifted;
-  }
-  shiftUntilEscapable(condition) {
-    let shifted = "";
-    while (this.lookahead) {
-      if (this.lookahead === Backslash) {
-        this.shift();
-        if (condition(this, shifted))
-          shifted += this.shift();
-        else if (this.lookahead === Backslash)
-          shifted += this.shift();
-        else
-          shifted += `${Backslash}${this.shift()}`;
-      } else if (condition(this, shifted))
-        break;
-      else
-        shifted += this.shift();
-    }
-    return shifted;
-  }
-  shiftUntilLookahead(charOrSet) {
-    return typeof charOrSet === "string" ? this.shiftUntil((s) => s.lookahead === charOrSet) : this.shiftUntil((s) => s.lookahead in charOrSet);
-  }
-  shiftUntilNonWhitespace() {
-    return this.shiftUntil(() => !(this.lookahead in whitespaceChars));
-  }
-  jumpToIndex(i) {
-    this.i = i < 0 ? this.length + i : i;
-  }
-  jumpForward(count) {
-    this.i += count;
-  }
-  get location() {
-    return this.i;
-  }
-  get unscanned() {
-    return this.chars.slice(this.i, this.length).join("");
-  }
-  get scanned() {
-    return this.chars.slice(0, this.i).join("");
-  }
-  sliceChars(start, end) {
-    return this.chars.slice(start, end).join("");
-  }
-  lookaheadIs(char) {
-    return this.lookahead === char;
-  }
-  lookaheadIsIn(tokens) {
-    return this.lookahead in tokens;
-  }
-}
-const writeUnmatchedGroupCloseMessage = (char, unscanned) => `Unmatched ${char}${unscanned === "" ? "" : ` before ${unscanned}`}`;
-const writeUnclosedGroupMessage = (missingChar) => `Missing ${missingChar}`;
 const regex$1 = (src, flags) => new RegExp(src, flags);
 Object.assign(regex$1, { as: regex$1 });
-const isDateLiteral = (value2) => typeof value2 === "string" && value2[0] === "d" && (value2[1] === "'" || value2[1] === '"') && value2.at(-1) === value2[1];
+const isDateLiteral = (value2) => typeof value2 === "string" && value2[0] === "d" && (value2[1] === "'" || value2[1] === '"') && value2[value2.length - 1] === value2[1];
 const isValidDate = (d) => d.toString() !== "Invalid Date";
 const extractDateLiteralSource = (literal) => literal.slice(2, -1);
 const writeInvalidDateMessage = (source) => `'${source}' could not be parsed by the Date constructor`;
@@ -7561,7 +6872,7 @@ class RuntimeState {
     };
   }
   previousOperator() {
-    return this.branches.leftBound?.comparator ?? this.branches.prefixes.at(-1) ?? (this.branches.intersection ? "&" : this.branches.union ? "|" : this.branches.pipe ? "|>" : void 0);
+    return this.branches.leftBound?.comparator ?? this.branches.prefixes[this.branches.prefixes.length - 1] ?? (this.branches.intersection ? "&" : this.branches.union ? "|" : this.branches.pipe ? "|>" : void 0);
   }
   shiftedByOne() {
     this.scanner.shift();
@@ -7595,7 +6906,7 @@ const _parseOptionalConstraint = (scanner, name, result, ctx) => {
   result.push([name, s.root]);
   return parseGenericParamName(scanner, result, ctx);
 };
-class InternalFnParser extends Callable2 {
+class InternalFnParser extends Callable {
   constructor($) {
     const attach = {
       $,
@@ -7616,7 +6927,7 @@ class InternalFnParser extends Callable2 {
     }, { attach });
   }
 }
-class InternalTypedFn extends Callable2 {
+class InternalTypedFn extends Callable {
   raw;
   params;
   returns;
@@ -7636,7 +6947,7 @@ class InternalTypedFn extends Callable2 {
     this.params = params;
     this.returns = returns;
     let argsExpression = params.expression;
-    if (argsExpression[0] === "[" && argsExpression.at(-1) === "]")
+    if (argsExpression[0] === "[" && argsExpression[argsExpression.length - 1] === "]")
       argsExpression = argsExpression.slice(1, -1);
     else if (argsExpression.endsWith("[]"))
       argsExpression = `...${argsExpression}`;
@@ -7645,7 +6956,7 @@ class InternalTypedFn extends Callable2 {
 }
 const badFnReturnTypeMessage = `":" must be followed by exactly one return type e.g:
 fn("string", ":", "number")(s => s.length)`;
-class InternalMatchParser extends Callable2 {
+class InternalMatchParser extends Callable {
   $;
   constructor($) {
     super((...args) => new InternalChainedMatchParser($)(...args), {
@@ -7663,7 +6974,7 @@ class InternalMatchParser extends Callable2 {
     return new InternalChainedMatchParser(this.$).case(when, then);
   }
 }
-class InternalChainedMatchParser extends Callable2 {
+class InternalChainedMatchParser extends Callable {
   $;
   in;
   key;
@@ -7827,10 +7138,10 @@ const appendNamedProp = (structure, kind, inner, ctx) => {
 };
 const writeInvalidUndeclaredBehaviorMessage = (actual) => `Value of '+' key must be 'reject', 'delete', or 'ignore' (was ${printable(actual)})`;
 const nonLeadingSpreadError = "Spread operator may only be used as the first key in an object";
-const preparseKey = (key) => typeof key === "symbol" ? { kind: "required", normalized: key } : key.at(-1) === "?" ? key.at(-2) === Backslash ? { kind: "required", normalized: `${key.slice(0, -2)}?` } : {
+const preparseKey = (key) => typeof key === "symbol" ? { kind: "required", normalized: key } : key[key.length - 1] === "?" ? key[key.length - 2] === Backslash ? { kind: "required", normalized: `${key.slice(0, -2)}?` } : {
   kind: "optional",
   normalized: key.slice(0, -1)
-} : key[0] === "[" && key.at(-1) === "]" ? { kind: "index", normalized: key.slice(1, -1) } : key[0] === Backslash && key[1] === "[" && key.at(-1) === "]" ? { kind: "required", normalized: key.slice(1) } : key === "..." ? { kind: "spread" } : key === "+" ? { kind: "undeclared" } : {
+} : key[0] === "[" && key[key.length - 1] === "]" ? { kind: "index", normalized: key.slice(1, -1) } : key[0] === Backslash && key[1] === "[" && key[key.length - 1] === "]" ? { kind: "required", normalized: key.slice(1) } : key === "..." ? { kind: "spread" } : key === "+" ? { kind: "undeclared" } : {
   kind: "required",
   normalized: key === "\\..." ? "..." : key === "\\+" ? "+" : key
 };
@@ -8033,7 +7344,7 @@ const parseObject = (def, ctx) => {
 };
 const parseTuple = (def, ctx) => maybeParseTupleExpression(def, ctx) ?? parseTupleLiteral(def, ctx);
 const writeBadDefinitionTypeMessage = (actual) => `Type definitions must be strings or objects (was ${actual})`;
-class InternalTypeParser extends Callable2 {
+class InternalTypeParser extends Callable {
   constructor($) {
     const attach = Object.assign(
       {
@@ -8067,7 +7378,7 @@ class InternalTypeParser extends Callable2 {
       if (args.length === 1) {
         return $.parse(args[0]);
       }
-      if (args.length === 2 && typeof args[0] === "string" && args[0][0] === "<" && args[0].at(-1) === ">") {
+      if (args.length === 2 && typeof args[0] === "string" && args[0][0] === "<" && args[0][args[0].length - 1] === ">") {
         const paramString = args[0].slice(1, -1);
         const params = $.parseGenericParams(paramString, {});
         return new GenericRoot(params, args[1], $, $, null);
@@ -8099,7 +7410,7 @@ class InternalScope extends BaseScope {
         def = [def, "@", config];
       return [alias, def];
     }
-    if (alias.at(-1) !== ">") {
+    if (alias[alias.length - 1] !== ">") {
       throwParseError(`'>' must be the last character of a generic declaration in a scope`);
     }
     const name = alias.slice(0, firstParamIndex);
@@ -8342,7 +7653,7 @@ const capitalize = Scope.module({
   name: "string.capitalize"
 });
 const isLuhnValid = (creditCardInput) => {
-  const sanitized = creditCardInput.replaceAll(/[ -]+/g, "");
+  const sanitized = creditCardInput.replace(/[ -]+/g, "");
   let sum = 0;
   let digit;
   let tmpNum;
@@ -8452,10 +7763,10 @@ const ip = Scope.module({
   name: "string.ip"
 });
 const jsonStringDescription = "a JSON string";
-const writeJsonSyntaxErrorProblem = (error) => {
-  if (!(error instanceof SyntaxError))
-    throw error;
-  return `must be ${jsonStringDescription} (${error})`;
+const writeJsonSyntaxErrorProblem = (error2) => {
+  if (!(error2 instanceof SyntaxError))
+    throw error2;
+  return `must be ${jsonStringDescription} (${error2})`;
 };
 const jsonRoot = rootSchema({
   meta: jsonStringDescription,
@@ -8831,18 +8142,374 @@ const procedures = {
     success: type({ result: "number", node: "string" })
   }
 };
-const swarpc = Server(procedures);
-swarpc.multiply(async ({ a, b }, onProgress, { abortSignal, nodeId }) => {
-  const updateProgress = (progress) => onProgress({ progress, node: nodeId });
-  abortSignal?.throwIfAborted();
-  let result = 0;
-  for (const i of Array.from({ length: b }).map((_, i2) => i2)) {
-    result += a;
-    updateProgress(i / b);
-    await new Promise((r) => setTimeout(r, 500));
-    abortSignal?.throwIfAborted();
+function WorkerWrapper$1(options) {
+  return new SharedWorker(
+    "" + new URL("../workers/service-worker-BtVbSiGD.js", import.meta.url).href,
+    {
+      type: "module",
+      name: options?.name
+    }
+  );
+}
+function WorkerWrapper(options) {
+  return new Worker(
+    "" + new URL("../workers/service-worker-BtVbSiGD.js", import.meta.url).href,
+    {
+      type: "module",
+      name: options?.name
+    }
+  );
+}
+function error(status, body) {
+  throw new HttpError(status, body);
+}
+Map.groupBy ??= function groupBy2(iterable, callbackfn) {
+  const map = /* @__PURE__ */ new Map();
+  let i = 0;
+  for (const value2 of iterable) {
+    const key = callbackfn(value2, i++), list = map.get(key);
+    list ? list.push(value2) : map.set(key, [value2]);
   }
-  updateProgress(1);
-  return { result, node: nodeId };
-});
-swarpc.start();
+  return map;
+};
+function createLogger(side, level = "debug", nid, rqid) {
+  const lvls = LOG_LEVELS.slice(LOG_LEVELS.indexOf(level));
+  if (rqid && nid) {
+    const ids = { rqid, nid };
+    return {
+      debug: lvls.includes("debug") ? logger("debug", side, ids) : () => {
+      },
+      info: lvls.includes("info") ? logger("info", side, ids) : () => {
+      },
+      warn: lvls.includes("warn") ? logger("warn", side, ids) : () => {
+      },
+      error: lvls.includes("error") ? logger("error", side, ids) : () => {
+      }
+    };
+  }
+  return {
+    debug: lvls.includes("debug") ? logger("debug", side, nid) : () => {
+    },
+    info: lvls.includes("info") ? logger("info", side, nid) : () => {
+    },
+    warn: lvls.includes("warn") ? logger("warn", side, nid) : () => {
+    },
+    error: lvls.includes("error") ? logger("error", side, nid) : () => {
+    }
+  };
+}
+const LOG_LEVELS = ["debug", "info", "warn", "error"];
+const PATCHABLE_LOG_METHODS = [
+  "debug",
+  "info",
+  "warn",
+  "error",
+  "log"
+];
+function logger(method, side, ids) {
+  if (ids === void 0 || typeof ids === "string") {
+    const nid = ids ?? null;
+    return (rqid, ...args) => log(method, side, { nid, rqid }, ...args);
+  }
+  return (...args) => log(method, side, ids, ...args);
+}
+const originalConsole = PATCHABLE_LOG_METHODS.reduce((result, method) => {
+  result[method] = console[method];
+  return result;
+}, {});
+function log(method, side, { rqid, nid }, ...args) {
+  const prefix = [
+    `[SWARPC ${side}]`,
+    rqid ? `%c${rqid}%c` : "",
+    nid ? `%c@ ${nid}%c` : ""
+  ].filter(Boolean).join(" ");
+  const prefixStyles = [];
+  if (rqid)
+    prefixStyles.push("color: cyan", "color: inherit");
+  if (nid)
+    prefixStyles.push("color: hotpink", "color: inherit");
+  return originalConsole[method](prefix, ...prefixStyles, ...args);
+}
+function whoToSendTo(nodes, requests) {
+  if (!nodes)
+    return void 0;
+  let chosen = Object.keys(nodes)[0];
+  const requestsPerNode = Map.groupBy(requests.values(), (req) => req.nodeId);
+  for (const node2 of Object.keys(nodes)) {
+    if (!requestsPerNode.has(node2))
+      requestsPerNode.set(node2, []);
+  }
+  for (const [node2, reqs] of requestsPerNode.entries()) {
+    if (!node2)
+      continue;
+    if (reqs.length < requestsPerNode.get(chosen).length)
+      chosen = node2;
+  }
+  console.debug("[SWARPC Load balancer] Choosing", chosen, "load map is", requestsPerNode);
+  return chosen;
+}
+function makeNodeId() {
+  return "N" + Math.random().toString(16).substring(2, 5).toUpperCase();
+}
+const serviceWorkerNodeId = "(SW)";
+function nodeIdOrSW(id) {
+  return id ?? serviceWorkerNodeId;
+}
+const zProcedures = Symbol("SWARPC procedures");
+const transferableClasses = [
+  MessagePort,
+  ReadableStream,
+  WritableStream,
+  TransformStream,
+  ArrayBuffer
+];
+function findTransferables(value2) {
+  if (value2 === null || value2 === void 0) {
+    return [];
+  }
+  if (typeof value2 === "object") {
+    if (ArrayBuffer.isView(value2) || value2 instanceof ArrayBuffer) {
+      return [value2];
+    }
+    if (transferableClasses.some((cls) => value2 instanceof cls)) {
+      return [value2];
+    }
+    if (Array.isArray(value2)) {
+      return value2.flatMap(findTransferables);
+    }
+    return Object.values(value2).flatMap(findTransferables);
+  }
+  return [];
+}
+const pendingRequests = /* @__PURE__ */ new Map();
+let _clientListenerStarted = /* @__PURE__ */ new Set();
+function Client(procedures2, { worker, nodes: nodeCount, loglevel = "debug", restartListener = false, hooks = {}, localStorage = {} } = {}) {
+  const l = createLogger("client", loglevel);
+  if (restartListener)
+    _clientListenerStarted.clear();
+  const instance = { [zProcedures]: procedures2 };
+  nodeCount ??= navigator.hardwareConcurrency || 1;
+  let nodes;
+  if (worker) {
+    nodes = {};
+    for (const _ of Array.from({ length: nodeCount })) {
+      const id = makeNodeId();
+      if (typeof worker === "string") {
+        nodes[id] = new Worker(worker, { name: id });
+      } else {
+        nodes[id] = new worker({ name: id });
+      }
+    }
+    l.info(null, `Started ${nodeCount} node${nodeCount > 1 ? "s" : ""}`, Object.keys(nodes));
+  }
+  for (const functionName of Object.keys(procedures2)) {
+    if (typeof functionName !== "string") {
+      throw new Error(`[SWARPC Client] Invalid function name, don't use symbols`);
+    }
+    const send = async (node2, nodeId, requestId, msg, options) => {
+      const ctx = {
+        logger: l,
+        node: node2,
+        nodeId,
+        hooks,
+        localStorage
+      };
+      return postMessage(ctx, {
+        ...msg,
+        by: "sw&rpc",
+        requestId,
+        functionName
+      }, options);
+    };
+    const _runProcedure = async (input, onProgress = () => {
+    }, reqid, nodeId) => {
+      const validation = procedures2[functionName].input["~standard"].validate(input);
+      if (validation instanceof Promise)
+        throw new Error("Validations must not be async");
+      if (validation.issues)
+        throw new Error(`Invalid input: ${validation.issues}`);
+      const requestId = reqid ?? makeRequestId();
+      nodeId ??= whoToSendTo(nodes, pendingRequests);
+      const node2 = nodes && nodeId ? nodes[nodeId] : void 0;
+      const l2 = createLogger("client", loglevel, nodeIdOrSW(nodeId), requestId);
+      return new Promise((resolve, reject) => {
+        pendingRequests.set(requestId, {
+          nodeId,
+          functionName,
+          resolve,
+          onProgress,
+          reject
+        });
+        const transfer = procedures2[functionName].autotransfer === "always" ? findTransferables(input) : [];
+        l2.debug(`Requesting ${functionName} with`, input);
+        return send(node2, nodeId, requestId, { input }, { transfer }).then(() => {
+        }).catch(reject);
+      });
+    };
+    instance[functionName] = _runProcedure;
+    instance[functionName].broadcast = async (input, onProgresses, nodesCount) => {
+      let nodesToUse = [void 0];
+      if (nodes)
+        nodesToUse = Object.keys(nodes);
+      if (nodesCount)
+        nodesToUse = nodesToUse.slice(0, nodesCount);
+      const progresses = /* @__PURE__ */ new Map();
+      function onProgress(nodeId) {
+        if (!onProgresses)
+          return (_) => {
+          };
+        return (progress) => {
+          progresses.set(nodeIdOrSW(nodeId), progress);
+          onProgresses(progresses);
+        };
+      }
+      const results = await Promise.allSettled(nodesToUse.map(async (id) => _runProcedure(input, onProgress(id), void 0, id)));
+      return results.map((r, i) => ({ ...r, node: nodeIdOrSW(nodesToUse[i]) }));
+    };
+    instance[functionName].cancelable = (input, onProgress) => {
+      const requestId = makeRequestId();
+      const nodeId = whoToSendTo(nodes, pendingRequests);
+      const l2 = createLogger("client", loglevel, nodeIdOrSW(nodeId), requestId);
+      return {
+        request: _runProcedure(input, onProgress, requestId, nodeId),
+        cancel(reason) {
+          if (!pendingRequests.has(requestId)) {
+            l2.warn(requestId, `Cannot cancel ${functionName} request, it has already been resolved or rejected`);
+            return;
+          }
+          l2.debug(requestId, `Cancelling ${functionName} with`, reason);
+          postMessageSync(l2, nodeId ? nodes?.[nodeId] : void 0, {
+            by: "sw&rpc",
+            requestId,
+            functionName,
+            abort: { reason }
+          });
+          pendingRequests.delete(requestId);
+        }
+      };
+    };
+  }
+  return instance;
+}
+async function postMessage(ctx, message, options) {
+  await startClientListener(ctx);
+  const { logger: l, node: worker } = ctx;
+  if (!worker && !navigator.serviceWorker.controller)
+    l.warn("", "Service Worker is not controlling the page");
+  const w = worker instanceof SharedWorker ? worker.port : worker === void 0 ? await navigator.serviceWorker.ready.then((r) => r.active) : worker;
+  if (!w) {
+    throw new Error("[SWARPC Client] No active service worker found");
+  }
+  w.postMessage(message, options);
+}
+function postMessageSync(l, worker, message, options) {
+  if (!worker && !navigator.serviceWorker.controller)
+    l.warn("Service Worker is not controlling the page");
+  const w = worker instanceof SharedWorker ? worker.port : worker === void 0 ? navigator.serviceWorker.controller : worker;
+  if (!w) {
+    throw new Error("[SWARPC Client] No active service worker found");
+  }
+  w.postMessage(message, options);
+}
+async function startClientListener(ctx) {
+  if (_clientListenerStarted.has(nodeIdOrSW(ctx.nodeId)))
+    return;
+  const { logger: l, node: worker } = ctx;
+  if (!worker) {
+    const sw = await navigator.serviceWorker.ready;
+    if (!sw?.active) {
+      throw new Error("[SWARPC Client] Service Worker is not active");
+    }
+    if (!navigator.serviceWorker.controller) {
+      l.warn("", "Service Worker is not controlling the page");
+    }
+  }
+  const w = worker ?? navigator.serviceWorker;
+  l.debug(null, "Starting client listener", { w, ...ctx });
+  const listener = (event) => {
+    const eventData = event.data || {};
+    if (eventData?.by !== "sw&rpc")
+      return;
+    const payload = eventData;
+    if ("isInitializeRequest" in payload) {
+      l.warn(null, "Ignoring unexpected #initialize from server", payload);
+      return;
+    }
+    const { requestId, ...data } = payload;
+    if (!requestId) {
+      throw new Error("[SWARPC Client] Message received without requestId");
+    }
+    const handlers = pendingRequests.get(requestId);
+    if (!handlers) {
+      throw new Error(`[SWARPC Client] ${requestId} has no active request handlers, cannot process ${JSON.stringify(data)}`);
+    }
+    if ("error" in data) {
+      ctx.hooks.error?.(data.functionName, new Error(data.error.message));
+      handlers.reject(new Error(data.error.message));
+      pendingRequests.delete(requestId);
+    } else if ("progress" in data) {
+      ctx.hooks.progress?.(data.functionName, data.progress);
+      handlers.onProgress(data.progress);
+    } else if ("result" in data) {
+      ctx.hooks.success?.(data.functionName, data.result);
+      handlers.resolve(data.result);
+      pendingRequests.delete(requestId);
+    }
+  };
+  if (w instanceof SharedWorker) {
+    w.port.addEventListener("message", listener);
+    w.port.start();
+  } else {
+    w.addEventListener("message", listener);
+  }
+  _clientListenerStarted.add(nodeIdOrSW(ctx.nodeId));
+  await postMessage(ctx, {
+    by: "sw&rpc",
+    functionName: "#initialize",
+    isInitializeRequest: true,
+    localStorageData: ctx.localStorage,
+    nodeId: nodeIdOrSW(ctx.nodeId)
+  });
+}
+function makeRequestId() {
+  return Math.random().toString(16).substring(2, 8).toUpperCase();
+}
+const ssr = false;
+async function load({ params, url: { searchParams } }) {
+  const nodesCount = Number.parseInt(searchParams.get("nodes") ?? "1");
+  switch (params.worker) {
+    case "shared":
+      return {
+        swarpc: Client(procedures, {
+          worker: WorkerWrapper$1,
+          nodes: nodesCount
+        })
+      };
+    case "dedicated":
+      return {
+        swarpc: Client(procedures, {
+          worker: WorkerWrapper,
+          nodes: nodesCount
+        })
+      };
+    case "service":
+      if ("serviceWorker" in navigator) {
+        addEventListener("load", function() {
+          navigator.serviceWorker.register("./src/service-worker.ts");
+        });
+      }
+      return {
+        swarpc: Client(procedures)
+      };
+  }
+  error(400, "Invalid worker type");
+}
+const _layout = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  load,
+  ssr
+}, Symbol.toStringTag, { value: "Module" }));
+export {
+  L as component,
+  _layout as universal
+};
