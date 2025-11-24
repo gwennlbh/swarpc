@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Prepare
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v6
         with:
@@ -57,7 +57,7 @@ jobs:
         shard-index: [1, 2, 3, 4]
         shard-count: [4]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version-file: package.json
@@ -90,7 +90,7 @@ jobs:
       url: ${{ steps.deploy-preview.outputs.preview-url }}
     name: Combine reports
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/download-artifact@v6
         with:
           path: ./playwright-report-shards
