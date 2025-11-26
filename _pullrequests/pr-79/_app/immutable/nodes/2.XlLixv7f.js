@@ -1,5 +1,5 @@
 import { H as HttpError } from "../chunks/BHuZ28Z_.js";
-import { L } from "../chunks/CH2ogSEB.js";
+import { L } from "../chunks/CD87Lc56.js";
 const liftArray = (data) => Array.isArray(data) ? data : [data];
 const spliterate = (arr, predicate) => {
   const result = [[], []];
@@ -416,7 +416,7 @@ const tryParseWellFormedBigint = (def) => {
     return throwParseError(writeMalformedNumericLiteralMessage(def, "bigint"));
   }
 };
-const arkUtilVersion = "0.54.0";
+const arkUtilVersion = "0.55.0";
 const initialRegistryContents = {
   version: arkUtilVersion,
   filename: isomorphic.fileName(),
@@ -8144,7 +8144,7 @@ const procedures = {
 };
 function WorkerWrapper$1(options) {
   return new SharedWorker(
-    "" + new URL("../workers/service-worker-BtVbSiGD.js", import.meta.url).href,
+    "" + new URL("../workers/service-worker-5JJbA9KH.js", import.meta.url).href,
     {
       type: "module",
       name: options?.name
@@ -8153,7 +8153,7 @@ function WorkerWrapper$1(options) {
 }
 function WorkerWrapper(options) {
   return new Worker(
-    "" + new URL("../workers/service-worker-BtVbSiGD.js", import.meta.url).href,
+    "" + new URL("../workers/service-worker-5JJbA9KH.js", import.meta.url).href,
     {
       type: "module",
       name: options?.name

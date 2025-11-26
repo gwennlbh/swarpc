@@ -779,7 +779,7 @@ const tryParseWellFormedBigint = (def) => {
     return throwParseError(writeMalformedNumericLiteralMessage(def, "bigint"));
   }
 };
-const arkUtilVersion = "0.54.0";
+const arkUtilVersion = "0.55.0";
 const initialRegistryContents = {
   version: arkUtilVersion,
   filename: isomorphic.fileName(),

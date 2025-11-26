@@ -591,6 +591,8 @@ class Batch {
         }
         const others = [...batch.current.keys()].filter((s) => !this.current.has(s));
         if (others.length > 0) {
+          var prev_queued_root_effects = queued_root_effects;
+          queued_root_effects = [];
           const marked = /* @__PURE__ */ new Set();
           const checked = /* @__PURE__ */ new Map();
           for (const source2 of sources) {
@@ -602,9 +604,9 @@ class Batch {
             for (const root of queued_root_effects) {
               batch.#traverse_effect_tree(root, dummy_target);
             }
-            queued_root_effects = [];
             batch.deactivate();
           }
+          queued_root_effects = prev_queued_root_effects;
         }
       }
       current_batch = null;
@@ -709,6 +711,7 @@ function flushSync(fn) {
 function flush_effects() {
   var was_updating_effect = is_updating_effect;
   is_flushing = true;
+  var source_stacks = null;
   try {
     var flush_count = 0;
     set_is_updating_effect(true);
@@ -721,6 +724,7 @@ function flush_effects() {
       }
       batch.process(queued_root_effects);
       old_values.clear();
+      if (DEV) ;
     }
   } finally {
     is_flushing = false;
@@ -1120,10 +1124,10 @@ function get_derived_parent_effect(derived2) {
   var parent = derived2.parent;
   while (parent !== null) {
     if ((parent.f & DERIVED) === 0) {
-      return (
+      return (parent.f & DESTROYED) === 0 ? (
         /** @type {Effect} */
         parent
-      );
+      ) : null;
     }
     parent = parent.parent;
   }
@@ -1147,7 +1151,9 @@ function execute_derived(derived2) {
 function update_derived(derived2) {
   var value = execute_derived(derived2);
   if (!derived2.equals(value)) {
-    derived2.v = value;
+    if (!current_batch?.is_fork) {
+      derived2.v = value;
+    }
     derived2.wv = increment_write_version();
   }
   if (is_destroying_effect) {
@@ -1155,7 +1161,7 @@ function update_derived(derived2) {
   }
   if (batch_values !== null) {
     if (effect_tracking()) {
-      batch_values.set(derived2, derived2.v);
+      batch_values.set(derived2, value);
     }
   } else {
     var status = (derived2.f & CONNECTED) === 0 ? MAYBE_DIRTY : CLEAN;
@@ -1243,14 +1249,20 @@ function internal_set(source2, value) {
 }
 function flush_eager_effects() {
   eager_effects_deferred = false;
+  var prev_is_updating_effect = is_updating_effect;
+  set_is_updating_effect(true);
   const inspects = Array.from(eager_effects);
-  for (const effect2 of inspects) {
-    if ((effect2.f & CLEAN) !== 0) {
-      set_signal_status(effect2, MAYBE_DIRTY);
+  try {
+    for (const effect2 of inspects) {
+      if ((effect2.f & CLEAN) !== 0) {
+        set_signal_status(effect2, MAYBE_DIRTY);
+      }
+      if (is_dirty(effect2)) {
+        update_effect(effect2);
+      }
     }
-    if (is_dirty(effect2)) {
-      update_effect(effect2);
-    }
+  } finally {
+    set_is_updating_effect(prev_is_updating_effect);
   }
   eager_effects.clear();
 }
@@ -2281,19 +2293,17 @@ function get(signal) {
       old_values.set(derived2, value);
       return value;
     }
-  } else if (is_derived) {
+  } else if (is_derived && !batch_values?.has(signal)) {
     derived2 = /** @type {Derived} */
     signal;
-    if (batch_values?.has(derived2)) {
-      return batch_values.get(derived2);
-    }
     if (is_dirty(derived2)) {
       update_derived(derived2);
     }
     if (is_updating_effect && effect_tracking() && (derived2.f & CONNECTED) === 0) {
       reconnect(derived2);
     }
-  } else if (batch_values?.has(signal)) {
+  }
+  if (batch_values?.has(signal)) {
     return batch_values.get(signal);
   }
   if ((signal.f & ERROR_VALUE) !== 0) {

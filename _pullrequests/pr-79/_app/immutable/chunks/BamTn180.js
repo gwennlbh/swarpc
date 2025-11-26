@@ -1,7 +1,7 @@
-import { aR as noop$1, aS as safe_not_equal, b as state, g as get$1, a as set$1, A as tick, aT as fork, aU as settled } from "./CeNyfUoB.js";
+import { aR as noop$1, aS as safe_not_equal, b as state, g as get$1, a as set$1, A as tick, aT as fork, aU as settled } from "./Cx1DcKH1.js";
 import { b as base64_decode, H as HttpError, S as SvelteKitError, R as Redirect } from "./BHuZ28Z_.js";
-import { p as parse_route_id, e as exec, a as assets, b as base } from "./BDCAgu4s.js";
-import { o as onMount } from "./B_BxFn35.js";
+import { p as parse_route_id, e as exec, a as assets, b as base } from "./BHAKnjHz.js";
+import { o as onMount } from "./Bcvnr0Ta.js";
 const subscriber_queue = [];
 function writable(value, start2 = noop$1) {
   let stop = null;
@@ -220,7 +220,7 @@ function set(key, value, stringify = JSON.stringify) {
   } catch {
   }
 }
-const version = "1763949878770";
+const version = "1764125581925";
 const SNAPSHOT_KEY = "sveltekit:snapshot";
 const SCROLL_KEY = "sveltekit:scroll";
 const STATES_KEY = "sveltekit:states";
@@ -401,13 +401,7 @@ function is_external_url(url, base2, hash_routing) {
     return true;
   }
   if (hash_routing) {
-    if (url.pathname === base2 + "/" || url.pathname === base2 + "/index.html") {
-      return false;
-    }
-    if (url.protocol === "file:" && url.pathname.replace(/\/[^/]+\.html?$/, "") === base2) {
-      return false;
-    }
-    return true;
+    return url.pathname !== location.pathname;
   }
   return false;
 }
@@ -659,8 +653,8 @@ let token;
 const preload_tokens = /* @__PURE__ */ new Set();
 const query_map = /* @__PURE__ */ new Map();
 async function start(_app, _target, hydrate) {
-  if (globalThis.__sveltekit_1jwuy2d?.data) {
-    globalThis.__sveltekit_1jwuy2d.data;
+  if (globalThis.__sveltekit_im8t11?.data) {
+    globalThis.__sveltekit_im8t11.data;
   }
   if (document.URL !== location.href) {
     location.href = location.href;
@@ -1452,7 +1446,7 @@ async function navigate({
       clear_onward_history(current_history_index, current_navigation_index);
     }
   }
-  const load_cache_fork = load_cache?.fork;
+  const load_cache_fork = intent && load_cache?.id === intent.id ? load_cache.fork : null;
   load_cache = null;
   navigation_result.props.page.state = state2;
   let commit_promise;

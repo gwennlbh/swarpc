@@ -1,13 +1,35 @@
-import { m as current_batch, n as resume_effect, o as destroy_effect, p as pause_effect, q as create_text, v as branch, h as hydrating, w as hydrate_node, x as move_effect, y as should_defer_append } from "./CeNyfUoB.js";
+import { m as current_batch, n as resume_effect, o as destroy_effect, p as pause_effect, q as create_text, v as branch, h as hydrating, w as hydrate_node, x as move_effect, y as should_defer_append } from "./Cx1DcKH1.js";
 class BranchManager {
   /** @type {TemplateNode} */
   anchor;
   /** @type {Map<Batch, Key>} */
   #batches = /* @__PURE__ */ new Map();
-  /** @type {Map<Key, Effect>} */
+  /**
+   * Map of keys to effects that are currently rendered in the DOM.
+   * These effects are visible and actively part of the document tree.
+   * Example:
+   * ```
+   * {#if condition}
+   * 	foo
+   * {:else}
+   * 	bar
+   * {/if}
+   * ```
+   * Can result in the entries `true->Effect` and `false->Effect`
+   * @type {Map<Key, Effect>}
+   */
   #onscreen = /* @__PURE__ */ new Map();
-  /** @type {Map<Key, Branch>} */
+  /**
+   * Similar to #onscreen with respect to the keys, but contains branches that are not yet
+   * in the DOM, because their insertion is deferred.
+   * @type {Map<Key, Branch>}
+   */
   #offscreen = /* @__PURE__ */ new Map();
+  /**
+   * Keys of effects that are currently outroing
+   * @type {Set<Key>}
+   */
+  #outroing = /* @__PURE__ */ new Set();
   /**
    * Whether to pause (i.e. outro) on change, or destroy immediately.
    * This is necessary for `<svelte:element>`
@@ -34,6 +56,7 @@ class BranchManager {
     var onscreen = this.#onscreen.get(key);
     if (onscreen) {
       resume_effect(onscreen);
+      this.#outroing.delete(key);
     } else {
       var offscreen = this.#offscreen.get(key);
       if (offscreen) {
@@ -56,7 +79,7 @@ class BranchManager {
       }
     }
     for (const [k, effect] of this.#onscreen) {
-      if (k === key) continue;
+      if (k === key || this.#outroing.has(k)) continue;
       const on_destroy = () => {
         const keys = Array.from(this.#batches.values());
         if (keys.includes(k)) {
@@ -67,9 +90,11 @@ class BranchManager {
         } else {
           destroy_effect(effect);
         }
+        this.#outroing.delete(k);
         this.#onscreen.delete(k);
       };
       if (this.#transition || !onscreen) {
+        this.#outroing.add(k);
         pause_effect(effect, on_destroy, false);
       } else {
         on_destroy();
