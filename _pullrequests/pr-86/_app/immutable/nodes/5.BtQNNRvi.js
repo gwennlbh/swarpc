@@ -1,8 +1,8 @@
-import { f as from_html, a as append } from "../chunks/DImGZJry.js";
-import { q as create_text, d as block, k as set_hydrate_node, h as hydrating, X as get_first_child, e as hydrate_next, g as get, Y as derived_safe_equal, i as read_hydration_instruction, H as HYDRATION_START_ELSE, j as skip_nodes, l as set_hydrating, w as hydrate_node, Z as COMMENT_NODE, _ as HYDRATION_END, $ as internal_set, m as current_batch, v as branch, y as should_defer_append, a0 as mutable_source, a1 as source, a2 as array_from, a3 as is_array, a4 as EACH_INDEX_REACTIVE, n as resume_effect, p as pause_effect, a5 as EACH_ITEM_REACTIVE, a6 as EACH_ITEM_IMMUTABLE, a7 as INERT, a8 as get_next_sibling, a9 as pause_children, aa as run_out_transitions, ab as clear_text_content, o as destroy_effect, ac as proxy, f as first_child, s as sibling, u as user_derived, b as state, a as set, c as child, r as reset, t as template_effect } from "../chunks/Cx1DcKH1.js";
-import { d as delegate, s as set_text } from "../chunks/PnIbO88p.js";
-import { r as remove_input_defaults } from "../chunks/CO9Ol8Gy.js";
-import { b as bind_value } from "../chunks/CO9i-J86.js";
+import { f as from_html, a as append } from "../chunks/CGQvhKpT.js";
+import { z as create_text, j as block, p as set_hydrate_node, k as hydrating, Y as get_first_child, m as hydrate_next, g as get, Z as derived_safe_equal, n as read_hydration_instruction, H as HYDRATION_START_ELSE, o as skip_nodes, q as set_hydrating, B as hydrate_node, _ as COMMENT_NODE, $ as HYDRATION_END, a0 as internal_set, v as current_batch, A as branch, D as should_defer_append, a1 as mutable_source, a2 as source, a3 as array_from, a4 as is_array, a5 as EACH_INDEX_REACTIVE, w as resume_effect, y as pause_effect, a6 as EACH_ITEM_REACTIVE, a7 as EACH_ITEM_IMMUTABLE, a8 as INERT, a9 as get_next_sibling, aa as pause_children, ab as run_out_transitions, ac as clear_text_content, x as destroy_effect, ad as proxy, f as first_child, s as sibling, i as user_derived, e as state, d as set, h as child, r as reset, t as template_effect } from "../chunks/DgNWappd.js";
+import { d as delegate, s as set_text } from "../chunks/Bfr5JZrY.js";
+import { r as remove_input_defaults } from "../chunks/D_IraKEt.js";
+import { b as bind_value } from "../chunks/0MTF6xQg.js";
 function index(_, i) {
   return i;
 }
@@ -276,6 +276,7 @@ function reconcile(state2, array, anchor, flags, get_key) {
     prev = item;
     current = item.next;
   }
+  let has_offscreen_items = items.size > length;
   if (current !== null || seen !== void 0) {
     var to_destroy = seen === void 0 ? [] : array_from(seen);
     while (current !== null) {
@@ -285,11 +286,21 @@ function reconcile(state2, array, anchor, flags, get_key) {
       current = current.next;
     }
     var destroy_length = to_destroy.length;
+    has_offscreen_items = items.size - destroy_length > length;
     if (destroy_length > 0) {
       var controlled_anchor = length === 0 ? anchor : null;
       pause_effects(state2, to_destroy, controlled_anchor);
     }
   }
+  if (has_offscreen_items) {
+    for (const item2 of items.values()) {
+      if (!item2.o) {
+        link(state2, prev, item2);
+        prev = item2;
+      }
+    }
+  }
+  state2.effect.last = prev && prev.e;
 }
 function create_item(anchor, prev, value, key, index2, render_fn, flags, get_collection) {
   var reactive = (flags & EACH_ITEM_REACTIVE) !== 0;
@@ -359,9 +370,7 @@ function link(state2, prev, next) {
     prev.next = next;
     prev.e.next = next && next.e;
   }
-  if (next === null) {
-    state2.effect.last = prev && prev.e;
-  } else {
+  if (next !== null) {
     if (next.e.prev) {
       next.e.prev.next = null;
     }

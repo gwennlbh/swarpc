@@ -1,9 +1,4 @@
-import { K as user_effect, M as component_context, O as legacy_mode_flag, B as untrack } from "./Cx1DcKH1.js";
-function lifecycle_outside_component(name) {
-  {
-    throw new Error(`https://svelte.dev/e/lifecycle_outside_component`);
-  }
-}
+import { l as lifecycle_outside_component, u as user_effect, c as component_context, a as legacy_mode_flag, b as untrack } from "./DgNWappd.js";
 function onMount(fn) {
   if (component_context === null) {
     lifecycle_outside_component();

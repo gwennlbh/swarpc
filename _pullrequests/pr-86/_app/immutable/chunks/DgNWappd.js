@@ -31,6 +31,7 @@ function deferred() {
 const DERIVED = 1 << 1;
 const EFFECT = 1 << 2;
 const RENDER_EFFECT = 1 << 3;
+const MANAGED_EFFECT = 1 << 24;
 const BLOCK_EFFECT = 1 << 4;
 const BRANCH_EFFECT = 1 << 5;
 const ROOT_EFFECT = 1 << 6;
@@ -60,6 +61,16 @@ const STALE_REACTION = new class StaleReactionError extends Error {
 }();
 const TEXT_NODE = 3;
 const COMMENT_NODE = 8;
+function experimental_async_required(name) {
+  {
+    throw new Error(`https://svelte.dev/e/experimental_async_required`);
+  }
+}
+function lifecycle_outside_component(name) {
+  {
+    throw new Error(`https://svelte.dev/e/lifecycle_outside_component`);
+  }
+}
 function async_derived_orphan() {
   {
     throw new Error(`https://svelte.dev/e/async_derived_orphan`);
@@ -83,11 +94,6 @@ function effect_orphan(rune) {
 function effect_update_depth_exceeded() {
   {
     throw new Error(`https://svelte.dev/e/effect_update_depth_exceeded`);
-  }
-}
-function experimental_async_fork() {
-  {
-    throw new Error(`https://svelte.dev/e/experimental_async_fork`);
   }
 }
 function fork_discarded() {
@@ -795,8 +801,7 @@ function mark_effects(value, sources, marked, checked) {
           marked,
           checked
         );
-      } else if ((flags & (ASYNC | BLOCK_EFFECT)) !== 0 && (flags & DIRTY) === 0 && // we may have scheduled this one already
-      depends_on(reaction, sources, checked)) {
+      } else if ((flags & (ASYNC | BLOCK_EFFECT)) !== 0 && (flags & DIRTY) === 0 && depends_on(reaction, sources, checked)) {
         set_signal_status(reaction, DIRTY);
         schedule_effect(
           /** @type {Effect} */
@@ -868,16 +873,18 @@ function schedule_effect(signal) {
 }
 function fork(fn) {
   {
-    experimental_async_fork();
+    experimental_async_required();
   }
   if (current_batch !== null) {
     fork_timing();
   }
   var batch = Batch.ensure();
   batch.is_fork = true;
+  batch_values = /* @__PURE__ */ new Map();
   var committed = false;
   var settled2 = batch.settled();
   flushSync(fn);
+  batch_values = null;
   for (var [source2, value] of batch.previous) {
     source2.v = value;
   }
@@ -1160,7 +1167,7 @@ function update_derived(derived2) {
     return;
   }
   if (batch_values !== null) {
-    if (effect_tracking()) {
+    if (effect_tracking() || current_batch?.is_fork) {
       batch_values.set(derived2, value);
     }
   } else {
@@ -1295,13 +1302,11 @@ function mark_reactions(signal, status) {
         mark_reactions(derived2, MAYBE_DIRTY);
       }
     } else if (not_dirty) {
-      if ((flags & BLOCK_EFFECT) !== 0) {
-        if (eager_block_effects !== null) {
-          eager_block_effects.add(
-            /** @type {Effect} */
-            reaction
-          );
-        }
+      if ((flags & BLOCK_EFFECT) !== 0 && eager_block_effects !== null) {
+        eager_block_effects.add(
+          /** @type {Effect} */
+          reaction
+        );
       }
       schedule_effect(
         /** @type {Effect} */
@@ -1628,7 +1633,7 @@ function add_form_reset_listener() {
           }
         });
       },
-      // In the capture phase to guarantee we get noticed of it (no possiblity of stopPropagation)
+      // In the capture phase to guarantee we get noticed of it (no possibility of stopPropagation)
       { capture: true }
     );
   }
@@ -2225,7 +2230,7 @@ function update_effect(effect2) {
   active_effect = effect2;
   is_updating_effect = true;
   try {
-    if ((flags & BLOCK_EFFECT) !== 0) {
+    if ((flags & (BLOCK_EFFECT | MANAGED_EFFECT)) !== 0) {
       destroy_block_effect_children(effect2);
     } else {
       destroy_effect_children(effect2);
@@ -2293,7 +2298,7 @@ function get(signal) {
       old_values.set(derived2, value);
       return value;
     }
-  } else if (is_derived && !batch_values?.has(signal)) {
+  } else if (is_derived && (!batch_values?.has(signal) || current_batch?.is_fork && !effect_tracking())) {
     derived2 = /** @type {Derived} */
     signal;
     if (is_dirty(derived2)) {
@@ -2397,115 +2402,116 @@ function deep_read(value, visited = /* @__PURE__ */ new Set()) {
   }
 }
 export {
-  internal_set as $,
-  tick as A,
-  untrack as B,
-  render_effect as C,
-  previous_batch as D,
+  HYDRATION_END as $,
+  branch as A,
+  hydrate_node as B,
+  move_effect as C,
+  should_defer_append as D,
   EFFECT_TRANSPARENT as E,
-  get_prototype_of as F,
-  get_descriptors as G,
+  listen_to_event_and_reset_event as F,
+  tick as G,
   HYDRATION_START_ELSE as H,
-  queue_micro_task as I,
-  add_form_reset_listener as J,
-  user_effect as K,
-  LOADING_ATTR_SYMBOL as L,
-  component_context as M,
+  render_effect as I,
+  previous_batch as J,
+  get_prototype_of as K,
+  get_descriptors as L,
+  queue_micro_task as M,
   NAMESPACE_HTML as N,
-  legacy_mode_flag as O,
-  push as P,
-  pop as Q,
-  user_pre_effect as R,
-  run_all as S,
-  run as T,
-  deep_read_state as U,
-  derived as V,
-  enable_legacy_mode_flag as W,
-  get_first_child as X,
-  derived_safe_equal as Y,
-  COMMENT_NODE as Z,
-  HYDRATION_END as _,
-  set as a,
-  mutable_source as a0,
-  source as a1,
-  array_from as a2,
-  is_array as a3,
-  EACH_INDEX_REACTIVE as a4,
-  EACH_ITEM_REACTIVE as a5,
-  EACH_ITEM_IMMUTABLE as a6,
-  INERT as a7,
-  get_next_sibling as a8,
-  pause_children as a9,
-  HYDRATION_ERROR as aA,
-  hydration_failed as aB,
-  component_root as aC,
-  hydration_mismatch as aD,
-  effect as aE,
-  STATE_SYMBOL as aF,
-  get_descriptor as aG,
-  props_invalid_value as aH,
-  PROPS_IS_UPDATED as aI,
-  is_destroying_effect as aJ,
-  DESTROYED as aK,
-  PROPS_IS_BINDABLE as aL,
-  PROPS_IS_RUNES as aM,
-  PROPS_IS_IMMUTABLE as aN,
-  PROPS_IS_LAZY_INITIAL as aO,
-  LEGACY_PROPS as aP,
-  flushSync as aQ,
-  noop as aR,
-  safe_not_equal as aS,
-  fork as aT,
-  settled as aU,
-  run_out_transitions as aa,
-  clear_text_content as ab,
-  proxy as ac,
-  is_firefox as ad,
-  active_effect as ae,
-  TEMPLATE_FRAGMENT as af,
-  TEMPLATE_USE_IMPORT_NODE as ag,
-  EFFECT_RAN as ah,
-  TEXT_NODE as ai,
-  effect_tracking as aj,
-  increment as ak,
-  Batch as al,
-  set_active_effect as am,
-  set_active_reaction as an,
-  set_component_context as ao,
-  handle_error as ap,
-  active_reaction as aq,
-  next as ar,
-  invoke_error_boundary as as,
-  svelte_boundary_reset_onerror as at,
-  EFFECT_PRESERVED as au,
-  BOUNDARY_EFFECT as av,
-  svelte_boundary_reset_noop as aw,
-  define_property as ax,
-  init_operations as ay,
-  HYDRATION_START as az,
-  state as b,
-  child as c,
-  block as d,
-  hydrate_next as e,
+  add_form_reset_listener as O,
+  LOADING_ATTR_SYMBOL as P,
+  push as Q,
+  pop as R,
+  user_pre_effect as S,
+  run_all as T,
+  run as U,
+  deep_read_state as V,
+  derived as W,
+  enable_legacy_mode_flag as X,
+  get_first_child as Y,
+  derived_safe_equal as Z,
+  COMMENT_NODE as _,
+  legacy_mode_flag as a,
+  internal_set as a0,
+  mutable_source as a1,
+  source as a2,
+  array_from as a3,
+  is_array as a4,
+  EACH_INDEX_REACTIVE as a5,
+  EACH_ITEM_REACTIVE as a6,
+  EACH_ITEM_IMMUTABLE as a7,
+  INERT as a8,
+  get_next_sibling as a9,
+  HYDRATION_START as aA,
+  HYDRATION_ERROR as aB,
+  hydration_failed as aC,
+  component_root as aD,
+  hydration_mismatch as aE,
+  effect as aF,
+  STATE_SYMBOL as aG,
+  get_descriptor as aH,
+  props_invalid_value as aI,
+  PROPS_IS_UPDATED as aJ,
+  is_destroying_effect as aK,
+  DESTROYED as aL,
+  PROPS_IS_BINDABLE as aM,
+  PROPS_IS_RUNES as aN,
+  PROPS_IS_IMMUTABLE as aO,
+  PROPS_IS_LAZY_INITIAL as aP,
+  LEGACY_PROPS as aQ,
+  flushSync as aR,
+  noop as aS,
+  safe_not_equal as aT,
+  fork as aU,
+  settled as aV,
+  pause_children as aa,
+  run_out_transitions as ab,
+  clear_text_content as ac,
+  proxy as ad,
+  is_firefox as ae,
+  active_effect as af,
+  TEMPLATE_FRAGMENT as ag,
+  TEMPLATE_USE_IMPORT_NODE as ah,
+  EFFECT_RAN as ai,
+  TEXT_NODE as aj,
+  effect_tracking as ak,
+  increment as al,
+  Batch as am,
+  set_active_effect as an,
+  set_active_reaction as ao,
+  set_component_context as ap,
+  handle_error as aq,
+  active_reaction as ar,
+  next as as,
+  invoke_error_boundary as at,
+  svelte_boundary_reset_onerror as au,
+  EFFECT_PRESERVED as av,
+  BOUNDARY_EFFECT as aw,
+  svelte_boundary_reset_noop as ax,
+  define_property as ay,
+  init_operations as az,
+  untrack as b,
+  component_context as c,
+  set as d,
+  state as e,
   first_child as f,
   get as g,
-  hydrating as h,
-  read_hydration_instruction as i,
-  skip_nodes as j,
-  set_hydrate_node as k,
-  set_hydrating as l,
-  current_batch as m,
-  resume_effect as n,
-  destroy_effect as o,
-  pause_effect as p,
-  create_text as q,
+  child as h,
+  user_derived as i,
+  block as j,
+  hydrating as k,
+  lifecycle_outside_component as l,
+  hydrate_next as m,
+  read_hydration_instruction as n,
+  skip_nodes as o,
+  set_hydrate_node as p,
+  set_hydrating as q,
   reset as r,
   sibling as s,
   template_effect as t,
-  user_derived as u,
-  branch as v,
-  hydrate_node as w,
-  move_effect as x,
-  should_defer_append as y,
-  listen_to_event_and_reset_event as z
+  user_effect as u,
+  current_batch as v,
+  resume_effect as w,
+  destroy_effect as x,
+  pause_effect as y,
+  create_text as z
 };
