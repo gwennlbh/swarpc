@@ -48,6 +48,7 @@ const EAGER_EFFECT = 1 << 17;
 const HEAD_EFFECT = 1 << 18;
 const EFFECT_PRESERVED = 1 << 19;
 const USER_EFFECT = 1 << 20;
+const EFFECT_OFFSCREEN = 1 << 25;
 const WAS_MARKED = 1 << 15;
 const REACTION_IS_UPDATING = 1 << 21;
 const ASYNC = 1 << 22;
@@ -175,10 +176,7 @@ function set_hydrate_node(node) {
   return hydrate_node = node;
 }
 function hydrate_next() {
-  return set_hydrate_node(
-    /** @type {TemplateNode} */
-    /* @__PURE__ */ get_next_sibling(hydrate_node)
-  );
+  return set_hydrate_node(/* @__PURE__ */ get_next_sibling(hydrate_node));
 }
 function reset(node) {
   if (!hydrating) return;
@@ -755,7 +753,7 @@ function flush_queued_effects(effects) {
     if ((effect2.f & (DESTROYED | INERT)) === 0 && is_dirty(effect2)) {
       eager_block_effects = /* @__PURE__ */ new Set();
       update_effect(effect2);
-      if (effect2.deps === null && effect2.first === null && effect2.nodes_start === null) {
+      if (effect2.deps === null && effect2.first === null && effect2.nodes === null) {
         if (effect2.teardown === null && effect2.ac === null) {
           unlink_effect(effect2);
         } else {
@@ -1536,20 +1534,23 @@ function create_text(value = "") {
 }
 // @__NO_SIDE_EFFECTS__
 function get_first_child(node) {
-  return first_child_getter.call(node);
+  return (
+    /** @type {TemplateNode | null} */
+    first_child_getter.call(node)
+  );
 }
 // @__NO_SIDE_EFFECTS__
 function get_next_sibling(node) {
-  return next_sibling_getter.call(node);
+  return (
+    /** @type {TemplateNode | null} */
+    next_sibling_getter.call(node)
+  );
 }
 function child(node, is_text) {
   if (!hydrating) {
     return /* @__PURE__ */ get_first_child(node);
   }
-  var child2 = (
-    /** @type {TemplateNode} */
-    /* @__PURE__ */ get_first_child(hydrate_node)
-  );
+  var child2 = /* @__PURE__ */ get_first_child(hydrate_node);
   if (child2 === null) {
     child2 = hydrate_node.appendChild(create_text());
   } else if (is_text && child2.nodeType !== TEXT_NODE) {
@@ -1561,15 +1562,9 @@ function child(node, is_text) {
   set_hydrate_node(child2);
   return child2;
 }
-function first_child(fragment, is_text = false) {
+function first_child(node, is_text = false) {
   if (!hydrating) {
-    var first = (
-      /** @type {DocumentFragment} */
-      /* @__PURE__ */ get_first_child(
-        /** @type {Node} */
-        fragment
-      )
-    );
+    var first = /* @__PURE__ */ get_first_child(node);
     if (first instanceof Comment && first.data === "") return /* @__PURE__ */ get_next_sibling(first);
     return first;
   }
@@ -1603,10 +1598,7 @@ function sibling(node, count = 1, is_text = false) {
     return text;
   }
   set_hydrate_node(next_sibling);
-  return (
-    /** @type {TemplateNode} */
-    next_sibling
-  );
+  return next_sibling;
 }
 function clear_text_content(node) {
   node.textContent = "";
@@ -1692,8 +1684,7 @@ function create_effect(type, fn, sync) {
   var effect2 = {
     ctx: component_context,
     deps: null,
-    nodes_start: null,
-    nodes_end: null,
+    nodes: null,
     f: type | DIRTY | CONNECTED,
     first: null,
     fn,
@@ -1703,7 +1694,6 @@ function create_effect(type, fn, sync) {
     b: parent && parent.b,
     prev: null,
     teardown: null,
-    transitions: null,
     wv: 0,
     ac: null
   };
@@ -1719,7 +1709,7 @@ function create_effect(type, fn, sync) {
     schedule_effect(effect2);
   }
   var e = effect2;
-  if (sync && e.deps === null && e.teardown === null && e.nodes_start === null && e.first === e.last && // either `null`, or a singular child
+  if (sync && e.deps === null && e.teardown === null && e.nodes === null && e.first === e.last && // either `null`, or a singular child
   (e.f & EFFECT_PRESERVED) === 0) {
     e = e.first;
     if ((type & BLOCK_EFFECT) !== 0 && (type & EFFECT_TRANSPARENT) !== 0 && e !== null) {
@@ -1858,18 +1848,18 @@ function destroy_block_effect_children(signal) {
 }
 function destroy_effect(effect2, remove_dom = true) {
   var removed = false;
-  if ((remove_dom || (effect2.f & HEAD_EFFECT) !== 0) && effect2.nodes_start !== null && effect2.nodes_end !== null) {
+  if ((remove_dom || (effect2.f & HEAD_EFFECT) !== 0) && effect2.nodes !== null && effect2.nodes.end !== null) {
     remove_effect_dom(
-      effect2.nodes_start,
+      effect2.nodes.start,
       /** @type {TemplateNode} */
-      effect2.nodes_end
+      effect2.nodes.end
     );
     removed = true;
   }
   destroy_effect_children(effect2, remove_dom && !removed);
   remove_reactions(effect2, 0);
   set_signal_status(effect2, DESTROYED);
-  var transitions = effect2.transitions;
+  var transitions = effect2.nodes && effect2.nodes.t;
   if (transitions !== null) {
     for (const transition of transitions) {
       transition.stop();
@@ -1880,14 +1870,11 @@ function destroy_effect(effect2, remove_dom = true) {
   if (parent !== null && parent.first !== null) {
     unlink_effect(effect2);
   }
-  effect2.next = effect2.prev = effect2.teardown = effect2.ctx = effect2.deps = effect2.fn = effect2.nodes_start = effect2.nodes_end = effect2.ac = null;
+  effect2.next = effect2.prev = effect2.teardown = effect2.ctx = effect2.deps = effect2.fn = effect2.nodes = effect2.ac = null;
 }
 function remove_effect_dom(node, end) {
   while (node !== null) {
-    var next2 = node === end ? null : (
-      /** @type {TemplateNode} */
-      /* @__PURE__ */ get_next_sibling(node)
-    );
+    var next2 = node === end ? null : /* @__PURE__ */ get_next_sibling(node);
     node.remove();
     node = next2;
   }
@@ -1906,12 +1893,10 @@ function unlink_effect(effect2) {
 function pause_effect(effect2, callback, destroy = true) {
   var transitions = [];
   pause_children(effect2, transitions, true);
-  run_out_transitions(transitions, () => {
+  var fn = () => {
     if (destroy) destroy_effect(effect2);
     if (callback) callback();
-  });
-}
-function run_out_transitions(transitions, fn) {
+  };
   var remaining = transitions.length;
   if (remaining > 0) {
     var check = () => --remaining || fn();
@@ -1925,8 +1910,9 @@ function run_out_transitions(transitions, fn) {
 function pause_children(effect2, transitions, local) {
   if ((effect2.f & INERT) !== 0) return;
   effect2.f ^= INERT;
-  if (effect2.transitions !== null) {
-    for (const transition of effect2.transitions) {
+  var t = effect2.nodes && effect2.nodes.t;
+  if (t !== null) {
+    for (const transition of t) {
       if (transition.is_global || local) {
         transitions.push(transition);
       }
@@ -1960,8 +1946,9 @@ function resume_children(effect2, local) {
     resume_children(child2, transparent ? local : false);
     child2 = sibling2;
   }
-  if (effect2.transitions !== null) {
-    for (const transition of effect2.transitions) {
+  var t = effect2.nodes && effect2.nodes.t;
+  if (t !== null) {
+    for (const transition of t) {
       if (transition.is_global || local) {
         transition.in();
       }
@@ -1969,13 +1956,11 @@ function resume_children(effect2, local) {
   }
 }
 function move_effect(effect2, fragment) {
-  var node = effect2.nodes_start;
-  var end = effect2.nodes_end;
+  if (!effect2.nodes) return;
+  var node = effect2.nodes.start;
+  var end = effect2.nodes.end;
   while (node !== null) {
-    var next2 = node === end ? null : (
-      /** @type {TemplateNode} */
-      /* @__PURE__ */ get_next_sibling(node)
-    );
+    var next2 = node === end ? null : /* @__PURE__ */ get_next_sibling(node);
     fragment.append(node);
     node = next2;
   }
@@ -2130,7 +2115,7 @@ function update_reaction(reaction) {
       } else {
         reaction.deps = deps = new_deps;
       }
-      if (is_updating_effect && effect_tracking() && (reaction.f & CONNECTED) !== 0) {
+      if (effect_tracking() && (reaction.f & CONNECTED) !== 0) {
         for (i = skipped_deps; i < deps.length; i++) {
           (deps[i].reactions ??= []).push(reaction);
         }
@@ -2432,63 +2417,62 @@ export {
   COMMENT_NODE as _,
   legacy_mode_flag as a,
   internal_set as a0,
-  mutable_source as a1,
+  EFFECT_OFFSCREEN as a1,
   source as a2,
-  array_from as a3,
-  is_array as a4,
-  EACH_INDEX_REACTIVE as a5,
+  mutable_source as a3,
+  array_from as a4,
+  is_array as a5,
   EACH_ITEM_REACTIVE as a6,
   EACH_ITEM_IMMUTABLE as a7,
-  INERT as a8,
-  get_next_sibling as a9,
-  HYDRATION_START as aA,
-  HYDRATION_ERROR as aB,
-  hydration_failed as aC,
-  component_root as aD,
-  hydration_mismatch as aE,
-  effect as aF,
-  STATE_SYMBOL as aG,
-  get_descriptor as aH,
-  props_invalid_value as aI,
-  PROPS_IS_UPDATED as aJ,
-  is_destroying_effect as aK,
-  DESTROYED as aL,
-  PROPS_IS_BINDABLE as aM,
-  PROPS_IS_RUNES as aN,
-  PROPS_IS_IMMUTABLE as aO,
-  PROPS_IS_LAZY_INITIAL as aP,
-  LEGACY_PROPS as aQ,
-  flushSync as aR,
-  noop as aS,
-  safe_not_equal as aT,
-  fork as aU,
-  settled as aV,
-  pause_children as aa,
-  run_out_transitions as ab,
-  clear_text_content as ac,
-  proxy as ad,
-  is_firefox as ae,
-  active_effect as af,
-  TEMPLATE_FRAGMENT as ag,
-  TEMPLATE_USE_IMPORT_NODE as ah,
-  EFFECT_RAN as ai,
-  TEXT_NODE as aj,
-  effect_tracking as ak,
-  increment as al,
-  Batch as am,
-  set_active_effect as an,
-  set_active_reaction as ao,
-  set_component_context as ap,
-  handle_error as aq,
-  active_reaction as ar,
-  next as as,
-  invoke_error_boundary as at,
-  svelte_boundary_reset_onerror as au,
-  EFFECT_PRESERVED as av,
-  BOUNDARY_EFFECT as aw,
-  svelte_boundary_reset_noop as ax,
-  define_property as ay,
-  init_operations as az,
+  EACH_INDEX_REACTIVE as a8,
+  INERT as a9,
+  HYDRATION_ERROR as aA,
+  hydration_failed as aB,
+  component_root as aC,
+  hydration_mismatch as aD,
+  effect as aE,
+  STATE_SYMBOL as aF,
+  get_descriptor as aG,
+  props_invalid_value as aH,
+  PROPS_IS_UPDATED as aI,
+  is_destroying_effect as aJ,
+  DESTROYED as aK,
+  PROPS_IS_BINDABLE as aL,
+  PROPS_IS_RUNES as aM,
+  PROPS_IS_IMMUTABLE as aN,
+  PROPS_IS_LAZY_INITIAL as aO,
+  LEGACY_PROPS as aP,
+  flushSync as aQ,
+  noop as aR,
+  safe_not_equal as aS,
+  fork as aT,
+  settled as aU,
+  get_next_sibling as aa,
+  clear_text_content as ab,
+  proxy as ac,
+  is_firefox as ad,
+  active_effect as ae,
+  TEMPLATE_FRAGMENT as af,
+  TEMPLATE_USE_IMPORT_NODE as ag,
+  EFFECT_RAN as ah,
+  TEXT_NODE as ai,
+  effect_tracking as aj,
+  increment as ak,
+  Batch as al,
+  set_active_effect as am,
+  set_active_reaction as an,
+  set_component_context as ao,
+  handle_error as ap,
+  active_reaction as aq,
+  next as ar,
+  invoke_error_boundary as as,
+  svelte_boundary_reset_onerror as at,
+  EFFECT_PRESERVED as au,
+  BOUNDARY_EFFECT as av,
+  svelte_boundary_reset_noop as aw,
+  define_property as ax,
+  init_operations as ay,
+  HYDRATION_START as az,
   untrack as b,
   component_context as c,
   set as d,

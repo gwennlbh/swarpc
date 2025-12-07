@@ -1,4 +1,4 @@
-import { z as create_text, Y as get_first_child, ae as is_firefox, af as active_effect, ag as TEMPLATE_FRAGMENT, ah as TEMPLATE_USE_IMPORT_NODE, k as hydrating, B as hydrate_node, ai as EFFECT_RAN, m as hydrate_next, aj as TEXT_NODE, p as set_hydrate_node } from "./DgNWappd.js";
+import { z as create_text, Y as get_first_child, ad as is_firefox, ae as active_effect, af as TEMPLATE_FRAGMENT, ag as TEMPLATE_USE_IMPORT_NODE, k as hydrating, B as hydrate_node, ah as EFFECT_RAN, m as hydrate_next, ai as TEXT_NODE, p as set_hydrate_node } from "./B_WeHsR-.js";
 function create_fragment_from_html(html) {
   var elem = document.createElement("template");
   elem.innerHTML = html.replaceAll("<!>", "<!---->");
@@ -9,9 +9,8 @@ function assign_nodes(start, end) {
     /** @type {Effect} */
     active_effect
   );
-  if (effect.nodes_start === null) {
-    effect.nodes_start = start;
-    effect.nodes_end = end;
+  if (effect.nodes === null) {
+    effect.nodes = { start, end, a: null, t: null };
   }
 }
 // @__NO_SIDE_EFFECTS__
@@ -27,7 +26,7 @@ function from_html(content, flags) {
     }
     if (node === void 0) {
       node = create_fragment_from_html(has_start ? content : "<!>" + content);
-      if (!is_fragment) node = /** @type {Node} */
+      if (!is_fragment) node = /** @type {TemplateNode} */
       get_first_child(node);
     }
     var clone = (
@@ -79,11 +78,11 @@ function comment() {
 function append(anchor, dom) {
   if (hydrating) {
     var effect = (
-      /** @type {Effect} */
+      /** @type {Effect & { nodes: EffectNodes }} */
       active_effect
     );
-    if ((effect.f & EFFECT_RAN) === 0 || effect.nodes_end === null) {
-      effect.nodes_end = hydrate_node;
+    if ((effect.f & EFFECT_RAN) === 0 || effect.nodes.end === null) {
+      effect.nodes.end = hydrate_node;
     }
     hydrate_next();
     return;

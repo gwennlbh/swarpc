@@ -703,6 +703,7 @@ const isomorphic = {
   env
 };
 const capitalize$1 = (s) => s[0].toUpperCase() + s.slice(1);
+const uncapitalize = (s) => s[0].toLowerCase() + s.slice(1);
 const anchoredRegex = (regex2) => new RegExp(anchoredSource(regex2), typeof regex2 === "string" ? "" : regex2.flags);
 const anchoredSource = (regex2) => {
   const source = typeof regex2 === "string" ? regex2 : regex2.source;
@@ -779,7 +780,7 @@ const tryParseWellFormedBigint = (def) => {
     return throwParseError(writeMalformedNumericLiteralMessage(def, "bigint"));
   }
 };
-const arkUtilVersion = "0.55.0";
+const arkUtilVersion = "0.56.0";
 const initialRegistryContents = {
   version: arkUtilVersion,
   filename: isomorphic.fileName(),
@@ -827,7 +828,7 @@ const printable = (data, opts) => {
   switch (domainOf(data)) {
     case "object":
       const o = data;
-      const ctorName = o.constructor.name;
+      const ctorName = o.constructor?.name ?? "Object";
       return ctorName === "Object" || ctorName === "Array" ? opts?.quoteKeys === false ? stringifyUnquoted(o, opts?.indent ?? 0, "") : JSON.stringify(_serialize(o, printableOpts, []), null, opts?.indent) : stringifyUnquoted(o, opts?.indent ?? 0, "");
     case "symbol":
       return printableOpts.onSymbol(data);
@@ -849,7 +850,7 @@ const stringifyUnquoted = (value2, indent2, currentIndent) => {
 ${nextIndent}${items}
 ${currentIndent}]` : `[${items}]`;
   }
-  const ctorName = value2.constructor.name;
+  const ctorName = value2.constructor?.name ?? "Object";
   if (ctorName === "Object") {
     const keyValues = stringAndSymbolicEntriesOf(value2).map(([key, val]) => {
       const stringifiedKey = typeof key === "symbol" ? printableOpts.onSymbol(key) : isDotAccessible(key) ? key : JSON.stringify(key);
@@ -1336,6 +1337,7 @@ class ToJsonSchemaError extends Error {
   }
 }
 const defaultConfig = {
+  target: "draft-2020-12",
   dialect: "https://json-schema.org/draft/2020-12/schema",
   useRefs: false,
   fallback: {
@@ -1390,9 +1392,13 @@ const mergeConfigs = (base, merged) => {
   }
   return result;
 };
+const jsonSchemaTargetToDialect = {
+  "draft-2020-12": "https://json-schema.org/draft/2020-12/schema",
+  "draft-07": "http://json-schema.org/draft-07/schema#"
+};
 const mergeToJsonSchemaConfigs = (baseConfig, mergedConfig) => {
   if (!baseConfig)
-    return mergedConfig ?? {};
+    return resolveTargetToDialect(mergedConfig ?? {}, void 0);
   if (!mergedConfig)
     return baseConfig;
   const result = { ...baseConfig };
@@ -1403,7 +1409,18 @@ const mergeToJsonSchemaConfigs = (baseConfig, mergedConfig) => {
     } else
       result[k] = mergedConfig[k];
   }
-  return result;
+  return resolveTargetToDialect(result, mergedConfig);
+};
+const resolveTargetToDialect = (opts, userOpts) => {
+  if (userOpts?.dialect !== void 0)
+    return opts;
+  if (userOpts?.target !== void 0) {
+    return {
+      ...opts,
+      dialect: jsonSchemaTargetToDialect[userOpts.target]
+    };
+  }
+  return opts;
 };
 const mergeFallbacks = (base, merged) => {
   base = normalizeFallback(base);
@@ -1810,7 +1827,8 @@ class Traversal {
       const morphIsNode = isNode(morph);
       const result = morph(parent === void 0 ? this.root : parent[key], this);
       if (result instanceof ArkError) {
-        this.errors.add(result);
+        if (!this.errors.includes(result))
+          this.errors.add(result);
         break;
       }
       if (result instanceof ArkErrors) {
@@ -2568,7 +2586,8 @@ class PredicateNode extends BaseConstraint {
   };
   compiledErrorContext = compileObjectLiteral(this.errorContext);
   traverseApply = (data, ctx) => {
-    if (!this.predicate(data, ctx.external) && !ctx.hasError())
+    const errorCount = ctx.currentErrorCount;
+    if (!this.predicate(data, ctx.external) && ctx.currentErrorCount === errorCount)
       ctx.errorFromNodeContext(this.errorContext);
   };
   compile(js) {
@@ -2576,7 +2595,12 @@ class PredicateNode extends BaseConstraint {
       js.return(this.compiledCondition);
       return;
     }
-    js.if(`${this.compiledNegation} && !ctx.hasError()`, () => js.line(`ctx.errorFromNodeContext(${this.compiledErrorContext})`));
+    js.initializeErrorCount();
+    js.if(
+      // only add the default error if the predicate didn't add one itself
+      `${this.compiledNegation} && ctx.currentErrorCount === errorCount`,
+      () => js.line(`ctx.errorFromNodeContext(${this.compiledErrorContext})`)
+    );
   }
   reduceJsonSchema(base, ctx) {
     return ctx.fallback.predicate({
@@ -3423,13 +3447,15 @@ class BaseRoot extends BaseNode {
           return out;
         return { value: out };
       },
-      toJSONSchema: (opts) => {
-        if (opts.target && opts.target !== "draft-2020-12") {
-          return throwParseError(`JSONSchema target '${opts.target}' is not supported (must be "draft-2020-12")`);
-        }
-        if (opts.io === "input")
-          return this.rawIn.toJsonSchema();
-        return this.rawOut.toJsonSchema();
+      jsonSchema: {
+        input: (opts) => this.rawIn.toJsonSchema({
+          target: validateStandardJsonSchemaTarget(opts.target),
+          ...opts.libraryOptions
+        }),
+        output: (opts) => this.rawOut.toJsonSchema({
+          target: validateStandardJsonSchemaTarget(opts.target),
+          ...opts.libraryOptions
+        })
       }
     };
   }
@@ -3458,13 +3484,19 @@ class BaseRoot extends BaseNode {
     const schema = typeof ctx.dialect === "string" ? { $schema: ctx.dialect } : {};
     Object.assign(schema, this.toJsonSchemaRecurse(ctx));
     if (ctx.useRefs) {
-      schema.$defs = flatMorph(this.references, (i, ref) => ref.isRoot() && !ref.alwaysExpandJsonSchema ? [ref.id, ref.toResolvedJsonSchema(ctx)] : []);
+      const defs = flatMorph(this.references, (i, ref) => ref.isRoot() && !ref.alwaysExpandJsonSchema ? [ref.id, ref.toResolvedJsonSchema(ctx)] : []);
+      if (ctx.target === "draft-07")
+        Object.assign(schema, { definitions: defs });
+      else
+        schema.$defs = defs;
     }
     return schema;
   }
   toJsonSchemaRecurse(ctx) {
-    if (ctx.useRefs && !this.alwaysExpandJsonSchema)
-      return { $ref: `#/$defs/${this.id}` };
+    if (ctx.useRefs && !this.alwaysExpandJsonSchema) {
+      const defsKey = ctx.target === "draft-07" ? "definitions" : "$defs";
+      return { $ref: `#/${defsKey}/${this.id}` };
+    }
     return this.toResolvedJsonSchema(ctx);
   }
   get alwaysExpandJsonSchema() {
@@ -3759,6 +3791,16 @@ class BaseRoot extends BaseNode {
   }
 }
 const emptyBrandNameMessage = `Expected a non-empty brand name after #`;
+const supportedJsonSchemaTargets = [
+  "draft-2020-12",
+  "draft-07"
+];
+const writeInvalidJsonSchemaTargetMessage = (target) => `JSONSchema target '${target}' is not supported (must be ${supportedJsonSchemaTargets.map((t) => `"${t}"`).join(" or ")})`;
+const validateStandardJsonSchemaTarget = (target) => {
+  if (!includes(supportedJsonSchemaTargets, target))
+    throwParseError(writeInvalidJsonSchemaTargetMessage(target));
+  return target;
+};
 const exclusivizeRangeSchema = (schema) => typeof schema === "object" && !(schema instanceof Date) ? { ...schema, exclusive: true } : {
   rule: schema,
   exclusive: true
@@ -5432,8 +5474,9 @@ class SequenceNode extends BaseConstraint {
   // this depends on tuple so needs to come after it
   expression = this.description;
   reduceJsonSchema(schema, ctx) {
+    const isDraft07 = ctx.target === "draft-07";
     if (this.prevariadic.length) {
-      schema.prefixItems = this.prevariadic.map((el) => {
+      const prefixSchemas = this.prevariadic.map((el) => {
         const valueSchema = el.node.toJsonSchemaRecurse(ctx);
         if (el.kind === "defaultables") {
           const value2 = typeof el.default === "function" ? el.default() : el.default;
@@ -5445,25 +5488,34 @@ class SequenceNode extends BaseConstraint {
         }
         return valueSchema;
       });
+      if (isDraft07)
+        schema.items = prefixSchemas;
+      else
+        schema.prefixItems = prefixSchemas;
     }
     if (this.minLength)
       schema.minItems = this.minLength;
     if (this.variadic) {
-      const variadicSchema = Object.assign(schema, {
-        items: this.variadic.toJsonSchemaRecurse(ctx)
-      });
+      const variadicItemSchema = this.variadic.toJsonSchemaRecurse(ctx);
+      if (isDraft07 && this.prevariadic.length)
+        schema.additionalItems = variadicItemSchema;
+      else
+        schema.items = variadicItemSchema;
       if (this.maxLength)
-        variadicSchema.maxItems = this.maxLength;
+        schema.maxItems = this.maxLength;
       if (this.postfix) {
         const elements = this.postfix.map((el) => el.toJsonSchemaRecurse(ctx));
         schema = ctx.fallback.arrayPostfix({
           code: "arrayPostfix",
-          base: variadicSchema,
+          base: schema,
           elements
         });
       }
     } else {
-      schema.items = false;
+      if (isDraft07)
+        schema.additionalItems = false;
+      else
+        schema.items = false;
       delete schema.maxItems;
     }
     return schema;
@@ -6814,14 +6866,23 @@ const maybeParseDate = (source, errorOnFail) => {
   }
   return errorOnFail ? throwParseError(errorOnFail === true ? writeInvalidDateMessage(source) : errorOnFail) : void 0;
 };
+const regexExecArray = rootSchema({
+  proto: "Array",
+  sequence: "string",
+  required: {
+    key: "groups",
+    value: ["object", { unit: void 0 }]
+  }
+});
 const parseEnclosed = (s, enclosing) => {
   const enclosed = s.scanner.shiftUntilEscapable(untilLookaheadIsClosing[enclosingTokens[enclosing]]);
   if (s.scanner.lookahead === "")
     return s.error(writeUnterminatedEnclosedMessage(enclosed, enclosing));
   s.scanner.shift();
-  if (enclosing === "/") {
+  if (enclosing in enclosingRegexTokens) {
+    let regex2;
     try {
-      new RegExp(enclosed);
+      regex2 = new RegExp(enclosed);
     } catch (e) {
       throwParseError(String(e));
     }
@@ -6829,6 +6890,13 @@ const parseEnclosed = (s, enclosing) => {
       domain: "string",
       pattern: enclosed
     }, { prereduced: true });
+    if (enclosing === "x/") {
+      s.root = s.ctx.$.node("morph", {
+        in: s.root,
+        morphs: (s2) => regex2.exec(s2),
+        declaredOut: regexExecArray
+      });
+    }
   } else if (isKeyOf(enclosing, enclosingQuote))
     s.root = s.ctx.$.node("unit", { unit: enclosed });
   else {
@@ -6851,9 +6919,13 @@ const enclosingLiteralTokens = {
   "'": "'",
   '"': '"'
 };
+const enclosingRegexTokens = {
+  "/": "/",
+  "x/": "/"
+};
 const enclosingTokens = {
   ...enclosingLiteralTokens,
-  "/": "/"
+  ...enclosingRegexTokens
 };
 const untilLookaheadIsClosing = {
   "'": (scanner) => scanner.lookahead === `'`,
@@ -6919,7 +6991,7 @@ const parseGenericInstantiation = (name, g, s) => {
   const parsedArgs = parseGenericArgs(name, g, s);
   return g(...parsedArgs);
 };
-const unenclosedToNode = (s, token) => maybeParseReference(s, token) ?? maybeParseUnenclosedLiteral(s, token) ?? s.error(token === "" ? s.scanner.lookahead === "#" ? writePrefixedPrivateReferenceMessage(s.shiftedByOne().scanner.shiftUntilLookahead(terminatingChars)) : writeMissingOperandMessage(s) : writeUnresolvableMessage(token));
+const unenclosedToNode = (s, token) => maybeParseReference(s, token) ?? maybeParseUnenclosedLiteral(s, token) ?? s.error(token === "" ? s.scanner.lookahead === "#" ? writePrefixedPrivateReferenceMessage(s.shiftedBy(1).scanner.shiftUntilLookahead(terminatingChars)) : writeMissingOperandMessage(s) : writeUnresolvableMessage(token));
 const maybeParseReference = (s, token) => {
   if (s.ctx.args?.[token]) {
     const arg = s.ctx.args[token];
@@ -6950,7 +7022,7 @@ const writeMissingOperandMessage = (s) => {
 };
 const writeMissingRightOperandMessage = (token, unscanned = "") => `Token '${token}' requires a right operand${unscanned ? ` before '${unscanned}'` : ""}`;
 const writeExpressionExpectedMessage = (unscanned) => `Expected an expression${unscanned ? ` before '${unscanned}'` : ""}`;
-const parseOperand = (s) => s.scanner.lookahead === "" ? s.error(writeMissingOperandMessage(s)) : s.scanner.lookahead === "(" ? s.shiftedByOne().reduceGroupOpen() : s.scanner.lookaheadIsIn(enclosingChar) ? parseEnclosed(s, s.scanner.shift()) : s.scanner.lookaheadIsIn(whitespaceChars) ? parseOperand(s.shiftedByOne()) : s.scanner.lookahead === "d" ? s.scanner.nextLookahead in enclosingQuote ? parseEnclosed(s, `${s.scanner.shift()}${s.scanner.shift()}`) : parseUnenclosed(s) : parseUnenclosed(s);
+const parseOperand = (s) => s.scanner.lookahead === "" ? s.error(writeMissingOperandMessage(s)) : s.scanner.lookahead === "(" ? s.shiftedBy(1).reduceGroupOpen() : s.scanner.lookaheadIsIn(enclosingChar) ? parseEnclosed(s, s.scanner.shift()) : s.scanner.lookaheadIsIn(whitespaceChars) ? parseOperand(s.shiftedBy(1)) : s.scanner.lookahead === "d" ? s.scanner.nextLookahead in enclosingQuote ? parseEnclosed(s, `${s.scanner.shift()}${s.scanner.shift()}`) : parseUnenclosed(s) : s.scanner.lookahead === "x" ? s.scanner.nextLookahead === "/" ? s.shiftedBy(2) && parseEnclosed(s, "x/") : parseUnenclosed(s) : parseUnenclosed(s);
 const minComparators = {
   ">": true,
   ">=": true
@@ -7056,7 +7128,7 @@ const parseDivisor = (s) => {
 const writeInvalidDivisorMessage = (divisor) => `% operator must be followed by a non-zero integer literal (was ${divisor})`;
 const parseOperator = (s) => {
   const lookahead = s.scanner.shift();
-  return lookahead === "" ? s.finalize("") : lookahead === "[" ? s.scanner.shift() === "]" ? s.setRoot(s.root.array()) : s.error(incompleteArrayTokenMessage) : lookahead === "|" ? s.scanner.lookahead === ">" ? s.shiftedByOne().pushRootToBranch("|>") : s.pushRootToBranch(lookahead) : lookahead === "&" ? s.pushRootToBranch(lookahead) : lookahead === ")" ? s.finalizeGroup() : lookaheadIsFinalizing(lookahead, s.scanner.unscanned) ? s.finalize(lookahead) : isKeyOf(lookahead, comparatorStartChars) ? parseBound(s, lookahead) : lookahead === "%" ? parseDivisor(s) : lookahead === "#" ? parseBrand(s) : lookahead in whitespaceChars ? parseOperator(s) : s.error(writeUnexpectedCharacterMessage(lookahead));
+  return lookahead === "" ? s.finalize("") : lookahead === "[" ? s.scanner.shift() === "]" ? s.setRoot(s.root.array()) : s.error(incompleteArrayTokenMessage) : lookahead === "|" ? s.scanner.lookahead === ">" ? s.shiftedBy(1).pushRootToBranch("|>") : s.pushRootToBranch(lookahead) : lookahead === "&" ? s.pushRootToBranch(lookahead) : lookahead === ")" ? s.finalizeGroup() : lookaheadIsFinalizing(lookahead, s.scanner.unscanned) ? s.finalize(lookahead) : isKeyOf(lookahead, comparatorStartChars) ? parseBound(s, lookahead) : lookahead === "%" ? parseDivisor(s) : lookahead === "#" ? parseBrand(s) : lookahead in whitespaceChars ? parseOperator(s) : s.error(writeUnexpectedCharacterMessage(lookahead));
 };
 const writeUnexpectedCharacterMessage = (char, shouldBe = "") => `'${char}' is not allowed here${shouldBe && ` (should be ${shouldBe})`}`;
 const incompleteArrayTokenMessage = `Missing expected ']'`;
@@ -7237,8 +7309,8 @@ class RuntimeState {
   previousOperator() {
     return this.branches.leftBound?.comparator ?? this.branches.prefixes[this.branches.prefixes.length - 1] ?? (this.branches.intersection ? "&" : this.branches.union ? "|" : this.branches.pipe ? "|>" : void 0);
   }
-  shiftedByOne() {
-    this.scanner.shift();
+  shiftedBy(count) {
+    this.scanner.jumpForward(count);
     return this;
   }
 }
@@ -7687,6 +7759,8 @@ const parseObject = (def, ctx) => {
     case void 0:
       if (hasArkKind(def, "root"))
         return def;
+      if ("~standard" in def)
+        return parseStandardSchema(def, ctx);
       return parseObjectLiteral(def, ctx);
     case "Array":
       return parseTuple(def, ctx);
@@ -7705,6 +7779,29 @@ const parseObject = (def, ctx) => {
       return throwParseError(writeBadDefinitionTypeMessage(objectKind ?? printable(def)));
   }
 };
+const parseStandardSchema = (def, ctx) => ctx.$.intrinsic.unknown.pipe((v, ctx2) => {
+  const result = def["~standard"].validate(v);
+  if (!result.issues)
+    return result.value;
+  for (const { message, path } of result.issues) {
+    if (path) {
+      if (path.length) {
+        ctx2.error({
+          problem: uncapitalize(message),
+          relativePath: path.map((k) => typeof k === "object" ? k.key : k)
+        });
+      } else {
+        ctx2.error({
+          message
+        });
+      }
+    } else {
+      ctx2.error({
+        message
+      });
+    }
+  }
+});
 const parseTuple = (def, ctx) => maybeParseTupleExpression(def, ctx) ?? parseTupleLiteral(def, ctx);
 const writeBadDefinitionTypeMessage = (actual) => `Type definitions must be strings or objects (was ${actual})`;
 class InternalTypeParser extends Callable {

@@ -1,5 +1,5 @@
-import { ak as effect_tracking, g as get, a2 as source, I as render_effect, b as untrack, al as increment, M as queue_micro_task, B as hydrate_node, k as hydrating, af as active_effect, j as block, m as hydrate_next, _ as COMMENT_NODE, H as HYDRATION_START_ELSE, A as branch, am as Batch, y as pause_effect, z as create_text, an as set_active_effect, ao as set_active_reaction, ap as set_component_context, aq as handle_error, ar as active_reaction, c as component_context, C as move_effect, a0 as internal_set, x as destroy_effect, p as set_hydrate_node, as as next, o as skip_nodes, at as invoke_error_boundary, au as svelte_boundary_reset_onerror, E as EFFECT_TRANSPARENT, av as EFFECT_PRESERVED, aw as BOUNDARY_EFFECT, ax as svelte_boundary_reset_noop, ay as define_property, az as init_operations, Y as get_first_child, aA as HYDRATION_START, a9 as get_next_sibling, aB as HYDRATION_ERROR, q as set_hydrating, aC as hydration_failed, ac as clear_text_content, a3 as array_from, aD as component_root, Q as push, $ as HYDRATION_END, aE as hydration_mismatch, R as pop } from "./DgNWappd.js";
-import { b as assign_nodes } from "./CGQvhKpT.js";
+import { aj as effect_tracking, g as get, a2 as source, I as render_effect, b as untrack, ak as increment, M as queue_micro_task, B as hydrate_node, k as hydrating, ae as active_effect, j as block, m as hydrate_next, _ as COMMENT_NODE, H as HYDRATION_START_ELSE, A as branch, al as Batch, y as pause_effect, z as create_text, am as set_active_effect, an as set_active_reaction, ao as set_component_context, ap as handle_error, aq as active_reaction, c as component_context, C as move_effect, a0 as internal_set, x as destroy_effect, p as set_hydrate_node, ar as next, o as skip_nodes, as as invoke_error_boundary, at as svelte_boundary_reset_onerror, E as EFFECT_TRANSPARENT, au as EFFECT_PRESERVED, av as BOUNDARY_EFFECT, aw as svelte_boundary_reset_noop, ax as define_property, ay as init_operations, Y as get_first_child, az as HYDRATION_START, aa as get_next_sibling, aA as HYDRATION_ERROR, q as set_hydrating, aB as hydration_failed, ab as clear_text_content, a4 as array_from, aC as component_root, Q as push, $ as HYDRATION_END, aD as hydration_mismatch, R as pop } from "./B_WeHsR-.js";
+import { b as assign_nodes } from "./CcVOBZeY.js";
 function createSubscriber(start) {
   let subscribers = 0;
   let version = source(0);
@@ -467,14 +467,10 @@ function hydrate(component, options) {
   const was_hydrating = hydrating;
   const previous_hydrate_node = hydrate_node;
   try {
-    var anchor = (
-      /** @type {TemplateNode} */
-      get_first_child(target)
-    );
+    var anchor = get_first_child(target);
     while (anchor && (anchor.nodeType !== COMMENT_NODE || /** @type {Comment} */
     anchor.data !== HYDRATION_START)) {
-      anchor = /** @type {TemplateNode} */
-      get_next_sibling(anchor);
+      anchor = get_next_sibling(anchor);
     }
     if (!anchor) {
       throw HYDRATION_ERROR;
@@ -562,7 +558,7 @@ function _mount(Component, { target, anchor, props = {}, events, context, intro 
         }
         component = Component(anchor_node2, props) || {};
         if (hydrating) {
-          active_effect.nodes_end = hydrate_node;
+          active_effect.nodes.end = hydrate_node;
           if (hydrate_node === null || hydrate_node.nodeType !== COMMENT_NODE || /** @type {Comment} */
           hydrate_node.data !== HYDRATION_END) {
             hydration_mismatch();

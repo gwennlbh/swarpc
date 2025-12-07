@@ -1,4 +1,4 @@
-import { L } from "../chunks/RaKmz-cs.js";
+import { L } from "../chunks/BZS4tpep.js";
 const prerender = true;
 const trailingSlash = "always";
 const _layout = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
