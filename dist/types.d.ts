@@ -66,7 +66,7 @@ onProgress: (progress: Schema.InferInput<P>) => void,
  */
 tools: {
     /**
-     * AbortSignal that can be used to handle request cancellation -- see [Make cancellable requests](https://gwennlbh.github.io/swarpc/docs/#make-cancelable-requests)
+     * AbortSignal that can be used to handle request cancellation -- see [Make cancellable requests](https://swarpc.js.org/#make-cancelable-requests)
      */
     abortSignal?: AbortSignal;
     /**
