@@ -74,7 +74,8 @@ export default defineConfig({
     trace: "on-first-retry",
 
     // Ensure no TZ issues for assertions that depend on time
-    timezoneId: "Etc/UTC",
+    // FIXME: Cant use Etc/UTC or Etc/GMT when docker is launched with --user 1001. Without this flag, Firefox can't run. This happens both on gwennlbh/playwright-bun and the official mcr.microsoft.com/playwright images.
+    timezoneId: "Europe/Paris",
   },
 
   /* Configure projects for major browsers */
