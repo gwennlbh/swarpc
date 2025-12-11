@@ -5,6 +5,10 @@
 
 RPC for Service (and other types of) Workers -- move that heavy computation off of your UI thread!
 
+![npm bundle size](https://img.shields.io/bundlephobia/minzip/swarpc)
+![NPM Version](https://img.shields.io/npm/v/swarpc)
+![GitHub branch check runs](https://img.shields.io/github/check-runs/gwennlbh/swarpc/main)
+
 </div>
  
 * * *
