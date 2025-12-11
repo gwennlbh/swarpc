@@ -68,7 +68,7 @@ await Client(procedures)
 
 [Source code](https://github.com/gwennlbh/swarpc)
 
-[Documentation](https://gwennlbh.github.io/swarpc/docs)
+[Documentation](https://swarpc.js.org)
 
 [on NPM](https://www.npmjs.com/package/swarpc)
 
@@ -127,7 +127,7 @@ await Client(procedures)
 
 [Code source](https://github.com/gwennlbh/swarpc)
 
-[Documentation](https://gwennlbh.github.io/swarpc/docs)
+[Documentation](https://swarpc.js.org)
 
 [Sur NPM](https://www.npmjs.com/package/swarpc)
 

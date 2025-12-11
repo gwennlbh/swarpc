@@ -17,7 +17,7 @@
     "typedoc-plugin-redirect"
   ],
   "plausibleSiteOrigin": "https://stats.gwen.works/js",
-  "plausibleSiteDomain": "gwennlbh.github.io/swarpc",
+  "plausibleSiteDomain": "swarpc.js.org",
   "footerLastModified": true,
   "resolveUtilityTypes": true,
   "favicon": "./favicon.png",

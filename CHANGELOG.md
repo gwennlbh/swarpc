@@ -128,7 +128,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
-- [`Client:options.restartListener`](https://gwennlbh.github.io/swarpc/docs/functions/Client.html), mostly for testing purposes
+- [`Client:options.restartListener`](https://swarpc.js.org/functions/Client.html), mostly for testing purposes
 
 ### Fixed
 
@@ -138,7 +138,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
-- A way to log things using the same info and format as swarpc itself inside a procedure implementation: see [`ProcedureImplementation:tools.logger`](https://gwennlbh.github.io/swarpc/docs/types/ProcedureImplementation.html#:~:text=Make%20cancellable%20requests-,logger,-:%20RequestBoundLogger)
+- A way to log things using the same info and format as swarpc itself inside a procedure implementation: see [`ProcedureImplementation:tools.logger`](https://swarpc.js.org/types/ProcedureImplementation.html#:~:text=Make%20cancellable%20requests-,logger,-:%20RequestBoundLogger)
 
 ## [0.7.1] - 2025-08-02
 
@@ -150,12 +150,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
-- [Cancellable requests](https://gwennlbh.github.io/swarpc/docs/#make-cancelable-requests)
-- [Configurable log levels](http://gwennlbh.github.io/swarpc/docs/functions/index.Client.html#:~:text=from%20the%20server-,Optionalloglevel,-?:%20%22debug%22%20%7C)
+- [Cancellable requests](https://swarpc.js.org/#make-cancelable-requests)
+- [Configurable log levels](http://swarpc.js.org/functions/index.Client.html#:~:text=from%20the%20server-,Optionalloglevel,-?:%20%22debug%22%20%7C)
 
 ### Fixed
 
-- Type of [`Server#start`](<https://gwennlbh.github.io/swarpc/docs/types/types.SwarpcServer.html#:~:text=%22%5BzProcedures%5D%22:%20Procedures;-,start,-(self:%20Window):%20void;>)'s `self` parameter now correctly accepts both `Window` and `Worker` contexts.
+- Type of [`Server#start`](<https://swarpc.js.org/types/types.SwarpcServer.html#:~:text=%22%5BzProcedures%5D%22:%20Procedures;-,start,-(self:%20Window):%20void;>)'s `self` parameter now correctly accepts both `Window` and `Worker` contexts.
 
 ## [0.6.1] - 2025-07-19
 
@@ -177,7 +177,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
-- support for transferable objects via a new [`autotransfer` property on procedure declarations](https://gwennlbh.github.io/swarpc/docs/types/types.Procedure.html#autotransfer)
+- support for transferable objects via a new [`autotransfer` property on procedure declarations](https://swarpc.js.org/types/types.Procedure.html#autotransfer)
 
 [Unreleased]: https://github.com/gwennlbh/swarpc/compare/v0.16.1...HEAD
 [0.16.1]: https://github.com/gwennlbh/swarpc/compare/v0.16.0...v0.16.1

@@ -9,7 +9,7 @@
     "trpc",
     "typesafe"
   ],
-  "homepage": "https://github.com/gwennlbh/swarpc#readme",
+  "homepage": "https://swarpc.js.org",
   "bugs": {
     "url": "https://github.com/gwennlbh/swarpc/issues"
   },
