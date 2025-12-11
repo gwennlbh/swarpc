@@ -74,7 +74,7 @@ export default defineConfig({
     trace: "on-first-retry",
 
     // Ensure no TZ issues for assertions that depend on time
-    timezoneId: "Europe/Paris",
+    timezoneId: "Etc/UTC",
   },
 
   /* Configure projects for major browsers */
