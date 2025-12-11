@@ -50,6 +50,7 @@ jobs:
     needs: prepare
     container:
       image: ghcr.io/gwennlbh/playwright-bun:v1.57.0
+      options: --user 1001
     strategy:
       fail-fast: false
       matrix:
