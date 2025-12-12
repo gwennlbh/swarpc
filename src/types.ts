@@ -108,11 +108,12 @@ export type ImplementationsMap<Procedures extends ProceduresMap> = {
 type ProcedureNameAndData<
   Procedures extends ProceduresMap,
   Key extends "progress" | "success",
-  Name extends keyof Procedures = keyof Procedures,
 > = {
-  procedure: Name;
-  data: Schema.InferOutput<Procedures[Name][Key]>;
-};
+  [K in keyof Procedures]: {
+    procedure: K;
+    data: Schema.InferOutput<Procedures[K][Key]>;
+  };
+}[keyof Procedures];
 
 /**
  * Declaration of hooks to run on messages received from the server
