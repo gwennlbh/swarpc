@@ -36,6 +36,8 @@ jobs:
         with:
           diff-search: true
 
+      - run: npm run build
+
       - name: Publish release
         if: steps.check.outputs.changed  == 'true'
         run: npm publish --provenance

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Previous release did not contain the newly built files, this one does.
+
 ## [0.17.1] - 2025-12-12
 
 ### Fixed
