@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Hooks now receive a single object argument instead of two positional arguments. This greatly helps with type narrowing if you check for the procedure name.
+
+  Before:
+
+  ```ts
+  Client(procedures, {
+    hooks: {
+      success(procedure, data) {
+        if (procedure === "getUser") {
+          // `data` is not narrowed down to the type returned by `getUser` :(
+        }
+      },
+    },
+  });
+  ```
+
+  After:
+
+  ```ts
+  Client(procedures, {
+    hooks: {
+      success({ procedure, data }) {
+        if (procedure === "getUser") {
+          // `data` is now correctly narrowed down to the type returned by `getUser` :)
+        }
+      },
+    },
+  });
+  ```
+
+  To update, simply change your hook implementations to use a single object argument and destructure (or not) the properties you need from it.
+
 ## [0.16.1] - 2025-11-12
 
 ### Fixed

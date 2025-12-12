@@ -105,6 +105,15 @@ export type ImplementationsMap<Procedures extends ProceduresMap> = {
   >;
 };
 
+type ProcedureNameAndData<
+  Procedures extends ProceduresMap,
+  Key extends "progress" | "success",
+  Name extends keyof Procedures = keyof Procedures,
+> = {
+  procedure: Name;
+  data: Schema.InferOutput<Procedures[Name][Key]>;
+};
+
 /**
  * Declaration of hooks to run on messages received from the server
  */
@@ -112,24 +121,15 @@ export type Hooks<Procedures extends ProceduresMap> = {
   /**
    * Called when a procedure call has been successful.
    */
-  success?: <Procedure extends keyof ProceduresMap>(
-    procedure: Procedure,
-    data: Schema.InferOutput<Procedures[Procedure]["success"]>,
-  ) => void;
+  success?: (arg: ProcedureNameAndData<Procedures, "success">) => void;
   /**
    * Called when a procedure call has failed.
    */
-  error?: <Procedure extends keyof ProceduresMap>(
-    procedure: Procedure,
-    error: Error,
-  ) => void;
+  error?: (arg: { procedure: keyof Procedures; error: Error }) => void;
   /**
    * Called when a procedure call sends progress updates.
    */
-  progress?: <Procedure extends keyof ProceduresMap>(
-    procedure: Procedure,
-    data: Schema.InferOutput<Procedures[Procedure]["progress"]>,
-  ) => void;
+  progress?: (arg: ProcedureNameAndData<Procedures, "progress">) => void;
 };
 
 /** @internal */
