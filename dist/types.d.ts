@@ -81,10 +81,12 @@ tools: {
  * {@includeCode ../example/src/lib/procedures.ts}
  */
 export type ProceduresMap = Record<string, Procedure<Schema, Schema, Schema>>;
-type ProcedureNameAndData<Procedures extends ProceduresMap, Key extends "progress" | "success", Name extends keyof Procedures = keyof Procedures> = {
-    procedure: Name;
-    data: Schema.InferOutput<Procedures[Name][Key]>;
-};
+type ProcedureNameAndData<Procedures extends ProceduresMap, Key extends "progress" | "success"> = {
+    [K in keyof Procedures]: {
+        procedure: K;
+        data: Schema.InferOutput<Procedures[K][Key]>;
+    };
+}[keyof Procedures];
 /**
  * Declaration of hooks to run on messages received from the server
  */
