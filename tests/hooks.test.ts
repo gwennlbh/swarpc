@@ -22,9 +22,9 @@ describe("Client hooks", { sequential: true }, async () => {
     await client.divide({ a: 6, b: 2 });
     expect(success).toHaveBeenCalledTimes(3);
     expect(success.mock.calls).toStrictEqual([
-      ["echo", "test"],
-      ["add", 3],
-      ["divide", 3],
+      [{ procedure: "echo", data: "test" }],
+      [{ procedure: "add", data: 3 }],
+      [{ procedure: "divide", data: 3 }],
     ]);
   });
 
@@ -41,8 +41,10 @@ describe("Client hooks", { sequential: true }, async () => {
       "Division by zero",
     );
     expect(error).toHaveBeenCalledTimes(1);
-    expect(error.mock.calls).toStrictEqual([["divide", expect.any(Error)]]);
-    expect(error.mock.calls[0][1].message).toBe("Division by zero");
+    expect(error.mock.calls).toStrictEqual([
+      [{ procedure: "divide", error: expect.any(Error) }],
+    ]);
+    expect(error.mock.calls[0][0].error.message).toBe("Division by zero");
   });
 
   test("progress hook is called on progress update", async () => {
@@ -57,9 +59,9 @@ describe("Client hooks", { sequential: true }, async () => {
     await client.divide({ a: 9, b: 3 });
     expect(progress).toHaveBeenCalledTimes(3);
     expect(progress.mock.calls).toStrictEqual([
-      ["divide", { percent: 33.33333333333333 }],
-      ["divide", { percent: 66.66666666666666 }],
-      ["divide", { percent: 100 }],
+      [{ procedure: "divide", data: { percent: 33.33333333333333 } }],
+      [{ procedure: "divide", data: { percent: 66.66666666666666 } }],
+      [{ procedure: "divide", data: { percent: 100 } }],
     ]);
   });
 });

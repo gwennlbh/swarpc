@@ -405,14 +405,23 @@ async function startClientListener<Procedures extends ProceduresMap>(
     // React to the data received: call hook, call handler,
     // and remove the request from pendingRequests (unless it's a progress update)
     if ("error" in data) {
-      ctx.hooks.error?.(data.functionName, new Error(data.error.message));
+      ctx.hooks.error?.({
+        procedure: data.functionName,
+        error: new Error(data.error.message),
+      });
       handlers.reject(new Error(data.error.message));
       pendingRequests.delete(requestId);
     } else if ("progress" in data) {
-      ctx.hooks.progress?.(data.functionName, data.progress);
+      ctx.hooks.progress?.({
+        procedure: data.functionName,
+        data: data.progress,
+      });
       handlers.onProgress(data.progress);
     } else if ("result" in data) {
-      ctx.hooks.success?.(data.functionName, data.result);
+      ctx.hooks.success?.({
+        procedure: data.functionName,
+        data: data.result,
+      });
       handlers.resolve(data.result);
       pendingRequests.delete(requestId);
     }
