@@ -1,368 +1,5 @@
-Map.groupBy ??= function groupBy(iterable, callbackfn) {
-  const map = /* @__PURE__ */ new Map();
-  let i = 0;
-  for (const value2 of iterable) {
-    const key = callbackfn(value2, i++), list = map.get(key);
-    list ? list.push(value2) : map.set(key, [value2]);
-  }
-  return map;
-};
-function createLogger(side, level = "debug", nid, rqid) {
-  const lvls = LOG_LEVELS.slice(LOG_LEVELS.indexOf(level));
-  return {
-    debug: lvls.includes("debug") ? logger("debug", side, nid) : () => {
-    },
-    info: lvls.includes("info") ? logger("info", side, nid) : () => {
-    },
-    warn: lvls.includes("warn") ? logger("warn", side, nid) : () => {
-    },
-    error: lvls.includes("error") ? logger("error", side, nid) : () => {
-    }
-  };
-}
-const LOG_LEVELS = ["debug", "info", "warn", "error"];
-const PATCHABLE_LOG_METHODS = [
-  "debug",
-  "info",
-  "warn",
-  "error",
-  "log"
-];
-function logger(method, side, ids) {
-  if (ids === void 0 || typeof ids === "string") {
-    const nid = ids ?? null;
-    return (rqid, ...args) => log(method, side, { nid, rqid }, ...args);
-  }
-  return (...args) => log(method, side, ids, ...args);
-}
-const originalConsole = PATCHABLE_LOG_METHODS.reduce((result, method) => {
-  result[method] = console[method];
-  return result;
-}, {});
-function log(method, side, { rqid, nid }, ...args) {
-  const prefix = [
-    `[SWARPC ${side}]`,
-    rqid ? `%c${rqid}%c` : "",
-    nid ? `%c@ ${nid}%c` : ""
-  ].filter(Boolean).join(" ");
-  const prefixStyles = [];
-  if (rqid)
-    prefixStyles.push("color: cyan", "color: inherit");
-  if (nid)
-    prefixStyles.push("color: hotpink", "color: inherit");
-  return originalConsole[method](prefix, ...prefixStyles, ...args);
-}
-function injectIntoConsoleGlobal(scope2, nodeId, requestId) {
-  for (const method of PATCHABLE_LOG_METHODS) {
-    scope2.self.console[method] = (...args) => logger(method, "server", nodeId)(requestId, ...args);
-  }
-}
-class MockedWorkerGlobalScope {
-  constructor() {
-  }
-}
-const SharedWorkerGlobalScope = globalThis.SharedWorkerGlobalScope ?? MockedWorkerGlobalScope;
-const DedicatedWorkerGlobalScope = globalThis.DedicatedWorkerGlobalScope ?? MockedWorkerGlobalScope;
-const ServiceWorkerGlobalScope = globalThis.ServiceWorkerGlobalScope ?? MockedWorkerGlobalScope;
-function scopeIsShared(scope2, _scopeType) {
-  return scope2 instanceof SharedWorkerGlobalScope || _scopeType === "shared";
-}
-function scopeIsDedicated(scope2, _scopeType) {
-  return scope2 instanceof DedicatedWorkerGlobalScope || _scopeType === "dedicated";
-}
-function scopeIsService(scope2, _scopeType) {
-  return scope2 instanceof ServiceWorkerGlobalScope || _scopeType === "service";
-}
-function nodeIdFromScope(scope2, _scopeType) {
-  if (scopeIsDedicated(scope2, _scopeType) || scopeIsShared(scope2, _scopeType)) {
-    return scope2.name;
-  }
-  return "(SW)";
-}
-function isPayloadInitialize(payload) {
-  if (typeof payload !== "object")
-    return false;
-  if (payload === null)
-    return false;
-  if (!("by" in payload))
-    return false;
-  if (!("nodeId" in payload))
-    return false;
-  if (!("functionName" in payload))
-    return false;
-  if (!("localStorageData" in payload))
-    return false;
-  if (!("isInitializeRequest" in payload))
-    return false;
-  if (payload.by !== "sw&rpc")
-    return false;
-  if (payload.functionName !== "#initialize")
-    return false;
-  if (payload.isInitializeRequest !== true)
-    return false;
-  if (typeof payload.nodeId !== "string")
-    return false;
-  if (typeof payload.localStorageData !== "object")
-    return false;
-  if (payload.localStorageData === null)
-    return false;
-  return true;
-}
-function isPayloadHeader(procedures2, payload) {
-  if (typeof payload !== "object")
-    return false;
-  if (payload === null)
-    return false;
-  if (!("by" in payload))
-    return false;
-  if (!("requestId" in payload))
-    return false;
-  if (!("functionName" in payload))
-    return false;
-  if (payload.by !== "sw&rpc")
-    return false;
-  if (typeof payload.requestId !== "string")
-    return false;
-  if (typeof payload.functionName !== "string")
-    return false;
-  if (!Object.keys(procedures2).includes(payload.functionName))
-    return false;
-  return true;
-}
-function validatePayloadCore(procedure, payload) {
-  if (typeof payload !== "object")
-    throw new Error("payload is not an object");
-  if (payload === null)
-    throw new Error("payload is null");
-  if ("input" in payload) {
-    const input = procedure.input["~standard"].validate(payload.input);
-    if ("value" in input)
-      return { input: input.value };
-  }
-  if ("progress" in payload) {
-    const progress = procedure.progress["~standard"].validate(payload.progress);
-    if ("value" in progress)
-      return { progress: progress.value };
-  }
-  if ("result" in payload) {
-    const result = procedure.success["~standard"].validate(payload.result);
-    if ("value" in result)
-      return { result: result.value };
-  }
-  if ("abort" in payload && typeof payload.abort === "object" && payload.abort !== null && "reason" in payload.abort && typeof payload.abort.reason === "string") {
-    return { abort: { reason: payload.abort.reason } };
-  }
-  if ("error" in payload && typeof payload.error === "object" && payload.error !== null && "message" in payload.error && typeof payload.error.message === "string") {
-    return { error: { message: payload.error.message } };
-  }
-  throw new Error("invalid payload");
-}
-const zImplementations = Symbol("SWARPC implementations");
-const zProcedures = Symbol("SWARPC procedures");
-const transferableClasses = [
-  MessagePort,
-  ReadableStream,
-  WritableStream,
-  TransformStream,
-  ArrayBuffer
-];
-function findTransferables(value2) {
-  if (value2 === null || value2 === void 0) {
-    return [];
-  }
-  if (typeof value2 === "object") {
-    if (ArrayBuffer.isView(value2) || value2 instanceof ArrayBuffer) {
-      return [value2];
-    }
-    if (transferableClasses.some((cls) => value2 instanceof cls)) {
-      return [value2];
-    }
-    if (Array.isArray(value2)) {
-      return value2.flatMap(findTransferables);
-    }
-    return Object.values(value2).flatMap(findTransferables);
-  }
-  return [];
-}
-class FauxLocalStorage {
-  data;
-  keysOrder;
-  constructor(data) {
-    this.data = data;
-    this.keysOrder = Object.keys(data);
-  }
-  setItem(key, value2) {
-    if (!this.hasItem(key))
-      this.keysOrder.push(key);
-    this.data[key] = value2;
-  }
-  getItem(key) {
-    return this.data[key];
-  }
-  hasItem(key) {
-    return Object.hasOwn(this.data, key);
-  }
-  removeItem(key) {
-    if (!this.hasItem(key))
-      return;
-    delete this.data[key];
-    this.keysOrder = this.keysOrder.filter((k) => k !== key);
-  }
-  clear() {
-    this.data = {};
-    this.keysOrder = [];
-  }
-  key(index) {
-    return this.keysOrder[index];
-  }
-  get length() {
-    return this.keysOrder.length;
-  }
-  register(subject) {
-    subject.localStorage = this;
-  }
-}
-const abortControllers = /* @__PURE__ */ new Map();
-const abortedRequests = /* @__PURE__ */ new Set();
-function Server(procedures2, { loglevel = "debug", scope: scope2, _scopeType } = {}) {
-  scope2 ??= self;
-  const nodeId = nodeIdFromScope(scope2, _scopeType);
-  const l = createLogger("server", loglevel, nodeId);
-  const instance = {
-    [zProcedures]: procedures2,
-    [zImplementations]: {},
-    start: async () => {
-    }
-  };
-  for (const functionName in procedures2) {
-    instance[functionName] = (implementation2) => {
-      if (!instance[zProcedures][functionName]) {
-        throw new Error(`No procedure found for function name: ${functionName}`);
-      }
-      instance[zImplementations][functionName] = (input, onProgress, tools) => {
-        tools.abortSignal?.throwIfAborted();
-        return new Promise((resolve, reject) => {
-          tools.abortSignal?.addEventListener("abort", () => {
-            let { requestId, reason } = tools.abortSignal.reason;
-            l.debug(requestId, `Aborted ${functionName} request: ${reason}`);
-            reject({ aborted: reason });
-          });
-          implementation2(input, onProgress, tools).then(resolve).catch(reject);
-        });
-      };
-    };
-  }
-  instance.start = async () => {
-    const port = await new Promise((resolve) => {
-      if (!scopeIsShared(scope2, _scopeType))
-        return resolve(void 0);
-      l.debug(null, "Awaiting shared worker connection...");
-      scope2.addEventListener("connect", ({ ports: [port2] }) => {
-        l.debug(null, "Shared worker connected with port", port2);
-        resolve(port2);
-      });
-    });
-    const postMessage = async (autotransfer, data) => {
-      const transfer = autotransfer ? [] : findTransferables(data);
-      if (port) {
-        port.postMessage(data, { transfer });
-      } else if (scopeIsDedicated(scope2, _scopeType)) {
-        scope2.postMessage(data, { transfer });
-      } else if (scopeIsService(scope2, _scopeType)) {
-        await scope2.clients.matchAll().then((clients) => {
-          clients.forEach((client) => client.postMessage(data, { transfer }));
-        });
-      }
-    };
-    const listener = async (event) => {
-      if (isPayloadInitialize(event.data)) {
-        const { localStorageData, nodeId: nodeId2 } = event.data;
-        l.debug(null, "Setting up faux localStorage", localStorageData);
-        new FauxLocalStorage(localStorageData).register(scope2);
-        injectIntoConsoleGlobal(scope2, nodeId2, null);
-        return;
-      }
-      if (!isPayloadHeader(procedures2, event.data)) {
-        l.error(null, "Received payload with invalid header", event.data);
-        return;
-      }
-      const { requestId, functionName } = event.data;
-      l.debug(requestId, `Received request for ${functionName}`, event.data);
-      const { autotransfer = "output-only", ...schemas } = instance[zProcedures][functionName];
-      const postMsg = async (data) => {
-        if (abortedRequests.has(requestId))
-          return;
-        await postMessage(autotransfer !== "never", {
-          by: "sw&rpc",
-          functionName,
-          requestId,
-          ...data
-        });
-      };
-      const postError = async (error) => postMsg({
-        error: {
-          message: "message" in error ? error.message : String(error)
-        }
-      });
-      const implementation2 = instance[zImplementations][functionName];
-      if (!implementation2) {
-        await postError("No implementation found");
-        return;
-      }
-      const payload = validatePayloadCore(schemas, event.data);
-      if ("isInitializeRequest" in payload)
-        throw "Unreachable: #initialize request payload should've been handled already";
-      if ("abort" in payload) {
-        const controller = abortControllers.get(requestId);
-        if (!controller)
-          await postError("No abort controller found for request");
-        controller?.abort(payload.abort.reason);
-        return;
-      }
-      abortControllers.set(requestId, new AbortController());
-      if (!("input" in payload)) {
-        await postError("No input provided");
-        return;
-      }
-      try {
-        injectIntoConsoleGlobal(scope2, nodeId, requestId);
-        const result = await implementation2(payload.input, async (progress) => {
-          await postMsg({ progress });
-        }, {
-          nodeId,
-          abortSignal: abortControllers.get(requestId)?.signal
-        });
-        l.debug(requestId, `Result for ${functionName}`, result);
-        await postMsg({ result });
-      } catch (error) {
-        if ("aborted" in error) {
-          l.debug(requestId, `Received abort error for ${functionName}`, error.aborted);
-          abortedRequests.add(requestId);
-          abortControllers.delete(requestId);
-          return;
-        }
-        l.info(requestId, `Error in ${functionName}`, error);
-        await postError(error);
-      } finally {
-        abortedRequests.delete(requestId);
-      }
-    };
-    if (scopeIsShared(scope2, _scopeType)) {
-      if (!port)
-        throw new Error("SharedWorker port not initialized");
-      l.info(null, "Listening for shared worker messages on port", port);
-      port.addEventListener("message", listener);
-      port.start();
-    } else if (scopeIsDedicated(scope2, _scopeType)) {
-      scope2.addEventListener("message", listener);
-    } else if (scopeIsService(scope2, _scopeType)) {
-      scope2.addEventListener("message", listener);
-    } else {
-      throw new Error(`Unsupported worker scope ${scope2}`);
-    }
-  };
-  return instance;
-}
+import { H as HttpError } from "../chunks/BHuZ28Z_.js";
+import { L } from "../chunks/j4jaJLmR.js";
 const liftArray = (data) => Array.isArray(data) ? data : [data];
 const spliterate = (arr, predicate) => {
   const result = [[], []];
@@ -406,7 +43,7 @@ const appendUnique = (to, value2, opts) => {
       to.push(v);
   return to;
 };
-const groupBy2 = (array, discriminant) => array.reduce((result, item) => {
+const groupBy = (array, discriminant) => array.reduce((result, item) => {
   const key = item[discriminant];
   result[key] = append(result[key], item);
   return result;
@@ -689,8 +326,8 @@ class Hkt {
 var define_globalThis_process_env_default = {};
 const fileName = () => {
   try {
-    const error = new Error();
-    const stackLine = error.stack?.split("\n")[2]?.trim() || "";
+    const error2 = new Error();
+    const stackLine = error2.stack?.split("\n")[2]?.trim() || "";
     const filePath = stackLine.match(/\(?(.+?)(?::\d+:\d+)?\)?$/)?.[1] || "unknown";
     return filePath.replace(/^file:\/\//, "");
   } catch {
@@ -1396,7 +1033,7 @@ const jsonSchemaTargetToDialect = {
   "draft-2020-12": "https://json-schema.org/draft/2020-12/schema",
   "draft-07": "http://json-schema.org/draft-07/schema#"
 };
-const mergeToJsonSchemaConfigs = (baseConfig, mergedConfig) => {
+const mergeToJsonSchemaConfigs = ((baseConfig, mergedConfig) => {
   if (!baseConfig)
     return resolveTargetToDialect(mergedConfig ?? {}, void 0);
   if (!mergedConfig)
@@ -1410,7 +1047,7 @@ const mergeToJsonSchemaConfigs = (baseConfig, mergedConfig) => {
       result[k] = mergedConfig[k];
   }
   return resolveTargetToDialect(result, mergedConfig);
-};
+});
 const resolveTargetToDialect = (opts, userOpts) => {
   if (userOpts?.dialect !== void 0)
     return opts;
@@ -1574,25 +1211,25 @@ class ArkErrors extends ReadonlyArray {
   /**
    * Append an ArkError to this array, ignoring duplicates.
    */
-  add(error) {
-    const existing = this.byPath[error.propString];
+  add(error2) {
+    const existing = this.byPath[error2.propString];
     if (existing) {
-      if (error === existing)
+      if (error2 === existing)
         return;
       if (existing.hasCode("union") && existing.errors.length === 0)
         return;
-      const errorIntersection = error.hasCode("union") && error.errors.length === 0 ? error : new ArkError({
+      const errorIntersection = error2.hasCode("union") && error2.errors.length === 0 ? error2 : new ArkError({
         code: "intersection",
-        errors: existing.hasCode("intersection") ? [...existing.errors, error] : [existing, error]
+        errors: existing.hasCode("intersection") ? [...existing.errors, error2] : [existing, error2]
       }, this.ctx);
       const existingIndex = this.indexOf(existing);
       this.mutable[existingIndex === -1 ? this.length : existingIndex] = errorIntersection;
-      this.byPath[error.propString] = errorIntersection;
-      this.addAncestorPaths(error);
+      this.byPath[error2.propString] = errorIntersection;
+      this.addAncestorPaths(error2);
     } else {
-      this.byPath[error.propString] = error;
-      this.addAncestorPaths(error);
-      this.mutable.push(error);
+      this.byPath[error2.propString] = error2;
+      this.addAncestorPaths(error2);
+      this.mutable.push(error2);
     }
     this.count++;
   }
@@ -1643,9 +1280,9 @@ class ArkErrors extends ReadonlyArray {
   toString() {
     return this.join("\n");
   }
-  addAncestorPaths(error) {
-    for (const propString of error.path.stringifyAncestors()) {
-      this.byAncestorPath[propString] = append(this.byAncestorPath[propString], error);
+  addAncestorPaths(error2) {
+    for (const propString of error2.path.stringifyAncestors()) {
+      this.byAncestorPath[propString] = append(this.byAncestorPath[propString], error2);
     }
   }
 }
@@ -1655,14 +1292,14 @@ class TraversalError extends Error {
     if (errors.length === 1)
       super(errors.summary);
     else
-      super("\n" + errors.map((error) => `  • ${indent(error)}`).join("\n"));
+      super("\n" + errors.map((error2) => `  • ${indent(error2)}`).join("\n"));
     Object.defineProperty(this, "arkErrors", {
       value: errors,
       enumerable: false
     });
   }
 }
-const indent = (error) => error.toString().split("\n").join("\n  ");
+const indent = (error2) => error2.toString().split("\n").join("\n  ");
 class Traversal {
   /**
    * #### the path being validated or morphed
@@ -1796,12 +1433,12 @@ class Traversal {
     return this.errorFromContext(input);
   }
   errorFromContext(errCtx) {
-    const error = new ArkError(errCtx, this);
+    const error2 = new ArkError(errCtx, this);
     if (this.currentBranch)
-      this.currentBranch.error = error;
+      this.currentBranch.error = error2;
     else
-      this.errors.add(error);
-    return error;
+      this.errors.add(error2);
+    return error2;
   }
   applyQueuedMorphs() {
     while (this.queuedMorphs.length) {
@@ -2283,7 +1920,7 @@ const pipeNodesRoot = (l, r, $) => intersectOrPipeNodes(l, r, {
   invert: false,
   pipe: true
 });
-const intersectOrPipeNodes = (l, r, ctx) => {
+const intersectOrPipeNodes = ((l, r, ctx) => {
   const operator = ctx.pipe ? "|>" : "&";
   const lrCacheKey = `${l.hash}${operator}${r.hash}`;
   if (intersectionCache[lrCacheKey] !== void 0)
@@ -2312,7 +1949,7 @@ const intersectOrPipeNodes = (l, r, ctx) => {
   }
   intersectionCache[lrCacheKey] = result;
   return result;
-};
+});
 const _intersectNodes = (l, r, ctx) => {
   const leftmostKind = l.precedence < r.precedence ? l.kind : r.kind;
   const implementation2 = l.impl.intersections[r.kind] ?? r.impl.intersections[l.kind];
@@ -3653,7 +3290,7 @@ class BaseRoot extends BaseNode {
     return this.$.finalize(result);
   }
   tryPipe(...morphs) {
-    const result = morphs.reduce((acc, morph) => acc.rawPipeOnce(hasArkKind(morph, "root") ? morph : (In, ctx) => {
+    const result = morphs.reduce((acc, morph) => acc.rawPipeOnce(hasArkKind(morph, "root") ? morph : ((In, ctx) => {
       try {
         return morph(In, ctx);
       } catch (e) {
@@ -3665,7 +3302,7 @@ class BaseRoot extends BaseNode {
 `
         });
       }
-    }), this);
+    })), this);
     return this.$.finalize(result);
   }
   pipe = Object.assign(this._pipe.bind(this), {
@@ -4520,7 +4157,7 @@ const implementation$5 = implementNode({
   defaults: {
     description: (node2) => node2.distribute((branch) => branch.description, describeBranches),
     expected: (ctx) => {
-      const byPath = groupBy2(ctx.errors, "propString");
+      const byPath = groupBy(ctx.errors, "propString");
       const pathDescriptions = Object.entries(byPath).map(([path, errors]) => {
         const branchesAtPath = [];
         for (const errorAtPath of errors)
@@ -6847,7 +6484,7 @@ const intrinsic = {
   emptyStructure: node("structure", {}, { prereduced: true })
 };
 $ark.intrinsic = { ...intrinsic };
-const regex$1 = (src, flags) => new RegExp(src, flags);
+const regex$1 = ((src, flags) => new RegExp(src, flags));
 Object.assign(regex$1, { as: regex$1 });
 const isDateLiteral = (value2) => typeof value2 === "string" && value2[0] === "d" && (value2[1] === "'" || value2[1] === '"') && value2[value2.length - 1] === value2[1];
 const isValidDate = (d) => d.toString() !== "Invalid Date";
@@ -7935,8 +7572,8 @@ class InternalScope extends BaseScope {
     return def;
   }
   type = new InternalTypeParser(this);
-  static scope = (def, config = {}) => new InternalScope(def, config);
-  static module = (def, config = {}) => this.scope(def, config).export();
+  static scope = ((def, config = {}) => new InternalScope(def, config));
+  static module = ((def, config = {}) => this.scope(def, config).export());
 }
 const scope = Object.assign(InternalScope.scope, {
   define: (def) => def
@@ -8223,10 +7860,10 @@ const ip = Scope.module({
   name: "string.ip"
 });
 const jsonStringDescription = "a JSON string";
-const writeJsonSyntaxErrorProblem = (error) => {
-  if (!(error instanceof SyntaxError))
-    throw error;
-  return `must be ${jsonStringDescription} (${error})`;
+const writeJsonSyntaxErrorProblem = (error2) => {
+  if (!(error2 instanceof SyntaxError))
+    throw error2;
+  return `must be ${jsonStringDescription} (${error2})`;
 };
 const jsonRoot = rootSchema({
   meta: jsonStringDescription,
@@ -8602,18 +8239,383 @@ const procedures = {
     success: type({ result: "number", node: "string" })
   }
 };
-const swarpc = Server(procedures);
-swarpc.multiply(async ({ a, b }, onProgress, { abortSignal, nodeId }) => {
-  const updateProgress = (progress) => onProgress({ progress, node: nodeId });
-  abortSignal?.throwIfAborted();
-  let result = 0;
-  for (const i of Array.from({ length: b }).map((_, i2) => i2)) {
-    result += a;
-    updateProgress(i / b);
-    await new Promise((r) => setTimeout(r, 500));
-    abortSignal?.throwIfAborted();
+function WorkerWrapper$1(options) {
+  return new SharedWorker(
+    "" + new URL("../workers/service-worker-Bxwf3MMM.js", import.meta.url).href,
+    {
+      type: "module",
+      name: options?.name
+    }
+  );
+}
+function WorkerWrapper(options) {
+  return new Worker(
+    "" + new URL("../workers/service-worker-Bxwf3MMM.js", import.meta.url).href,
+    {
+      type: "module",
+      name: options?.name
+    }
+  );
+}
+function error(status, body) {
+  throw new HttpError(status, body);
+}
+Map.groupBy ??= function groupBy2(iterable, callbackfn) {
+  const map = /* @__PURE__ */ new Map();
+  let i = 0;
+  for (const value2 of iterable) {
+    const key = callbackfn(value2, i++), list = map.get(key);
+    list ? list.push(value2) : map.set(key, [value2]);
   }
-  updateProgress(1);
-  return { result, node: nodeId };
-});
-swarpc.start();
+  return map;
+};
+function createLogger(side, level = "debug", nid, rqid) {
+  const lvls = LOG_LEVELS.slice(LOG_LEVELS.indexOf(level));
+  if (rqid && nid) {
+    const ids = { rqid, nid };
+    return {
+      debug: lvls.includes("debug") ? logger("debug", side, ids) : () => {
+      },
+      info: lvls.includes("info") ? logger("info", side, ids) : () => {
+      },
+      warn: lvls.includes("warn") ? logger("warn", side, ids) : () => {
+      },
+      error: lvls.includes("error") ? logger("error", side, ids) : () => {
+      }
+    };
+  }
+  return {
+    debug: lvls.includes("debug") ? logger("debug", side, nid) : () => {
+    },
+    info: lvls.includes("info") ? logger("info", side, nid) : () => {
+    },
+    warn: lvls.includes("warn") ? logger("warn", side, nid) : () => {
+    },
+    error: lvls.includes("error") ? logger("error", side, nid) : () => {
+    }
+  };
+}
+const LOG_LEVELS = ["debug", "info", "warn", "error"];
+const PATCHABLE_LOG_METHODS = [
+  "debug",
+  "info",
+  "warn",
+  "error",
+  "log"
+];
+function logger(method, side, ids) {
+  if (ids === void 0 || typeof ids === "string") {
+    const nid = ids ?? null;
+    return (rqid, ...args) => log(method, side, { nid, rqid }, ...args);
+  }
+  return (...args) => log(method, side, ids, ...args);
+}
+const originalConsole = PATCHABLE_LOG_METHODS.reduce((result, method) => {
+  result[method] = console[method];
+  return result;
+}, {});
+function log(method, side, { rqid, nid }, ...args) {
+  const prefix = [
+    `[SWARPC ${side}]`,
+    rqid ? `%c${rqid}%c` : "",
+    nid ? `%c@ ${nid}%c` : ""
+  ].filter(Boolean).join(" ");
+  const prefixStyles = [];
+  if (rqid)
+    prefixStyles.push("color: cyan", "color: inherit");
+  if (nid)
+    prefixStyles.push("color: hotpink", "color: inherit");
+  return originalConsole[method](prefix, ...prefixStyles, ...args);
+}
+function whoToSendTo(nodes, requests) {
+  if (!nodes)
+    return void 0;
+  let chosen = Object.keys(nodes)[0];
+  const requestsPerNode = Map.groupBy(requests.values(), (req) => req.nodeId);
+  for (const node2 of Object.keys(nodes)) {
+    if (!requestsPerNode.has(node2))
+      requestsPerNode.set(node2, []);
+  }
+  for (const [node2, reqs] of requestsPerNode.entries()) {
+    if (!node2)
+      continue;
+    if (reqs.length < requestsPerNode.get(chosen).length)
+      chosen = node2;
+  }
+  console.debug("[SWARPC Load balancer] Choosing", chosen, "load map is", requestsPerNode);
+  return chosen;
+}
+function makeNodeId() {
+  return "N" + Math.random().toString(16).substring(2, 5).toUpperCase();
+}
+const serviceWorkerNodeId = "(SW)";
+function nodeIdOrSW(id) {
+  return id ?? serviceWorkerNodeId;
+}
+const zProcedures = /* @__PURE__ */ Symbol("SWARPC procedures");
+const transferableClasses = [
+  MessagePort,
+  ReadableStream,
+  WritableStream,
+  TransformStream,
+  ArrayBuffer
+];
+function findTransferables(value2) {
+  if (value2 === null || value2 === void 0) {
+    return [];
+  }
+  if (typeof value2 === "object") {
+    if (ArrayBuffer.isView(value2) || value2 instanceof ArrayBuffer) {
+      return [value2];
+    }
+    if (transferableClasses.some((cls) => value2 instanceof cls)) {
+      return [value2];
+    }
+    if (Array.isArray(value2)) {
+      return value2.flatMap(findTransferables);
+    }
+    return Object.values(value2).flatMap(findTransferables);
+  }
+  return [];
+}
+const pendingRequests = /* @__PURE__ */ new Map();
+let _clientListenerStarted = /* @__PURE__ */ new Set();
+function Client(procedures2, { worker, nodes: nodeCount, loglevel = "debug", restartListener = false, hooks = {}, localStorage = {} } = {}) {
+  const l = createLogger("client", loglevel);
+  if (restartListener)
+    _clientListenerStarted.clear();
+  const instance = { [zProcedures]: procedures2 };
+  nodeCount ??= navigator.hardwareConcurrency || 1;
+  let nodes;
+  if (worker) {
+    nodes = {};
+    for (const _ of Array.from({ length: nodeCount })) {
+      const id = makeNodeId();
+      if (typeof worker === "string") {
+        nodes[id] = new Worker(worker, { name: id });
+      } else {
+        nodes[id] = new worker({ name: id });
+      }
+    }
+    l.info(null, `Started ${nodeCount} node${nodeCount > 1 ? "s" : ""}`, Object.keys(nodes));
+  }
+  for (const functionName of Object.keys(procedures2)) {
+    if (typeof functionName !== "string") {
+      throw new Error(`[SWARPC Client] Invalid function name, don't use symbols`);
+    }
+    const send = async (node2, nodeId, requestId, msg, options) => {
+      const ctx = {
+        logger: l,
+        node: node2,
+        nodeId,
+        hooks,
+        localStorage
+      };
+      return postMessage(ctx, {
+        ...msg,
+        by: "sw&rpc",
+        requestId,
+        functionName
+      }, options);
+    };
+    const _runProcedure = async (input, onProgress = () => {
+    }, reqid, nodeId) => {
+      const validation = procedures2[functionName].input["~standard"].validate(input);
+      if (validation instanceof Promise)
+        throw new Error("Validations must not be async");
+      if (validation.issues)
+        throw new Error(`Invalid input: ${validation.issues}`);
+      const requestId = reqid ?? makeRequestId();
+      nodeId ??= whoToSendTo(nodes, pendingRequests);
+      const node2 = nodes && nodeId ? nodes[nodeId] : void 0;
+      const l2 = createLogger("client", loglevel, nodeIdOrSW(nodeId), requestId);
+      return new Promise((resolve, reject) => {
+        pendingRequests.set(requestId, {
+          nodeId,
+          functionName,
+          resolve,
+          onProgress,
+          reject
+        });
+        const transfer = procedures2[functionName].autotransfer === "always" ? findTransferables(input) : [];
+        l2.debug(`Requesting ${functionName} with`, input);
+        return send(node2, nodeId, requestId, { input }, { transfer }).then(() => {
+        }).catch(reject);
+      });
+    };
+    instance[functionName] = _runProcedure;
+    instance[functionName].broadcast = async (input, onProgresses, nodesCount) => {
+      let nodesToUse = [void 0];
+      if (nodes)
+        nodesToUse = Object.keys(nodes);
+      if (nodesCount)
+        nodesToUse = nodesToUse.slice(0, nodesCount);
+      const progresses = /* @__PURE__ */ new Map();
+      function onProgress(nodeId) {
+        if (!onProgresses)
+          return (_) => {
+          };
+        return (progress) => {
+          progresses.set(nodeIdOrSW(nodeId), progress);
+          onProgresses(progresses);
+        };
+      }
+      const results = await Promise.allSettled(nodesToUse.map(async (id) => _runProcedure(input, onProgress(id), void 0, id)));
+      return results.map((r, i) => ({ ...r, node: nodeIdOrSW(nodesToUse[i]) }));
+    };
+    instance[functionName].cancelable = (input, onProgress) => {
+      const requestId = makeRequestId();
+      const nodeId = whoToSendTo(nodes, pendingRequests);
+      const l2 = createLogger("client", loglevel, nodeIdOrSW(nodeId), requestId);
+      return {
+        request: _runProcedure(input, onProgress, requestId, nodeId),
+        cancel(reason) {
+          if (!pendingRequests.has(requestId)) {
+            l2.warn(requestId, `Cannot cancel ${functionName} request, it has already been resolved or rejected`);
+            return;
+          }
+          l2.debug(requestId, `Cancelling ${functionName} with`, reason);
+          postMessageSync(l2, nodeId ? nodes?.[nodeId] : void 0, {
+            by: "sw&rpc",
+            requestId,
+            functionName,
+            abort: { reason }
+          });
+          pendingRequests.delete(requestId);
+        }
+      };
+    };
+  }
+  return instance;
+}
+async function postMessage(ctx, message, options) {
+  await startClientListener(ctx);
+  const { logger: l, node: worker } = ctx;
+  if (!worker && !navigator.serviceWorker.controller)
+    l.warn("", "Service Worker is not controlling the page");
+  const w = worker instanceof SharedWorker ? worker.port : worker === void 0 ? await navigator.serviceWorker.ready.then((r) => r.active) : worker;
+  if (!w) {
+    throw new Error("[SWARPC Client] No active service worker found");
+  }
+  w.postMessage(message, options);
+}
+function postMessageSync(l, worker, message, options) {
+  if (!worker && !navigator.serviceWorker.controller)
+    l.warn("Service Worker is not controlling the page");
+  const w = worker instanceof SharedWorker ? worker.port : worker === void 0 ? navigator.serviceWorker.controller : worker;
+  if (!w) {
+    throw new Error("[SWARPC Client] No active service worker found");
+  }
+  w.postMessage(message, options);
+}
+async function startClientListener(ctx) {
+  if (_clientListenerStarted.has(nodeIdOrSW(ctx.nodeId)))
+    return;
+  const { logger: l, node: worker } = ctx;
+  if (!worker) {
+    const sw = await navigator.serviceWorker.ready;
+    if (!sw?.active) {
+      throw new Error("[SWARPC Client] Service Worker is not active");
+    }
+    if (!navigator.serviceWorker.controller) {
+      l.warn("", "Service Worker is not controlling the page");
+    }
+  }
+  const w = worker ?? navigator.serviceWorker;
+  l.debug(null, "Starting client listener", { w, ...ctx });
+  const listener = (event) => {
+    const eventData = event.data || {};
+    if (eventData?.by !== "sw&rpc")
+      return;
+    const payload = eventData;
+    if ("isInitializeRequest" in payload) {
+      l.warn(null, "Ignoring unexpected #initialize from server", payload);
+      return;
+    }
+    const { requestId, ...data } = payload;
+    if (!requestId) {
+      throw new Error("[SWARPC Client] Message received without requestId");
+    }
+    const handlers = pendingRequests.get(requestId);
+    if (!handlers) {
+      throw new Error(`[SWARPC Client] ${requestId} has no active request handlers, cannot process ${JSON.stringify(data)}`);
+    }
+    if ("error" in data) {
+      ctx.hooks.error?.({
+        procedure: data.functionName,
+        error: new Error(data.error.message)
+      });
+      handlers.reject(new Error(data.error.message));
+      pendingRequests.delete(requestId);
+    } else if ("progress" in data) {
+      ctx.hooks.progress?.({
+        procedure: data.functionName,
+        data: data.progress
+      });
+      handlers.onProgress(data.progress);
+    } else if ("result" in data) {
+      ctx.hooks.success?.({
+        procedure: data.functionName,
+        data: data.result
+      });
+      handlers.resolve(data.result);
+      pendingRequests.delete(requestId);
+    }
+  };
+  if (w instanceof SharedWorker) {
+    w.port.addEventListener("message", listener);
+    w.port.start();
+  } else {
+    w.addEventListener("message", listener);
+  }
+  _clientListenerStarted.add(nodeIdOrSW(ctx.nodeId));
+  await postMessage(ctx, {
+    by: "sw&rpc",
+    functionName: "#initialize",
+    isInitializeRequest: true,
+    localStorageData: ctx.localStorage,
+    nodeId: nodeIdOrSW(ctx.nodeId)
+  });
+}
+function makeRequestId() {
+  return Math.random().toString(16).substring(2, 8).toUpperCase();
+}
+const ssr = false;
+async function load({ params, url: { searchParams } }) {
+  const nodesCount = Number.parseInt(searchParams.get("nodes") ?? "1");
+  switch (params.worker) {
+    case "shared":
+      return {
+        swarpc: Client(procedures, {
+          worker: WorkerWrapper$1,
+          nodes: nodesCount
+        })
+      };
+    case "dedicated":
+      return {
+        swarpc: Client(procedures, {
+          worker: WorkerWrapper,
+          nodes: nodesCount
+        })
+      };
+    case "service":
+      if ("serviceWorker" in navigator) {
+        addEventListener("load", function() {
+          navigator.serviceWorker.register("./src/service-worker.ts");
+        });
+      }
+      return {
+        swarpc: Client(procedures)
+      };
+  }
+  error(400, "Invalid worker type");
+}
+const _layout = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  load,
+  ssr
+}, Symbol.toStringTag, { value: "Module" }));
+export {
+  L as component,
+  _layout as universal
+};

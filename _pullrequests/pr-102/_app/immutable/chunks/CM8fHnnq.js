@@ -53,9 +53,9 @@ const WAS_MARKED = 1 << 15;
 const REACTION_IS_UPDATING = 1 << 21;
 const ASYNC = 1 << 22;
 const ERROR_VALUE = 1 << 23;
-const STATE_SYMBOL = Symbol("$state");
-const LEGACY_PROPS = Symbol("legacy props");
-const LOADING_ATTR_SYMBOL = Symbol("");
+const STATE_SYMBOL = /* @__PURE__ */ Symbol("$state");
+const LEGACY_PROPS = /* @__PURE__ */ Symbol("legacy props");
+const LOADING_ATTR_SYMBOL = /* @__PURE__ */ Symbol("");
 const STALE_REACTION = new class StaleReactionError extends Error {
   name = "StaleReactionError";
   message = "The reaction that called `getAbortSignal()` was re-run or destroyed";
@@ -151,7 +151,7 @@ const HYDRATION_START = "[";
 const HYDRATION_START_ELSE = "[!";
 const HYDRATION_END = "]";
 const HYDRATION_ERROR = {};
-const UNINITIALIZED = Symbol();
+const UNINITIALIZED = /* @__PURE__ */ Symbol();
 const NAMESPACE_HTML = "http://www.w3.org/1999/xhtml";
 function hydration_mismatch(location) {
   {
@@ -380,14 +380,14 @@ class Batch {
   #deferred = null;
   /**
    * Deferred effects (which run after async work has completed) that are DIRTY
-   * @type {Effect[]}
+   * @type {Set<Effect>}
    */
-  #dirty_effects = [];
+  #dirty_effects = /* @__PURE__ */ new Set();
   /**
    * Deferred effects that are MAYBE_DIRTY
-   * @type {Effect[]}
+   * @type {Set<Effect>}
    */
-  #maybe_dirty_effects = [];
+  #maybe_dirty_effects = /* @__PURE__ */ new Set();
   /**
    * A set of branches that still exist, but will be destroyed when this batch
    * is committed — we skip over these during `process`
@@ -410,8 +410,7 @@ class Batch {
       parent: null,
       effect: null,
       effects: [],
-      render_effects: [],
-      block_effects: []
+      render_effects: []
     };
     for (const root of root_effects) {
       this.#traverse_effect_tree(root, target);
@@ -422,7 +421,6 @@ class Batch {
     if (this.is_deferred()) {
       this.#defer_effects(target.effects);
       this.#defer_effects(target.render_effects);
-      this.#defer_effects(target.block_effects);
     } else {
       previous_batch = this;
       current_batch = null;
@@ -452,8 +450,7 @@ class Batch {
           parent: target,
           effect: effect2,
           effects: [],
-          render_effects: [],
-          block_effects: []
+          render_effects: []
         };
       }
       if (!skip && effect2.fn !== null) {
@@ -462,7 +459,7 @@ class Batch {
         } else if ((flags & EFFECT) !== 0) {
           target.effects.push(effect2);
         } else if (is_dirty(effect2)) {
-          if ((effect2.f & BLOCK_EFFECT) !== 0) target.block_effects.push(effect2);
+          if ((effect2.f & BLOCK_EFFECT) !== 0) this.#dirty_effects.add(effect2);
           update_effect(effect2);
         }
         var child2 = effect2.first;
@@ -477,7 +474,6 @@ class Batch {
         if (parent === target.effect) {
           this.#defer_effects(target.effects);
           this.#defer_effects(target.render_effects);
-          this.#defer_effects(target.block_effects);
           target = /** @type {EffectTarget} */
           target.parent;
         }
@@ -491,8 +487,11 @@ class Batch {
    */
   #defer_effects(effects) {
     for (const e of effects) {
-      const target = (e.f & DIRTY) !== 0 ? this.#dirty_effects : this.#maybe_dirty_effects;
-      target.push(e);
+      if ((e.f & DIRTY) !== 0) {
+        this.#dirty_effects.add(e);
+      } else if ((e.f & MAYBE_DIRTY) !== 0) {
+        this.#maybe_dirty_effects.add(e);
+      }
       this.#clear_marked(e.deps);
       set_signal_status(e, CLEAN);
     }
@@ -571,8 +570,7 @@ class Batch {
         parent: null,
         effect: null,
         effects: [],
-        render_effects: [],
-        block_effects: []
+        render_effects: []
       };
       for (const batch of batches) {
         if (batch === this) {
@@ -638,6 +636,7 @@ class Batch {
   }
   revive() {
     for (const e of this.#dirty_effects) {
+      this.#maybe_dirty_effects.delete(e);
       set_signal_status(e, DIRTY);
       schedule_effect(e);
     }
@@ -645,8 +644,6 @@ class Batch {
       set_signal_status(e, MAYBE_DIRTY);
       schedule_effect(e);
     }
-    this.#dirty_effects = [];
-    this.#maybe_dirty_effects = [];
     this.flush();
   }
   /** @param {() => void} fn */
