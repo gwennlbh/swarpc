@@ -157,8 +157,8 @@ function validatePayloadCore(procedure, payload) {
   }
   throw new Error("invalid payload");
 }
-const zImplementations = Symbol("SWARPC implementations");
-const zProcedures = Symbol("SWARPC procedures");
+const zImplementations = /* @__PURE__ */ Symbol("SWARPC implementations");
+const zProcedures = /* @__PURE__ */ Symbol("SWARPC procedures");
 const transferableClasses = [
   MessagePort,
   ReadableStream,
@@ -235,7 +235,7 @@ function Server(procedures2, { loglevel = "debug", scope: scope2, _scopeType } =
     }
   };
   for (const functionName in procedures2) {
-    instance[functionName] = (implementation2) => {
+    instance[functionName] = ((implementation2) => {
       if (!instance[zProcedures][functionName]) {
         throw new Error(`No procedure found for function name: ${functionName}`);
       }
@@ -250,7 +250,7 @@ function Server(procedures2, { loglevel = "debug", scope: scope2, _scopeType } =
           implementation2(input, onProgress, tools).then(resolve).catch(reject);
         });
       };
-    };
+    });
   }
   instance.start = async () => {
     const port = await new Promise((resolve) => {
@@ -1396,7 +1396,7 @@ const jsonSchemaTargetToDialect = {
   "draft-2020-12": "https://json-schema.org/draft/2020-12/schema",
   "draft-07": "http://json-schema.org/draft-07/schema#"
 };
-const mergeToJsonSchemaConfigs = (baseConfig, mergedConfig) => {
+const mergeToJsonSchemaConfigs = ((baseConfig, mergedConfig) => {
   if (!baseConfig)
     return resolveTargetToDialect(mergedConfig ?? {}, void 0);
   if (!mergedConfig)
@@ -1410,7 +1410,7 @@ const mergeToJsonSchemaConfigs = (baseConfig, mergedConfig) => {
       result[k] = mergedConfig[k];
   }
   return resolveTargetToDialect(result, mergedConfig);
-};
+});
 const resolveTargetToDialect = (opts, userOpts) => {
   if (userOpts?.dialect !== void 0)
     return opts;
@@ -2283,7 +2283,7 @@ const pipeNodesRoot = (l, r, $) => intersectOrPipeNodes(l, r, {
   invert: false,
   pipe: true
 });
-const intersectOrPipeNodes = (l, r, ctx) => {
+const intersectOrPipeNodes = ((l, r, ctx) => {
   const operator = ctx.pipe ? "|>" : "&";
   const lrCacheKey = `${l.hash}${operator}${r.hash}`;
   if (intersectionCache[lrCacheKey] !== void 0)
@@ -2312,7 +2312,7 @@ const intersectOrPipeNodes = (l, r, ctx) => {
   }
   intersectionCache[lrCacheKey] = result;
   return result;
-};
+});
 const _intersectNodes = (l, r, ctx) => {
   const leftmostKind = l.precedence < r.precedence ? l.kind : r.kind;
   const implementation2 = l.impl.intersections[r.kind] ?? r.impl.intersections[l.kind];
@@ -3653,7 +3653,7 @@ class BaseRoot extends BaseNode {
     return this.$.finalize(result);
   }
   tryPipe(...morphs) {
-    const result = morphs.reduce((acc, morph) => acc.rawPipeOnce(hasArkKind(morph, "root") ? morph : (In, ctx) => {
+    const result = morphs.reduce((acc, morph) => acc.rawPipeOnce(hasArkKind(morph, "root") ? morph : ((In, ctx) => {
       try {
         return morph(In, ctx);
       } catch (e) {
@@ -3665,7 +3665,7 @@ class BaseRoot extends BaseNode {
 `
         });
       }
-    }), this);
+    })), this);
     return this.$.finalize(result);
   }
   pipe = Object.assign(this._pipe.bind(this), {
@@ -6847,7 +6847,7 @@ const intrinsic = {
   emptyStructure: node("structure", {}, { prereduced: true })
 };
 $ark.intrinsic = { ...intrinsic };
-const regex$1 = (src, flags) => new RegExp(src, flags);
+const regex$1 = ((src, flags) => new RegExp(src, flags));
 Object.assign(regex$1, { as: regex$1 });
 const isDateLiteral = (value2) => typeof value2 === "string" && value2[0] === "d" && (value2[1] === "'" || value2[1] === '"') && value2[value2.length - 1] === value2[1];
 const isValidDate = (d) => d.toString() !== "Invalid Date";
@@ -7935,8 +7935,8 @@ class InternalScope extends BaseScope {
     return def;
   }
   type = new InternalTypeParser(this);
-  static scope = (def, config = {}) => new InternalScope(def, config);
-  static module = (def, config = {}) => this.scope(def, config).export();
+  static scope = ((def, config = {}) => new InternalScope(def, config));
+  static module = ((def, config = {}) => this.scope(def, config).export());
 }
 const scope = Object.assign(InternalScope.scope, {
   define: (def) => def
