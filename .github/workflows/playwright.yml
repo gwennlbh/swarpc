@@ -35,7 +35,7 @@ jobs:
           npm run build
         working-directory: ./example
       - name: Upload build as artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: build
           include-hidden-files: true
@@ -65,7 +65,7 @@ jobs:
       - name: Install dependencies
         run: npm ci && cd example && npm ci
       - name: Download built app
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: build
           path: ./
@@ -73,7 +73,7 @@ jobs:
         run: npx playwright test --shard=${{ matrix.shard-index}}/${{ matrix.shard-count }}
         env:
           SHARDING: "1"
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         if: ${{ !cancelled() }}
         with:
           name: playwright-report-shard-${{ matrix.shard-index }}
@@ -91,7 +91,7 @@ jobs:
     name: Combine reports
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v7
         with:
           path: ./playwright-report-shards
           pattern: playwright-report-shard-*
