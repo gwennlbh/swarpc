@@ -58,7 +58,7 @@
     "knip": "^5.80.0",
     "lint-staged": "^16.2.7",
     "nodemon": "^3.1.11",
-    "oxlint": "^1.36.0",
+    "oxlint": "^1.37.0",
     "pkg-pr-new": "^0.0.62",
     "prettier": "^3.7.4",
     "sirv-cli": "^3.0.1",
