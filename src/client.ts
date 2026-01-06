@@ -12,6 +12,7 @@ import {
 import { makeNodeId, nodeIdOrSW, whoToSendTo } from "./nodes.js";
 import {
   ClientMethod,
+  ClientMethodCallable,
   Hooks,
   Payload,
   PayloadCore,
@@ -33,15 +34,8 @@ export type SwarpcClient<Procedures extends ProceduresMap> = {
    * Create a proxy that cancels any ongoing call with the given global key before running new calls.
    * Usage: `await swarpc.onceBy("global-key").myMethod(...)`
    */
-  onceBy: <K extends keyof Procedures>(
-    key: string,
-  ) => {
-    [F in K]: (
-      input: Schema.InferInput<Procedures[F]["input"]>,
-      onProgress?: (
-        progress: Schema.InferOutput<Procedures[F]["progress"]>,
-      ) => void,
-    ) => Promise<Schema.InferOutput<Procedures[F]["success"]>>;
+  onceBy: (key: string) => {
+    [F in keyof Procedures]: ClientMethodCallable<Procedures[F]>;
   };
 } & {
   [F in keyof Procedures]: ClientMethod<Procedures[F]>;
