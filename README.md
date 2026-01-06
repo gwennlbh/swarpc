@@ -254,6 +254,50 @@ setTimeout(() => cancel().then(() => console.warn("Took too long!!")), 5_000);
 await request;
 ```
 
+### Call in "once" mode
+
+The "once" mode allows you to automatically cancel any previous ongoing call before running a new one. This is useful for scenarios like search-as-you-type, where you only care about the latest request.
+
+#### Method-scoped once mode
+
+Cancel any previous call of the same method:
+
+```js
+// If any previous call of searchIMDb is ongoing, it gets cancelled beforehand
+const result = await swarpc.searchIMDb.once({ query });
+```
+
+#### Method-scoped once mode with key
+
+Cancel any previous call of the same method with the same key:
+
+```js
+// If any previous call of searchIMDb with "foo" as the key is ongoing,
+// it gets cancelled beforehand
+const result = await swarpc.searchIMDb.onceBy("foo", { query });
+```
+
+This allows multiple concurrent calls with different keys:
+
+```js
+// These two calls can run concurrently
+const result1 = await swarpc.searchIMDb.onceBy("search-bar", {
+  query: "action",
+});
+const result2 = await swarpc.searchIMDb.onceBy("sidebar", { query: "comedy" });
+```
+
+#### Global once mode
+
+Cancel any ongoing call with the same global key, across all methods:
+
+```js
+// Any call from ANY procedure with "global-search" key gets cancelled beforehand
+const result = await swarpc.onceBy("global-search").searchIMDb({ query });
+```
+
+This is useful when you want to ensure only one operation of a certain type is running at a time, regardless of which procedure is being called.
+
 ### Polyfill a `localStorage` for the Server to access
 
 You might call third-party code that accesses on `localStorage` from within your procedures.
