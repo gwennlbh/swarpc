@@ -67,6 +67,80 @@ describe("Cancellable procedure", () => {
   });
 });
 
+describe("Once mode", () => {
+  const progress = vi.fn();
+
+  beforeEach(() => {
+    progress.mockReset();
+  });
+
+  test(".once() cancels previous call of same method", async () => {
+    // Start first call
+    const promise1 = client.cancellable.once("first", progress);
+    await new Promise((resolve) => setTimeout(resolve, 2));
+
+    // Start second call - should cancel the first one
+    const promise2 = client.cancellable.once("second", progress);
+
+    // First promise should be rejected/cancelled, second should complete
+    await expect(promise1).rejects.toThrow("Cancelled by .once() call");
+    const result2 = await promise2;
+    expect(result2).toBe("Cancellable hello second");
+  });
+
+  test(".onceBy(key) cancels previous call with same key", async () => {
+    // Start first call with key "foo"
+    const promise1 = client.cancellable.onceBy("foo", "first", progress);
+    await new Promise((resolve) => setTimeout(resolve, 2));
+
+    // Start second call with same key - should cancel the first one
+    const promise2 = client.cancellable.onceBy("foo", "second", progress);
+
+    // First promise should be rejected/cancelled, second should complete
+    await expect(promise1).rejects.toThrow('Cancelled by .onceBy("foo") call');
+    const result2 = await promise2;
+    expect(result2).toBe("Cancellable hello second");
+  });
+
+  test(".onceBy(key) allows concurrent calls with different keys", async () => {
+    // Start two calls with different keys
+    const promise1 = client.cancellable.onceBy("key1", "first", progress);
+    const promise2 = client.cancellable.onceBy("key2", "second", progress);
+
+    // Both should complete successfully
+    const [result1, result2] = await Promise.all([promise1, promise2]);
+    expect(result1).toBe("Cancellable hello first");
+    expect(result2).toBe("Cancellable hello second");
+  });
+
+  test("global onceBy cancels previous call with same global key", async () => {
+    // Start first call with global key
+    const promise1 = client.onceBy("global").cancellable("first", progress);
+    await new Promise((resolve) => setTimeout(resolve, 2));
+
+    // Start second call on a different method but same global key
+    const promise2 = client.onceBy("global").hello("second");
+
+    // First promise should be rejected/cancelled, second should complete
+    await expect(promise1).rejects.toThrow(
+      'Cancelled by global onceBy("global") call',
+    );
+    const result2 = await promise2;
+    expect(result2).toBe("Hello second");
+  });
+
+  test("global onceBy allows concurrent calls with different keys", async () => {
+    // Start two calls with different global keys
+    const promise1 = client.onceBy("global1").cancellable("first", progress);
+    const promise2 = client.onceBy("global2").cancellable("second", progress);
+
+    // Both should complete successfully
+    const [result1, result2] = await Promise.all([promise1, promise2]);
+    expect(result1).toBe("Cancellable hello first");
+    expect(result2).toBe("Cancellable hello second");
+  });
+});
+
 describe("Complex data", () => {
   test("Processes complex data", async () => {
     const response = await client.complexData({

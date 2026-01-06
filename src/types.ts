@@ -307,6 +307,21 @@ export type ClientMethod<P extends Procedure<Schema, Schema, Schema>> = ((
       PromiseSettledResult<Schema.InferOutput<P["success"]>> & { node: string }
     >
   >;
+  /**
+   * Call the procedure, cancelling any previous ongoing call of this procedure beforehand.
+   */
+  once: (
+    input: Schema.InferInput<P["input"]>,
+    onProgress?: (progress: Schema.InferOutput<P["progress"]>) => void,
+  ) => Promise<Schema.InferOutput<P["success"]>>;
+  /**
+   * Call the procedure with a concurrency key, cancelling any previous ongoing call of this procedure with the same key beforehand.
+   */
+  onceBy: (
+    key: string,
+    input: Schema.InferInput<P["input"]>,
+    onProgress?: (progress: Schema.InferOutput<P["progress"]>) => void,
+  ) => Promise<Schema.InferOutput<P["success"]>>;
 };
 
 /**

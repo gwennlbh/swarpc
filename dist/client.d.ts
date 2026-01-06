@@ -4,6 +4,7 @@
  */
 import { type LogLevel } from "./log.js";
 import { ClientMethod, Hooks, WorkerConstructor, zProcedures, type ProceduresMap } from "./types.js";
+import type { StandardSchemaV1 as Schema } from "./standardschema.js";
 /**
  * The sw&rpc client instance, which provides {@link ClientMethod | methods to call procedures}.
  * Each property of the procedures map will be a method, that accepts an input, an optional onProgress callback and an optional request ID.
@@ -11,6 +12,13 @@ import { ClientMethod, Hooks, WorkerConstructor, zProcedures, type ProceduresMap
  */
 export type SwarpcClient<Procedures extends ProceduresMap> = {
     [zProcedures]: Procedures;
+    /**
+     * Create a proxy that cancels any ongoing call with the given global key before running new calls.
+     * Usage: `await swarpc.onceBy("global-key").myMethod(...)`
+     */
+    onceBy: <K extends keyof Procedures>(key: string) => {
+        [F in K]: (input: Schema.InferInput<Procedures[F]["input"]>, onProgress?: (progress: Schema.InferOutput<Procedures[F]["progress"]>) => void) => Promise<Schema.InferOutput<Procedures[F]["success"]>>;
+    };
 } & {
     [F in keyof Procedures]: ClientMethod<Procedures[F]>;
 };
