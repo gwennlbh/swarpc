@@ -1,0 +1,27 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - heading "Once Mode Tests" [level=2] [ref=e4]
+  - generic [ref=e5]:
+    - 'heading "Test 1: .once() - cancels previous call of same method" [level=3] [ref=e6]'
+    - spinbutton "input a for test 1" [ref=e7]: "2"
+    - text: "*"
+    - spinbutton "input b for test 1" [ref=e8]: "5"
+    - text: =
+    - button "compute once test 1" [active] [ref=e9]: loading... 40%
+  - generic [ref=e10]:
+    - 'heading "Test 2: .onceBy(key) - cancels previous call with same key" [level=3] [ref=e11]'
+    - spinbutton "input a for test 2" [ref=e12]: "2"
+    - text: "*"
+    - spinbutton "input b for test 2" [ref=e13]: "5"
+    - text: =
+    - button "compute onceby foo test 2" [ref=e14]: compute
+  - generic [ref=e15]:
+    - 'heading "Test 3: global onceBy - cancels any call with same global key" [level=3] [ref=e16]'
+    - spinbutton "input a for test 3" [ref=e17]: "2"
+    - text: "*"
+    - spinbutton "input b for test 3" [ref=e18]: "5"
+    - text: =
+    - button "compute global onceby test 3" [ref=e19]: compute
+```
