@@ -88,6 +88,11 @@ const onceByMethodAndKey = new Map<string, string>();
  */
 const onceByGlobalKey = new Map<string, string>();
 
+/**
+ * Reusable empty function for default onProgress callback
+ */
+const emptyProgressCallback = () => {};
+
 /** @internal */
 export type PendingRequest = {
   /** ID of the node the request was sent to. udefined if running on a service worker */
@@ -248,7 +253,9 @@ export function Client<Procedures extends ProceduresMap>(
     // Set the method on the instance
     const _runProcedure = async (
       input: unknown,
-      onProgress: (progress: unknown) => void | Promise<void> = () => {},
+      onProgress: (
+        progress: unknown,
+      ) => void | Promise<void> = emptyProgressCallback,
       reqid?: string,
       nodeId?: string,
     ) => {
@@ -411,7 +418,10 @@ export function Client<Procedures extends ProceduresMap>(
   // @ts-expect-error - Adding method to instance
   instance.onceBy = (globalKey: string) => {
     // Create a proxy object with methods for each procedure
-    const proxy: any = {};
+    const proxy: Record<
+      string,
+      (input: unknown, onProgress?: any) => Promise<unknown>
+    > = {};
 
     for (const functionName of Object.keys(procedures) as Array<
       keyof Procedures
@@ -444,7 +454,7 @@ export function Client<Procedures extends ProceduresMap>(
         try {
           return await _runProcedure(
             input,
-            onProgress ?? (() => {}),
+            onProgress ?? emptyProgressCallback,
             requestId,
           );
         } finally {

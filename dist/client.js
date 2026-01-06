@@ -6,6 +6,7 @@ const pendingRequests = new Map();
 const onceByMethod = new Map();
 const onceByMethodAndKey = new Map();
 const onceByGlobalKey = new Map();
+const emptyProgressCallback = () => { };
 let _clientListenerStarted = new Set();
 export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug", restartListener = false, hooks = {}, localStorage = {}, } = {}) {
     const l = createLogger("client", loglevel);
@@ -63,7 +64,7 @@ export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug
                 functionName,
             }, options);
         };
-        const _runProcedure = async (input, onProgress = () => { }, reqid, nodeId) => {
+        const _runProcedure = async (input, onProgress = emptyProgressCallback, reqid, nodeId) => {
             const validation = procedures[functionName].input["~standard"].validate(input);
             if (validation instanceof Promise)
                 throw new Error("Validations must not be async");
@@ -189,7 +190,7 @@ export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug
                     throw new Error(`No procedure found for ${functionName}`);
                 }
                 try {
-                    return await _runProcedure(input, onProgress ?? (() => { }), requestId);
+                    return await _runProcedure(input, onProgress ?? emptyProgressCallback, requestId);
                 }
                 finally {
                     if (onceByGlobalKey.get(globalKey) === requestId) {
