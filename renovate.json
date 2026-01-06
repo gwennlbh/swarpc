@@ -1,0 +1,19 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["github>gwennlbh/renovate"],
+  "packageRules": [
+    {
+      "groupName": "dev tooling",
+      "description": "Auto-merge updates to dev tooling (linters, formatters, etc)",
+      "matchFileNames": ["!example/package.json"],
+      "matchDepTypes": ["devDependencies"],
+      "matchPackageNames": ["!@playwright/test"],
+      "automerge": true
+    },
+    {
+      "groupName": "example package",
+      "matchFileNames": ["example/package.json"],
+      "automerge": true
+    }
+  ]
+}

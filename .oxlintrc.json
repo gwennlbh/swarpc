@@ -1,0 +1,44 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["import", "jsdoc", "node", "promise", "vitest"],
+  "ignorePatterns": ["dist/**"],
+  "rules": {
+    "jest/valid-describe-callback": "off",
+    "jsdoc/check-tag-names": "off",
+    "require-property-description": "off",
+    "no-defaults": "off",
+    "no-console": [
+      "error",
+      {
+        "allow": ["warn", "error", "info", "dir", "time", "timeEnd", "debug"]
+      }
+    ],
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "$lib/utils.js",
+            "importNames": ["logexpr"],
+            "message": "You left out a debug log"
+          },
+          {
+            "name": "src/lib/utils.js",
+            "importNames": ["logexpr"],
+            "message": "You left out a debug log"
+          },
+          {
+            "name": "./utils.js",
+            "importNames": ["logexpr"],
+            "message": "You left out a debug log"
+          },
+          {
+            "name": "./lib/utils.js",
+            "importNames": ["logexpr"],
+            "message": "You left out a debug log"
+          }
+        ]
+      }
+    ]
+  }
+}
