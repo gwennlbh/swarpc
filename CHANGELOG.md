@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- "Once mode": a way to call methods that auto-cancel previous ongoing calls to the same method. See [the documentation](https://swarpc.js.org/#call-in-once-mode) for more details.
+
 ## [0.17.2] - 2025-12-12
 
 ### Fixed
