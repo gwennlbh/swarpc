@@ -3,7 +3,7 @@
  * @mergeModuleWith <project>
  */
 import { type LogLevel } from "./log.js";
-import { ClientMethod, Hooks, WorkerConstructor, zProcedures, type ProceduresMap } from "./types.js";
+import { ClientMethod, ClientMethodCallable, Hooks, WorkerConstructor, zProcedures, type ProceduresMap } from "./types.js";
 /**
  * The sw&rpc client instance, which provides {@link ClientMethod | methods to call procedures}.
  * Each property of the procedures map will be a method, that accepts an input, an optional onProgress callback and an optional request ID.
@@ -11,6 +11,13 @@ import { ClientMethod, Hooks, WorkerConstructor, zProcedures, type ProceduresMap
  */
 export type SwarpcClient<Procedures extends ProceduresMap> = {
     [zProcedures]: Procedures;
+    /**
+     * Create a proxy that cancels any ongoing call with the given global key before running new calls.
+     * Usage: `await swarpc.onceBy("global-key").myMethod(...)`
+     */
+    onceBy: (key: string) => {
+        [F in keyof Procedures]: ClientMethodCallable<Procedures[F]>;
+    };
 } & {
     [F in keyof Procedures]: ClientMethod<Procedures[F]>;
 };

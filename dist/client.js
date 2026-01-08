@@ -3,6 +3,10 @@ import { makeNodeId, nodeIdOrSW, whoToSendTo } from "./nodes.js";
 import { zProcedures, } from "./types.js";
 import { findTransferables } from "./utils.js";
 const pendingRequests = new Map();
+const onceByMethod = new Map();
+const onceByMethodAndKey = new Map();
+const onceByGlobalKey = new Map();
+const emptyProgressCallback = () => { };
 let _clientListenerStarted = new Set();
 export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug", restartListener = false, hooks = {}, localStorage = {}, } = {}) {
     const l = createLogger("client", loglevel);
@@ -24,6 +28,23 @@ export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug
         }
         l.info(null, `Started ${nodeCount} node${nodeCount > 1 ? "s" : ""}`, Object.keys(nodes));
     }
+    const cancelRequest = (requestId, reason, functionName) => {
+        const pending = pendingRequests.get(requestId);
+        if (!pending)
+            return;
+        const nodeId = pending.nodeId;
+        const l = createLogger("client", loglevel, nodeIdOrSW(nodeId), requestId);
+        l.debug(requestId, `Cancelling ${functionName} with`, reason);
+        pending.reject(new Error(reason));
+        postMessageSync(l, nodeId ? nodes?.[nodeId] : undefined, {
+            by: "sw&rpc",
+            requestId,
+            functionName,
+            abort: { reason },
+        });
+        pendingRequests.delete(requestId);
+    };
+    const runProcedureFunctions = new Map();
     for (const functionName of Object.keys(procedures)) {
         if (typeof functionName !== "string") {
             throw new Error(`[SWARPC Client] Invalid function name, don't use symbols`);
@@ -43,7 +64,7 @@ export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug
                 functionName,
             }, options);
         };
-        const _runProcedure = async (input, onProgress = () => { }, reqid, nodeId) => {
+        const _runProcedure = async (input, onProgress = emptyProgressCallback, reqid, nodeId) => {
             const validation = procedures[functionName].input["~standard"].validate(input);
             if (validation instanceof Promise)
                 throw new Error("Validations must not be async");
@@ -70,6 +91,7 @@ export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug
                     .catch(reject);
             });
         };
+        runProcedureFunctions.set(functionName, _runProcedure);
         instance[functionName] = _runProcedure;
         instance[functionName].broadcast = async (input, onProgresses, nodesCount) => {
             let nodesToUse = [undefined];
@@ -111,7 +133,74 @@ export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug
                 },
             };
         };
+        instance[functionName].once = async (input, onProgress) => {
+            const previousRequestId = onceByMethod.get(functionName);
+            if (previousRequestId) {
+                cancelRequest(previousRequestId, "Cancelled by .once() call", functionName);
+                onceByMethod.delete(functionName);
+            }
+            const requestId = makeRequestId();
+            onceByMethod.set(functionName, requestId);
+            try {
+                return await _runProcedure(input, onProgress, requestId);
+            }
+            finally {
+                if (onceByMethod.get(functionName) === requestId) {
+                    onceByMethod.delete(functionName);
+                }
+            }
+        };
+        instance[functionName].onceBy = async (key, input, onProgress) => {
+            const trackingKey = `${functionName}:${key}`;
+            const previousRequestId = onceByMethodAndKey.get(trackingKey);
+            if (previousRequestId) {
+                cancelRequest(previousRequestId, `Cancelled by .onceBy("${key}") call`, functionName);
+                onceByMethodAndKey.delete(trackingKey);
+            }
+            const requestId = makeRequestId();
+            onceByMethodAndKey.set(trackingKey, requestId);
+            try {
+                return await _runProcedure(input, onProgress, requestId);
+            }
+            finally {
+                if (onceByMethodAndKey.get(trackingKey) === requestId) {
+                    onceByMethodAndKey.delete(trackingKey);
+                }
+            }
+        };
     }
+    instance.onceBy = (globalKey) => {
+        const proxy = {};
+        for (const functionName of Object.keys(procedures)) {
+            if (typeof functionName !== "string")
+                continue;
+            proxy[functionName] = async (input, onProgress) => {
+                const previousRequestId = onceByGlobalKey.get(globalKey);
+                if (previousRequestId) {
+                    const pending = pendingRequests.get(previousRequestId);
+                    if (pending) {
+                        cancelRequest(previousRequestId, `Cancelled by global onceBy("${globalKey}") call`, pending.functionName);
+                    }
+                    onceByGlobalKey.delete(globalKey);
+                }
+                const requestId = makeRequestId();
+                onceByGlobalKey.set(globalKey, requestId);
+                const _runProcedure = runProcedureFunctions.get(functionName);
+                if (!_runProcedure) {
+                    throw new Error(`No procedure found for ${functionName}`);
+                }
+                try {
+                    return await _runProcedure(input, onProgress ?? emptyProgressCallback, requestId);
+                }
+                finally {
+                    if (onceByGlobalKey.get(globalKey) === requestId) {
+                        onceByGlobalKey.delete(globalKey);
+                    }
+                }
+            };
+        }
+        return proxy;
+    };
     return instance;
 }
 async function postMessage(ctx, message, options) {

@@ -123,9 +123,13 @@ export type PayloadCore<PM extends ProceduresMap, Name extends keyof PM = keyof 
     };
 };
 /**
+ * The callable function signature for a client method
+ */
+export type ClientMethodCallable<P extends Procedure<Schema, Schema, Schema>> = (input: Schema.InferInput<P["input"]>, onProgress?: (progress: Schema.InferOutput<P["progress"]>) => void) => Promise<Schema.InferOutput<P["success"]>>;
+/**
  * A procedure's corresponding method on the client instance -- used to call the procedure. If you want to be able to cancel the request, you can use the `cancelable` method instead of running the procedure directly.
  */
-export type ClientMethod<P extends Procedure<Schema, Schema, Schema>> = ((input: Schema.InferInput<P["input"]>, onProgress?: (progress: Schema.InferOutput<P["progress"]>) => void) => Promise<Schema.InferOutput<P["success"]>>) & {
+export type ClientMethod<P extends Procedure<Schema, Schema, Schema>> = ClientMethodCallable<P> & {
     /**
      * A method that returns a `CancelablePromise`. Cancel it by calling `.cancel(reason)` on it, and wait for the request to resolve by awaiting the `request` property on the returned object.
      */
@@ -142,6 +146,14 @@ export type ClientMethod<P extends Procedure<Schema, Schema, Schema>> = ((input:
     nodes?: number) => Promise<Array<PromiseSettledResult<Schema.InferOutput<P["success"]>> & {
         node: string;
     }>>;
+    /**
+     * Call the procedure, cancelling any previous ongoing call of this procedure beforehand.
+     */
+    once: (input: Schema.InferInput<P["input"]>, onProgress?: (progress: Schema.InferOutput<P["progress"]>) => void) => Promise<Schema.InferOutput<P["success"]>>;
+    /**
+     * Call the procedure with a concurrency key, cancelling any previous ongoing call of this procedure with the same key beforehand.
+     */
+    onceBy: (key: string, input: Schema.InferInput<P["input"]>, onProgress?: (progress: Schema.InferOutput<P["progress"]>) => void) => Promise<Schema.InferOutput<P["success"]>>;
 };
 export type WorkerConstructor<T extends Worker | SharedWorker = Worker | SharedWorker> = {
     new (opts?: {

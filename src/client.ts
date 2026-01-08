@@ -12,6 +12,7 @@ import {
 import { makeNodeId, nodeIdOrSW, whoToSendTo } from "./nodes.js";
 import {
   ClientMethod,
+  ClientMethodCallable,
   Hooks,
   Payload,
   PayloadCore,
@@ -20,6 +21,7 @@ import {
   type ProceduresMap,
 } from "./types.js";
 import { findTransferables } from "./utils.js";
+import type { StandardSchemaV1 as Schema } from "./standardschema.js";
 
 /**
  * The sw&rpc client instance, which provides {@link ClientMethod | methods to call procedures}.
@@ -28,6 +30,13 @@ import { findTransferables } from "./utils.js";
  */
 export type SwarpcClient<Procedures extends ProceduresMap> = {
   [zProcedures]: Procedures;
+  /**
+   * Create a proxy that cancels any ongoing call with the given global key before running new calls.
+   * Usage: `await swarpc.onceBy("global-key").myMethod(...)`
+   */
+  onceBy: (key: string) => {
+    [F in keyof Procedures]: ClientMethodCallable<Procedures[F]>;
+  };
 } & {
   [F in keyof Procedures]: ClientMethod<Procedures[F]>;
 };
@@ -54,6 +63,30 @@ type Context<Procedures extends ProceduresMap> = {
  * This allows having a single listener for the client, and having multiple in-flight calls to the same procedure.
  */
 const pendingRequests = new Map<string, PendingRequest>();
+
+/**
+ * Track ongoing requests by method name for .once() functionality
+ * Key: method name, Value: request ID
+ */
+const onceByMethod = new Map<string, string>();
+
+/**
+ * Track ongoing requests by method name and key for .onceBy(key) functionality
+ * Key: method name + key, Value: request ID
+ */
+const onceByMethodAndKey = new Map<string, string>();
+
+/**
+ * Track ongoing requests by global key for global onceBy() functionality
+ * Key: global key, Value: request ID
+ */
+const onceByGlobalKey = new Map<string, string>();
+
+/**
+ * Reusable empty function for default onProgress callback
+ */
+const emptyProgressCallback = () => {};
+
 /** @internal */
 export type PendingRequest = {
   /** ID of the node the request was sent to. udefined if running on a service worker */
@@ -133,6 +166,48 @@ export function Client<Procedures extends ProceduresMap>(
     );
   }
 
+  /**
+   * Helper function to cancel a previous request by ID
+   */
+  const cancelRequest = (
+    requestId: string,
+    reason: string,
+    functionName: string,
+  ) => {
+    const pending = pendingRequests.get(requestId);
+    if (!pending) return;
+
+    const nodeId = pending.nodeId;
+    const l = createLogger("client", loglevel, nodeIdOrSW(nodeId), requestId);
+
+    l.debug(requestId, `Cancelling ${functionName} with`, reason);
+
+    // Reject the promise first
+    pending.reject(new Error(reason));
+
+    // Then send abort message to the server
+    postMessageSync(l, nodeId ? nodes?.[nodeId] : undefined, {
+      by: "sw&rpc",
+      requestId,
+      functionName,
+      abort: { reason },
+    });
+
+    // Finally remove from pending requests
+    pendingRequests.delete(requestId);
+  };
+
+  // Map to store _runProcedure functions for each method
+  const runProcedureFunctions = new Map<
+    string,
+    (
+      input: unknown,
+      onProgress: (progress: unknown) => void | Promise<void>,
+      reqid?: string,
+      nodeId?: string,
+    ) => Promise<unknown>
+  >();
+
   for (const functionName of Object.keys(procedures) as Array<
     keyof Procedures
   >) {
@@ -172,7 +247,9 @@ export function Client<Procedures extends ProceduresMap>(
     // Set the method on the instance
     const _runProcedure = async (
       input: unknown,
-      onProgress: (progress: unknown) => void | Promise<void> = () => {},
+      onProgress: (
+        progress: unknown,
+      ) => void | Promise<void> = emptyProgressCallback,
       reqid?: string,
       nodeId?: string,
     ) => {
@@ -216,6 +293,9 @@ export function Client<Procedures extends ProceduresMap>(
           .catch(reject);
       });
     };
+
+    // Store the _runProcedure function for use in global onceBy
+    runProcedureFunctions.set(functionName, _runProcedure);
 
     // @ts-expect-error
     instance[functionName] = _runProcedure;
@@ -275,7 +355,113 @@ export function Client<Procedures extends ProceduresMap>(
         },
       };
     };
+
+    instance[functionName]!.once = async (input, onProgress) => {
+      // Cancel any previous ongoing call of this method
+      const previousRequestId = onceByMethod.get(functionName);
+      if (previousRequestId) {
+        cancelRequest(
+          previousRequestId,
+          "Cancelled by .once() call",
+          functionName,
+        );
+        onceByMethod.delete(functionName);
+      }
+
+      const requestId = makeRequestId();
+      onceByMethod.set(functionName, requestId);
+
+      try {
+        return await _runProcedure(input, onProgress, requestId);
+      } finally {
+        // Clean up tracking when request completes
+        if (onceByMethod.get(functionName) === requestId) {
+          onceByMethod.delete(functionName);
+        }
+      }
+    };
+
+    instance[functionName]!.onceBy = async (key, input, onProgress) => {
+      // Cancel any previous ongoing call of this method with this key
+      const trackingKey = `${functionName}:${key}`;
+      const previousRequestId = onceByMethodAndKey.get(trackingKey);
+      if (previousRequestId) {
+        cancelRequest(
+          previousRequestId,
+          `Cancelled by .onceBy("${key}") call`,
+          functionName,
+        );
+        onceByMethodAndKey.delete(trackingKey);
+      }
+
+      const requestId = makeRequestId();
+      onceByMethodAndKey.set(trackingKey, requestId);
+
+      try {
+        return await _runProcedure(input, onProgress, requestId);
+      } finally {
+        // Clean up tracking when request completes
+        if (onceByMethodAndKey.get(trackingKey) === requestId) {
+          onceByMethodAndKey.delete(trackingKey);
+        }
+      }
+    };
   }
+
+  // Add global onceBy method
+  // @ts-expect-error - Adding method to instance
+  instance.onceBy = (globalKey: string) => {
+    // Create a proxy object with methods for each procedure
+    const proxy: Record<
+      string,
+      (input: unknown, onProgress?: any) => Promise<unknown>
+    > = {};
+
+    for (const functionName of Object.keys(procedures) as Array<
+      keyof Procedures
+    >) {
+      if (typeof functionName !== "string") continue;
+
+      proxy[functionName] = async (input: unknown, onProgress?: any) => {
+        // Cancel any previous ongoing call with this global key
+        const previousRequestId = onceByGlobalKey.get(globalKey);
+        if (previousRequestId) {
+          const pending = pendingRequests.get(previousRequestId);
+          if (pending) {
+            cancelRequest(
+              previousRequestId,
+              `Cancelled by global onceBy("${globalKey}") call`,
+              pending.functionName,
+            );
+          }
+          onceByGlobalKey.delete(globalKey);
+        }
+
+        const requestId = makeRequestId();
+        onceByGlobalKey.set(globalKey, requestId);
+
+        const _runProcedure = runProcedureFunctions.get(functionName);
+        if (!_runProcedure) {
+          throw new Error(`No procedure found for ${functionName}`);
+        }
+
+        try {
+          return await _runProcedure(
+            input,
+            onProgress ?? emptyProgressCallback,
+            requestId,
+          );
+        } finally {
+          // Clean up tracking when request completes
+          if (onceByGlobalKey.get(globalKey) === requestId) {
+            onceByGlobalKey.delete(globalKey);
+          }
+        }
+      };
+    }
+
+    return proxy;
+  };
 
   return instance as SwarpcClient<Procedures>;
 }
