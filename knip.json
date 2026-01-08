@@ -1,6 +1,0 @@
-{
-  "$schema": "https://unpkg.com/knip@5/schema.json",
-  "ignore": ["example/**", "dist/**"],
-  "ignoreDependencies": ["sirv-cli"],
-  "entry": ["tests/*.test.ts", "src/types.ts", "tests/ambient.d.ts"]
-}
