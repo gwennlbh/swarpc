@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-01-08
+
 ### Added
 
 - "Once mode": a way to call methods that auto-cancel previous ongoing calls to the same method. See [the documentation](https://swarpc.js.org/#call-in-once-mode) for more details.
@@ -231,7 +233,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - support for transferable objects via a new [`autotransfer` property on procedure declarations](https://swarpc.js.org/types/types.Procedure.html#autotransfer)
 
-[Unreleased]: https://github.com/gwennlbh/swarpc/compare/v0.17.2...HEAD
+[Unreleased]: https://github.com/gwennlbh/swarpc/compare/v0.18.0...HEAD
+[0.18.0]: https://github.com/gwennlbh/swarpc/compare/v0.17.2...v0.18.0
 [0.17.2]: https://github.com/gwennlbh/swarpc/compare/v0.17.1...v0.17.2
 [0.17.1]: https://github.com/gwennlbh/swarpc/compare/v0.17.0...v0.17.1
 [0.17.0]: https://github.com/gwennlbh/swarpc/compare/v0.16.1...v0.17.0
