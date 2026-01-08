@@ -9,29 +9,28 @@ test.describe("once mode computation", () => {
         }) => {
           await page.goto(`/${workerType}/once/`);
 
+          const section = page.locator("#test-once");
+          const button = section.getByRole("button");
+          const inputA = section.getByRole("spinbutton").first();
+          const inputB = section.getByRole("spinbutton").nth(1);
+
           // Set up first computation
-          await page.getByLabel("input a for test 1").fill("2");
-          await page.getByLabel("input b for test 1").fill("5");
+          await inputA.fill("2");
+          await inputB.fill("5");
 
           // Start first computation
-          await page
-            .getByRole("button", { name: "compute once test 1" })
-            .click();
+          await button.click();
 
           // Wait for it to start loading
-          await expect(
-            page.getByRole("button", { name: /loading.*test 1/ }),
-          ).toBeVisible({ timeout: 1000 });
+          await expect(button).toHaveAccessibleName(/loading.../);
 
           // Quickly start a second computation with different values
-          await page.getByLabel("input a for test 1").fill("3");
-          await page.getByLabel("input b for test 1").fill("4");
-          await page.getByRole("button", { name: /loading.*test 1/ }).click();
+          await inputA.fill("3");
+          await inputB.fill("4");
+          await button.click();
 
           // The result should be from the second computation (3 * 4 = 12)
-          await expect(page.getByRole("button", { name: "12" })).toBeVisible({
-            timeout: 10000,
-          });
+          await expect(button).toHaveAccessibleName("12", { timeout: 10000 });
         });
 
         test("completes normally when no previous call exists", async ({
@@ -39,19 +38,18 @@ test.describe("once mode computation", () => {
         }) => {
           await page.goto(`/${workerType}/once/`);
 
-          await page.getByLabel("input a for test 1").fill("3");
-          await page.getByLabel("input b for test 1").fill("7");
-          await page
-            .getByRole("button", { name: "compute once test 1" })
-            .click();
+          const section = page.locator("#test-once");
+          const button = section.getByRole("button");
+          const inputA = section.getByRole("spinbutton").first();
+          const inputB = section.getByRole("spinbutton").nth(1);
+
+          await inputA.fill("3");
+          await inputB.fill("7");
+          await button.click();
 
           // Should show progress and complete
-          await expect(
-            page.getByRole("button", { name: /loading.*test 1/ }),
-          ).toBeVisible({ timeout: 1000 });
-          await expect(page.getByRole("button", { name: "21" })).toBeVisible({
-            timeout: 10000,
-          });
+          await expect(button).toHaveAccessibleName(/loading.../);
+          await expect(button).toHaveAccessibleName("21", { timeout: 10000 });
         });
       });
 
@@ -59,29 +57,28 @@ test.describe("once mode computation", () => {
         test("cancels previous call with same key", async ({ page }) => {
           await page.goto(`/${workerType}/once/`);
 
+          const section = page.locator("#test-onceby-key");
+          const button = section.getByRole("button");
+          const inputA = section.getByRole("spinbutton").first();
+          const inputB = section.getByRole("spinbutton").nth(1);
+
           // Set up first computation
-          await page.getByLabel("input a for test 2").fill("4");
-          await page.getByLabel("input b for test 2").fill("6");
+          await inputA.fill("4");
+          await inputB.fill("6");
 
           // Start first computation
-          await page
-            .getByRole("button", { name: "compute onceby foo test 2" })
-            .click();
+          await button.click();
 
           // Wait for it to start loading
-          await expect(
-            page.getByRole("button", { name: /loading.*test 2/ }),
-          ).toBeVisible({ timeout: 1000 });
+          await expect(button).toHaveAccessibleName(/loading.../);
 
           // Quickly start a second computation with different values
-          await page.getByLabel("input a for test 2").fill("5");
-          await page.getByLabel("input b for test 2").fill("3");
-          await page.getByRole("button", { name: /loading.*test 2/ }).click();
+          await inputA.fill("5");
+          await inputB.fill("3");
+          await button.click();
 
           // The result should be from the second computation (5 * 3 = 15)
-          await expect(page.getByRole("button", { name: "15" })).toBeVisible({
-            timeout: 10000,
-          });
+          await expect(button).toHaveAccessibleName("15", { timeout: 10000 });
         });
       });
 
@@ -89,29 +86,28 @@ test.describe("once mode computation", () => {
         test("cancels previous call with same global key", async ({ page }) => {
           await page.goto(`/${workerType}/once/`);
 
+          const section = page.locator("#test-global-onceby");
+          const button = section.getByRole("button");
+          const inputA = section.getByRole("spinbutton").first();
+          const inputB = section.getByRole("spinbutton").nth(1);
+
           // Set up first computation
-          await page.getByLabel("input a for test 3").fill("6");
-          await page.getByLabel("input b for test 3").fill("7");
+          await inputA.fill("6");
+          await inputB.fill("7");
 
           // Start first computation
-          await page
-            .getByRole("button", { name: "compute global onceby test 3" })
-            .click();
+          await button.click();
 
           // Wait for it to start loading
-          await expect(
-            page.getByRole("button", { name: /loading.*test 3/ }),
-          ).toBeVisible({ timeout: 1000 });
+          await expect(button).toHaveAccessibleName(/loading.../);
 
           // Quickly start a second computation with different values
-          await page.getByLabel("input a for test 3").fill("8");
-          await page.getByLabel("input b for test 3").fill("2");
-          await page.getByRole("button", { name: /loading.*test 3/ }).click();
+          await inputA.fill("8");
+          await inputB.fill("2");
+          await button.click();
 
           // The result should be from the second computation (8 * 2 = 16)
-          await expect(page.getByRole("button", { name: "16" })).toBeVisible({
-            timeout: 10000,
-          });
+          await expect(button).toHaveAccessibleName("16", { timeout: 10000 });
         });
       });
     });

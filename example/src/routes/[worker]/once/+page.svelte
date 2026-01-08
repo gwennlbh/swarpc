@@ -18,14 +18,13 @@
 <div>
   <h2>Once Mode Tests</h2>
   
-  <section>
+  <section id="test-once">
     <h3>Test 1: .once() - cancels previous call of same method</h3>
-    <input type="number" bind:value={a} aria-label="input a for test 1" />
+    <input type="number" bind:value={a} />
     *
-    <input type="number" bind:value={b} aria-label="input b for test 1" />
+    <input type="number" bind:value={b} />
     =
     <button
-      aria-label="compute once test 1"
       onclick={async () => {
         loading1 = true
         progress1 = 0
@@ -54,14 +53,13 @@
     </button>
   </section>
 
-  <section>
+  <section id="test-onceby-key">
     <h3>Test 2: .onceBy(key) - cancels previous call with same key</h3>
-    <input type="number" bind:value={a} aria-label="input a for test 2" />
+    <input type="number" bind:value={a} />
     *
-    <input type="number" bind:value={b} aria-label="input b for test 2" />
+    <input type="number" bind:value={b} />
     =
     <button
-      aria-label="compute onceby foo test 2"
       onclick={async () => {
         loading2 = true
         progress2 = 0
@@ -91,14 +89,13 @@
     </button>
   </section>
 
-  <section>
+  <section id="test-global-onceby">
     <h3>Test 3: global onceBy - cancels any call with same global key</h3>
-    <input type="number" bind:value={a} aria-label="input a for test 3" />
+    <input type="number" bind:value={a} />
     *
-    <input type="number" bind:value={b} aria-label="input b for test 3" />
+    <input type="number" bind:value={b} />
     =
     <button
-      aria-label="compute global onceby test 3"
       onclick={async () => {
         loading3 = true
         progress3 = 0
