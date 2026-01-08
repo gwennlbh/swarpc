@@ -16,7 +16,8 @@
     "@8hobbies/typedoc-plugin-plausible",
     "typedoc-plugin-redirect"
   ],
-  "plausibleSiteOrigin": "https://stats.gwen.works/js",
+  "themeColor": "#fffb0b",
+  "plausibleSiteOrigin": "https://stats.gwen.works",
   "plausibleSiteDomain": "swarpc.js.org",
   "footerLastModified": true,
   "resolveUtilityTypes": true,
