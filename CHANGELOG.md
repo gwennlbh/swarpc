@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - `.broadcast.once` and `.broadcast.onceBy`. Works just like `.once` or `.onceBy`, but sends the request to multiple nodes just like `.broadcast`.
 - Convenience properties on the return value of broadcasted calls
 - `.broadcast{.once,.onceBy,}.orThrow()`: aggregate method that throws if any node failed and returns the array of results otherwise.
+- `nodes` property in the third ("tools") argument of procedure implementations, containing the set of all available node IDs.
 
 ## [0.18.0] - 2026-01-08
 

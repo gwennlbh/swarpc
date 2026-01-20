@@ -75,6 +75,8 @@ export function Server<Procedures extends ProceduresMap>(
   // Service workers don't have a name, but it's fine anyways cuz we don't have multiple nodes when running with a SW
   const nodeId = nodeIdFromScope(scope, _scopeType);
 
+  let allNodeIDs = new Set<string>();
+
   const l = createLogger("server", loglevel, nodeId);
 
   // Initialize the instance.
@@ -145,6 +147,7 @@ export function Server<Procedures extends ProceduresMap>(
         l.debug(null, "Setting up faux localStorage", localStorageData);
         new FauxLocalStorage(localStorageData).register(scope);
         injectIntoConsoleGlobal(scope, nodeId, null);
+        event.data.allNodeIDs.forEach((id) => allNodeIDs.add(id));
         return;
       }
 
@@ -227,6 +230,7 @@ export function Server<Procedures extends ProceduresMap>(
           },
           {
             nodeId,
+            nodes: allNodeIDs,
             abortSignal: abortControllers.get(requestId)?.signal,
           },
         );

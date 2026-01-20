@@ -67,6 +67,8 @@ type Context<Procedures extends ProceduresMap> = {
   node: Worker | SharedWorker | undefined;
   /** The ID of the node to use */
   nodeId: string | undefined;
+  /** Set of all available nodes' IDs */
+  allNodeIDs: Set<string>;
   /** Hooks defined by the client */
   hooks: Hooks<Procedures>;
   /** Local storage data defined by the client for the faux local storage */
@@ -275,6 +277,7 @@ export function Client<Procedures extends ProceduresMap>(
         logger: l,
         node,
         nodeId,
+        allNodeIDs: new Set(nodes ? Object.keys(nodes) : []),
         hooks,
         localStorage,
       };
@@ -727,6 +730,7 @@ async function startClientListener<Procedures extends ProceduresMap>(
     isInitializeRequest: true,
     localStorageData: ctx.localStorage,
     nodeId: nodeIdOrSW(ctx.nodeId),
+    allNodeIDs: ctx.allNodeIDs,
   });
 }
 

@@ -82,6 +82,10 @@ export type ProcedureImplementation<
      * ID of the Node the request is being processed on.
      */
     nodeId: string;
+    /**
+     * IDs of all available Nodes.
+     */
+    nodes: Set<string>;
   },
 ) => Promise<Schema.InferInput<S>>;
 
@@ -140,6 +144,7 @@ export type PayloadInitialize = {
   isInitializeRequest: true;
   localStorageData: Record<string, unknown>;
   nodeId: string;
+  allNodeIDs: Set<string>;
 };
 
 /** @internal */
@@ -154,6 +159,7 @@ export function isPayloadInitialize(
   if (!("functionName" in payload)) return false;
   if (!("localStorageData" in payload)) return false;
   if (!("isInitializeRequest" in payload)) return false;
+  if (!("allNodeIDs" in payload)) return false;
 
   if (payload.by !== "sw&rpc") return false;
   if (payload.functionName !== "#initialize") return false;
