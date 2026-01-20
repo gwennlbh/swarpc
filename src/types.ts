@@ -4,7 +4,7 @@
  */
 
 import type { StandardSchemaV1 as Schema } from "./standardschema.js";
-import { RequestBoundLogger } from "./log.js";
+import { ArrayOneOrMore } from "./utils.js";
 
 /**
  * A procedure declaration
@@ -284,9 +284,25 @@ export type ClientMethodCallable<P extends Procedure<Schema, Schema, Schema>> =
   ) => Promise<Schema.InferOutput<P["success"]>>;
 
 /**
- * @internal
+ * A procedure that broadcasts its request to multiple nodes.
+ * The return value is an array of results, along with extra properties:
+ * see {@link BroadcasterResultExtrasMixed}, {@link BroadcasterResultExtrasSuccess} and {@link BroadcasterResultExtrasFailure}
  */
-export type Broadcaster<P extends Procedure<Schema, Schema, Schema>> = (
+export type Broadcaster<P extends Procedure<Schema, Schema, Schema>> = {
+  /**
+   * Returns an array of result values for each node.
+   * @throws {AggregateError} with every failing node's error
+   */
+  orThrow: (
+    input: Schema.InferInput<P["input"]>,
+    onProgress?: (
+      /** Map of node IDs to their progress updates */
+      progresses: Map<string, Schema.InferOutput<P["progress"]>>,
+    ) => void,
+    /** Node IDs or number of nodes to send the request to. Leave undefined to send to all nodes. When sending a list of node IDs, "undefined" is interpreted as "run on the service worker" */
+    nodes?: number | Array<string | undefined>,
+  ) => Promise<Array<Schema.InferOutput<P["success"]>>>;
+} & ((
   input: Schema.InferInput<P["input"]>,
   onProgress?: (
     /** Map of node IDs to their progress updates */
@@ -299,8 +315,63 @@ export type Broadcaster<P extends Procedure<Schema, Schema, Schema>> = (
     PromiseSettledResult<Schema.InferOutput<P["success"]>> & {
       node: string;
     }
-  >
->;
+  > &
+    (
+      | BroadcasterResultExtrasMixed<P>
+      | BroadcasterResultExtrasSuccess<P>
+      | BroadcasterResultExtrasFailure
+    )
+>);
+
+/**
+ * Extra properties on the result of a broadcaster call, when some nodes succeeded and some failed
+ */
+export type BroadcasterResultExtrasMixed<
+  P extends Procedure<Schema, Schema, Schema>,
+> = {
+  /** Undefined if no failures */
+  failures: ArrayOneOrMore<PromiseRejectedResult & { node: string }>;
+  /** Formatted error string, undefined if no failures */
+  failureSummary: string;
+  /** True if only failures */
+  ko: false;
+  /** True if no failures */
+  ok: false;
+  /** "mixed" if some failed and some succeeded, "fulfilled" if all succeeded and "rejected" if everything failed */
+  status: "mixed";
+  /** All values of successful calls */
+  successes: ArrayOneOrMore<Schema.InferOutput<P["success"]>>;
+  /** Map of node ID to its result or failure */
+  byNode: Map<string, PromiseSettledResult<Schema.InferOutput<P["success"]>>>;
+};
+
+/**
+ * Extra properties on the result of a broadcaster call, when all nodes succeeded
+ */
+export type BroadcasterResultExtrasSuccess<
+  P extends Procedure<Schema, Schema, Schema>,
+> = {
+  failures: [];
+  failureSummary: undefined;
+  ko: false;
+  ok: true;
+  status: "fulfilled";
+  successes: ArrayOneOrMore<Schema.InferOutput<P["success"]>>;
+  byNode: Map<string, PromiseFulfilledResult<Schema.InferOutput<P["success"]>>>;
+};
+
+/**
+ * Extra properties on the result of a broadcaster call, when all nodes failed
+ */
+export type BroadcasterResultExtrasFailure = {
+  failures: ArrayOneOrMore<PromiseRejectedResult & { node: string }>;
+  failureSummary: string;
+  ko: true;
+  ok: false;
+  status: "rejected";
+  successes: [];
+  byNode: Map<string, PromiseRejectedResult>;
+};
 
 type ClientMethodExtraCallables<P extends Procedure<Schema, Schema, Schema>> = {
   /**
@@ -315,25 +386,36 @@ type ClientMethodExtraCallables<P extends Procedure<Schema, Schema, Schema>> = {
    * Send the request to specific nodes, or all nodes.
    * Returns an array of results, one for each node the request was sent to.
    * Each result is a {@link PromiseSettledResult}, with also an additional property, the node ID of the request
+   * The results array also has extra properties for convenience, see {@link BroadcasterResultExtrasMixed}, {@link BroadcasterResultExtrasSuccess} and {@link BroadcasterResultExtrasFailure}
    */
   broadcast: Broadcaster<P> & {
     /**
      * Send the request to specific nodes, or all nodes.
      * Cancels any previous ongoing calls of this procedure on the nodes beforehand.
      * Returns an array of results, one for each node the request was sent to.
-     * Each result is a {@link PromiseSettledResult}, with also an additional property, the node ID of the request
+     * Each result is a {@link PromiseSettledResult}, with also an additional property, the node ID of the request. The results array also has extra properties for convenience, see {@link BroadcasterResultExtrasMixed}, {@link BroadcasterResultExtrasSuccess} and {@link BroadcasterResultExtrasFailure}
      */
     once: Broadcaster<P>;
     /**
      * Send the request to specific nodes, or all nodes.
      * Cancels any previous ongoing calls of this procedure on the nodes beforehand that were also run with the specified concurrency key (first argument). See .onceBy for more details.
      * Returns an array of results, one for each node the request was sent to.
-     * Each result is a {@link PromiseSettledResult}, with also an additional property, the node ID of the request
+     * Each result is a {@link PromiseSettledResult}, with also an additional property, the node ID of the request. The results array also has extra properties for convenience, see {@link BroadcasterResultExtrasMixed}, {@link BroadcasterResultExtrasSuccess} and {@link BroadcasterResultExtrasFailure}
      */
-    onceBy: (
+    onceBy: ((
       key: string,
       ...args: Parameters<Broadcaster<P>>
-    ) => ReturnType<Broadcaster<P>>;
+    ) => ReturnType<Broadcaster<P>>) & {
+      /**
+       * Returns an array of result values for each node.
+       * Throws if any node failed.
+       * @throws {AggregateError} with every failing node's error
+       */
+      orThrow: (
+        key: string,
+        ...args: Parameters<Broadcaster<P>>
+      ) => Promise<Array<Schema.InferOutput<P["success"]>>>;
+    };
   };
   /**
    * Call the procedure, cancelling any previous ongoing call of this procedure beforehand.

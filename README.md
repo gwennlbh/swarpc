@@ -210,6 +210,39 @@ for (const result of await client.initDB.broadcast("localhost:5432")) {
 }
 ```
 
+You also have a very convenient way to aggregate the results of all nodes, if you don't need to handle errors in a fine-grained way:
+
+```ts
+const userbase = await client.tableSize.broadcast
+  .orThrow("users")
+  .then((counts) => sum(counts))
+  .catch((e) => {
+    // e is an AggregateError with every failing node's error
+    console.error("Could not get total user count:", e);
+  });
+```
+
+Otherwise, you have access to a handful of convenience properties on the returned array, to help you narrow down what happened on each node:
+
+```ts
+async function userbase() {
+  const counts = await client.tableSize.broadcast("users");
+
+  if (counts.ko) {
+    throw new Error(
+      `All nodes failed to get table size: ${counts.failureSummary}`,
+    );
+  }
+
+  return {
+    exact: counts.ok,
+    count:
+      sum(counts.successes) +
+      average(counts.successes) * counts.failures.length,
+  };
+}
+```
+
 ### Make cancelable requests
 
 #### Implementation

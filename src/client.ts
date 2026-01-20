@@ -17,6 +17,9 @@ import {
 } from "./nodes.js";
 import {
   Broadcaster,
+  BroadcasterResultExtrasFailure,
+  BroadcasterResultExtrasMixed,
+  BroadcasterResultExtrasSuccess,
   ClientMethod,
   ClientMethodCallable,
   Hooks,
@@ -28,7 +31,12 @@ import {
   zProcedures,
   type ProceduresMap,
 } from "./types.js";
-import { findTransferables } from "./utils.js";
+import {
+  findTransferables,
+  extractFulfilleds,
+  extractRejecteds,
+  sizedArray,
+} from "./utils.js";
 import type { StandardSchemaV1 as Schema } from "./standardschema.js";
 
 /**
@@ -354,7 +362,7 @@ export function Client<Procedures extends ProceduresMap>(
         };
       }
 
-      const results = await Promise.allSettled(
+      const settleds = await Promise.allSettled(
         nodesToUse.map(async (id) =>
           _runProcedure({
             input,
@@ -363,9 +371,45 @@ export function Client<Procedures extends ProceduresMap>(
             concurrencyKey,
           }),
         ),
+      ).then((results) =>
+        results.map((result, index) => ({
+          ...result,
+          node: nodeIdOrSW(nodesToUse[index]),
+        })),
       );
 
-      return results.map((r, i) => ({ ...r, node: nodeIdOrSW(nodesToUse[i]) }));
+      const _extras = {
+        byNode: new Map(settleds.map(({ node, ...result }) => [node, result])),
+        successes: sizedArray(extractFulfilleds(settleds).map((r) => r.value)),
+        failures: sizedArray(extractRejecteds(settleds)),
+
+        get failureSummary() {
+          return this.failures
+            ?.map(({ node, reason }) => `Node ${node}: ${reason}`)
+            .join(";\n");
+        },
+
+        get ok() {
+          return this.failures.length === 0;
+        },
+
+        get ko() {
+          return this.successes.length === 0;
+        },
+
+        get status() {
+          if (this.ok) return "fulfilled";
+          if (this.ko) return "rejected";
+          return "mixed";
+        },
+      } satisfies BroadcasterResultExtrasAny<ThisProcedure>;
+
+      const extras = _extras as
+        | BroadcasterResultExtrasFailure
+        | BroadcasterResultExtrasSuccess<ThisProcedure>
+        | BroadcasterResultExtrasMixed<ThisProcedure>;
+
+      return Object.assign(settleds, extras);
     };
 
     // Store the _runProcedure function for use in global onceBy
@@ -378,6 +422,12 @@ export function Client<Procedures extends ProceduresMap>(
     instance[functionName]!.broadcast = (input, onProgresses, nodes) =>
       _broadcastProcedure({ input, onProgresses, nodesCountOrIDs: nodes });
 
+    instance[functionName]!.broadcast.orThrow = async (...args) =>
+      handleBroadcastOrThrowResults(
+        await instance[functionName]!.broadcast(...args),
+      );
+
+    // @ts-expect-error .orThrow added later
     instance[functionName]!.broadcast.once = async (
       input,
       onProgresses,
@@ -401,6 +451,12 @@ export function Client<Procedures extends ProceduresMap>(
       });
     };
 
+    instance[functionName]!.broadcast.once.orThrow = async (...args) =>
+      handleBroadcastOrThrowResults(
+        await instance[functionName]!.broadcast.once(...args),
+      );
+
+    // @ts-expect-error .orThrow added later
     instance[functionName]!.broadcast.onceBy = async (
       concurrencyKey,
       input,
@@ -426,6 +482,11 @@ export function Client<Procedures extends ProceduresMap>(
         concurrencyKey,
       });
     };
+
+    instance[functionName]!.broadcast.onceBy.orThrow = async (...args) =>
+      handleBroadcastOrThrowResults(
+        await instance[functionName]!.broadcast.onceBy(...args),
+      );
 
     instance[functionName]!.cancelable = (input, onProgress) => {
       const requestId = makeRequestId();
@@ -695,3 +756,22 @@ type ProcedureRunnerBroadcast<P extends Procedure<Schema, Schema, Schema>> =
     nodesCountOrIDs?: number | Array<string | undefined>;
     concurrencyKey?: string;
   }) => ReturnType<Broadcaster<P>>;
+
+function handleBroadcastOrThrowResults<
+  P extends Procedure<Schema, Schema, Schema>,
+>(
+  results: Awaited<ReturnType<Broadcaster<P>>>,
+): Awaited<ReturnType<Broadcaster<P>["orThrow"]>> {
+  if (results.ok) {
+    return results.successes;
+  }
+
+  throw new AggregateError(results.failures.map((f) => f.reason));
+}
+
+type BroadcasterResultExtrasAny<P extends Procedure<Schema, Schema, Schema>> = {
+  [K in keyof BroadcasterResultExtrasMixed<P>]:
+    | BroadcasterResultExtrasMixed<P>[K]
+    | BroadcasterResultExtrasSuccess<P>[K]
+    | BroadcasterResultExtrasFailure[K];
+};
