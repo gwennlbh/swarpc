@@ -8371,13 +8371,13 @@ function Client(procedures2, { worker, nodes: nodeCount, loglevel = "debug", res
         functionName
       }, options);
     };
-    const _runProcedure = async (input, onProgress = emptyProgressCallback, reqid, nodeId) => {
+    const _runProcedure = async ({ input, onProgress, requestId: explicitRequestId, nodeId, concurrencyKey }) => {
       const validation = procedures2[functionName].input["~standard"].validate(input);
       if (validation instanceof Promise)
         throw new Error("Validations must not be async");
       if (validation.issues)
         throw new Error(`Invalid input: ${validation.issues}`);
-      const requestId = reqid ?? makeRequestId();
+      const requestId = explicitRequestId ?? makeRequestId();
       nodeId ??= whoToSendTo(nodes, pendingRequests);
       const node2 = nodes && nodeId ? nodes[nodeId] : void 0;
       const l2 = createLogger("client", loglevel, nodeIdOrSW(nodeId), requestId);
@@ -8385,8 +8385,9 @@ function Client(procedures2, { worker, nodes: nodeCount, loglevel = "debug", res
         pendingRequests.set(requestId, {
           nodeId,
           functionName,
+          concurrencyKey,
           resolve,
-          onProgress,
+          onProgress: onProgress ?? emptyProgressCallback,
           reject
         });
         const transfer = procedures2[functionName].autotransfer === "always" ? findTransferables(input) : [];
@@ -8395,9 +8396,7 @@ function Client(procedures2, { worker, nodes: nodeCount, loglevel = "debug", res
         }).catch(reject);
       });
     };
-    runProcedureFunctions.set(functionName, _runProcedure);
-    instance[functionName] = _runProcedure;
-    instance[functionName].broadcast = async (input, onProgresses, nodesCountOrIDs) => {
+    const _broadcastProcedure = async ({ input, onProgresses, nodesCountOrIDs, concurrencyKey }) => {
       const nodesToUse = broadcastNodes(nodes ? Object.keys(nodes) : void 0, nodesCountOrIDs);
       const progresses = /* @__PURE__ */ new Map();
       function onProgress(nodeId) {
@@ -8409,16 +8408,28 @@ function Client(procedures2, { worker, nodes: nodeCount, loglevel = "debug", res
           onProgresses(progresses);
         };
       }
-      const results = await Promise.allSettled(nodesToUse.map(async (id) => _runProcedure(input, onProgress(id), void 0, id)));
+      const results = await Promise.allSettled(nodesToUse.map(async (id) => _runProcedure({
+        input,
+        onProgress: onProgress(id),
+        nodeId: id,
+        concurrencyKey
+      })));
       return results.map((r, i) => ({ ...r, node: nodeIdOrSW(nodesToUse[i]) }));
     };
+    runProcedureFunctions.set(functionName, _runProcedure);
+    instance[functionName] = (input, onProgress) => _runProcedure({ input, onProgress });
+    instance[functionName].broadcast = (input, onProgresses, nodes2) => _broadcastProcedure({ input, onProgresses, nodesCountOrIDs: nodes2 });
     instance[functionName].broadcast.once = async (input, onProgresses, nodesCountOrIDs) => {
       const nodesToUse = broadcastNodes(nodes ? Object.keys(nodes) : void 0, nodesCountOrIDs);
       cancelRequests("Cancelled by .broadcast.once() call", {
         functionName,
         nodeIds: nodesToUse.filter((x) => x !== void 0)
       });
-      return instance[functionName].broadcast(input, onProgresses, nodesToUse);
+      return _broadcastProcedure({
+        input,
+        onProgresses,
+        nodesCountOrIDs: nodesToUse
+      });
     };
     instance[functionName].broadcast.onceBy = async (concurrencyKey, input, onProgresses, nodesCountOrIDs) => {
       const nodesToUse = broadcastNodes(nodes ? Object.keys(nodes) : void 0, nodesCountOrIDs);
@@ -8427,42 +8438,33 @@ function Client(procedures2, { worker, nodes: nodeCount, loglevel = "debug", res
         functionName,
         nodeIds: nodesToUse.filter((x) => x !== void 0)
       });
-      return instance[functionName].broadcast(input, onProgresses, nodesToUse);
+      return _broadcastProcedure({
+        input,
+        onProgresses,
+        nodesCountOrIDs: nodesToUse,
+        concurrencyKey
+      });
     };
     instance[functionName].cancelable = (input, onProgress) => {
       const requestId = makeRequestId();
       const nodeId = whoToSendTo(nodes, pendingRequests);
-      const l2 = createLogger("client", loglevel, nodeIdOrSW(nodeId), requestId);
       return {
-        request: _runProcedure(input, onProgress, requestId, nodeId),
+        request: _runProcedure({ input, onProgress, requestId, nodeId }),
         cancel(reason) {
-          if (!pendingRequests.has(requestId)) {
-            l2.warn(requestId, `Cannot cancel ${functionName} request, it has already been resolved or rejected`);
-            return;
-          }
-          l2.debug(requestId, `Cancelling ${functionName} with`, reason);
-          postMessageSync(l2, nodeId ? nodes?.[nodeId] : void 0, {
-            by: "sw&rpc",
-            requestId,
-            functionName,
-            abort: { reason }
-          });
-          pendingRequests.delete(requestId);
+          cancelRequest(requestId, reason, functionName);
         }
       };
     };
     instance[functionName].once = async (input, onProgress) => {
       cancelRequests("Cancelled by .once() call", { functionName });
-      const requestId = makeRequestId();
-      return await _runProcedure(input, onProgress, requestId);
+      return await _runProcedure({ input, onProgress });
     };
     instance[functionName].onceBy = async (concurrencyKey, input, onProgress) => {
       cancelRequests(`Cancelled by .onceBy("${concurrencyKey}") call`, {
         functionName,
         concurrencyKey
       });
-      const requestId = makeRequestId();
-      return await _runProcedure(input, onProgress, requestId);
+      return await _runProcedure({ input, onProgress, concurrencyKey });
     };
   }
   instance.onceBy = (globalKey) => {
@@ -8479,7 +8481,12 @@ function Client(procedures2, { worker, nodes: nodeCount, loglevel = "debug", res
         if (!_runProcedure) {
           throw new Error(`No procedure found for ${functionName}`);
         }
-        return await _runProcedure(input, onProgress ?? emptyProgressCallback, requestId);
+        return await _runProcedure({
+          input,
+          onProgress,
+          requestId,
+          concurrencyKey: globalKey
+        });
       };
     }
     return proxy;
