@@ -298,6 +298,16 @@ const result = await swarpc.onceBy("global-search").searchIMDb({ query });
 
 This is useful when you want to ensure only one operation of a certain type is running at a time, regardless of which procedure is being called.
 
+#### With broadcasting
+
+You can combine "once" mode with broadcasting as well, just use `.broadcast.once` or `.broadcast.onceBy` instead of `.once` or `.onceBy`:
+
+```js
+// Load the inference model on all nodes. If we call this again before the previous model finishes loading,
+// the previous load requests get cancelled.
+await swarpc.loadInferenceModel.broadcast.once({ url });
+```
+
 ### Polyfill a `localStorage` for the Server to access
 
 You might call third-party code that accesses on `localStorage` from within your procedures.
