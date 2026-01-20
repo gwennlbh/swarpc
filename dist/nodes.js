@@ -30,3 +30,13 @@ const serviceWorkerNodeId = "(SW)";
 export function nodeIdOrSW(id) {
     return id ?? serviceWorkerNodeId;
 }
+export function broadcastNodes(nodes, target) {
+    if (target && Array.isArray(target))
+        return target;
+    let nodesToUse = [undefined];
+    if (nodes)
+        nodesToUse = [...nodes];
+    if (typeof target === "number")
+        nodesToUse = nodesToUse.slice(0, target);
+    return nodesToUse;
+}

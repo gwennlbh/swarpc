@@ -1,5 +1,5 @@
 import { createLogger, injectIntoConsoleGlobal } from "./log.js";
-import { isPayloadHeader, isPayloadInitialize, validatePayloadCore as validatePayloadCore, zImplementations, zProcedures, } from "./types.js";
+import { isPayloadHeader, isPayloadInitialize, RequestCancelledError, validatePayloadCore, zImplementations, zProcedures, } from "./types.js";
 import { findTransferables } from "./utils.js";
 import { FauxLocalStorage } from "./localstorage.js";
 import { scopeIsDedicated, scopeIsShared, scopeIsService } from "./scopes.js";
@@ -99,7 +99,7 @@ export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = 
                 const controller = abortControllers.get(requestId);
                 if (!controller)
                     await postError("No abort controller found for request");
-                controller?.abort(payload.abort.reason);
+                controller?.abort(new RequestCancelledError(payload.abort.reason));
                 return;
             }
             abortControllers.set(requestId, new AbortController());

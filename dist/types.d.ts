@@ -126,10 +126,7 @@ export type PayloadCore<PM extends ProceduresMap, Name extends keyof PM = keyof 
  * The callable function signature for a client method
  */
 export type ClientMethodCallable<P extends Procedure<Schema, Schema, Schema>> = (input: Schema.InferInput<P["input"]>, onProgress?: (progress: Schema.InferOutput<P["progress"]>) => void) => Promise<Schema.InferOutput<P["success"]>>;
-/**
- * A procedure's corresponding method on the client instance -- used to call the procedure. If you want to be able to cancel the request, you can use the `cancelable` method instead of running the procedure directly.
- */
-export type ClientMethod<P extends Procedure<Schema, Schema, Schema>> = ClientMethodCallable<P> & {
+type ClientMethodExtraCallables<P extends Procedure<Schema, Schema, Schema>> = {
     /**
      * A method that returns a `CancelablePromise`. Cancel it by calling `.cancel(reason)` on it, and wait for the request to resolve by awaiting the `request` property on the returned object.
      */
@@ -139,13 +136,22 @@ export type ClientMethod<P extends Procedure<Schema, Schema, Schema>> = ClientMe
      * Returns an array of results, one for each node the request was sent to.
      * Each result is a {@link PromiseSettledResult}, with also an additional property, the node ID of the request
      */
-    broadcast: (input: Schema.InferInput<P["input"]>, onProgress?: (
-    /** Map of node IDs to their progress updates */
-    progresses: Map<string, Schema.InferOutput<P["progress"]>>) => void, 
-    /** Number of nodes to send the request to. Leave undefined to send to all nodes */
-    nodes?: number) => Promise<Array<PromiseSettledResult<Schema.InferOutput<P["success"]>> & {
-        node: string;
-    }>>;
+    broadcast: Broadcaster<P> & {
+        /**
+         * Send the request to specific nodes, or all nodes.
+         * Cancels any previous ongoing calls of this procedure on the nodes beforehand.
+         * Returns an array of results, one for each node the request was sent to.
+         * Each result is a {@link PromiseSettledResult}, with also an additional property, the node ID of the request
+         */
+        once: Broadcaster<P>;
+        /**
+         * Send the request to specific nodes, or all nodes.
+         * Cancels any previous ongoing calls of this procedure on the nodes beforehand that were also run with the specified concurrency key (first argument). See .onceBy for more details.
+         * Returns an array of results, one for each node the request was sent to.
+         * Each result is a {@link PromiseSettledResult}, with also an additional property, the node ID of the request
+         */
+        onceBy: (key: string, ...args: Parameters<Broadcaster<P>>) => ReturnType<Broadcaster<P>>;
+    };
     /**
      * Call the procedure, cancelling any previous ongoing call of this procedure beforehand.
      */
@@ -155,9 +161,20 @@ export type ClientMethod<P extends Procedure<Schema, Schema, Schema>> = ClientMe
      */
     onceBy: (key: string, input: Schema.InferInput<P["input"]>, onProgress?: (progress: Schema.InferOutput<P["progress"]>) => void) => Promise<Schema.InferOutput<P["success"]>>;
 };
+/**
+ * A procedure's corresponding method on the client instance -- used to call the procedure. If you want to be able to cancel the request, you can use the `cancelable` method instead of running the procedure directly.
+ */
+export type ClientMethod<P extends Procedure<Schema, Schema, Schema>> = ClientMethodCallable<P> & ClientMethodExtraCallables<P>;
+export declare const zImplementations: unique symbol;
 export type WorkerConstructor<T extends Worker | SharedWorker = Worker | SharedWorker> = {
     new (opts?: {
         name?: string;
     }): T;
 };
+/**
+ * A cancelable request was cancelled (either via .cancelable's .cancel() or via a .once / .onceBy call)
+ */
+export declare class RequestCancelledError extends Error {
+    constructor(reason: string);
+}
 export {};
