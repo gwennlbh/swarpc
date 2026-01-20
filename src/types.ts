@@ -284,59 +284,80 @@ export type ClientMethodCallable<P extends Procedure<Schema, Schema, Schema>> =
   ) => Promise<Schema.InferOutput<P["success"]>>;
 
 /**
- * A procedure's corresponding method on the client instance -- used to call the procedure. If you want to be able to cancel the request, you can use the `cancelable` method instead of running the procedure directly.
+ * @internal
  */
-export type ClientMethod<P extends Procedure<Schema, Schema, Schema>> =
-  ClientMethodCallable<P> & {
-    /**
-     * A method that returns a `CancelablePromise`. Cancel it by calling `.cancel(reason)` on it, and wait for the request to resolve by awaiting the `request` property on the returned object.
-     */
-    cancelable: (
-      input: Schema.InferInput<P["input"]>,
-      onProgress?: (progress: Schema.InferOutput<P["progress"]>) => void,
-      requestId?: string,
-    ) => CancelablePromise<Schema.InferOutput<P["success"]>>;
+export type Broadcaster<P extends Procedure<Schema, Schema, Schema>> = (
+  input: Schema.InferInput<P["input"]>,
+  onProgress?: (
+    /** Map of node IDs to their progress updates */
+    progresses: Map<string, Schema.InferOutput<P["progress"]>>,
+  ) => void,
+  /** Node IDs or number of nodes to send the request to. Leave undefined to send to all nodes. When sending a list of node IDs, "undefined" is interpreted as "run on the service worker" */
+  nodes?: number | Array<string | undefined>,
+) => Promise<
+  Array<
+    PromiseSettledResult<Schema.InferOutput<P["success"]>> & {
+      node: string;
+    }
+  >
+>;
+
+type ClientMethodExtraCallables<P extends Procedure<Schema, Schema, Schema>> = {
+  /**
+   * A method that returns a `CancelablePromise`. Cancel it by calling `.cancel(reason)` on it, and wait for the request to resolve by awaiting the `request` property on the returned object.
+   */
+  cancelable: (
+    input: Schema.InferInput<P["input"]>,
+    onProgress?: (progress: Schema.InferOutput<P["progress"]>) => void,
+    requestId?: string,
+  ) => CancelablePromise<Schema.InferOutput<P["success"]>>;
+  /**
+   * Send the request to specific nodes, or all nodes.
+   * Returns an array of results, one for each node the request was sent to.
+   * Each result is a {@link PromiseSettledResult}, with also an additional property, the node ID of the request
+   */
+  broadcast: Broadcaster<P> & {
     /**
      * Send the request to specific nodes, or all nodes.
+     * Cancels any previous ongoing calls of this procedure on the nodes beforehand.
      * Returns an array of results, one for each node the request was sent to.
      * Each result is a {@link PromiseSettledResult}, with also an additional property, the node ID of the request
      */
-    broadcast: (
-      input: Schema.InferInput<P["input"]>,
-      onProgress?: (
-        /** Map of node IDs to their progress updates */
-        progresses: Map<string, Schema.InferOutput<P["progress"]>>,
-      ) => void,
-      /** Number of nodes to send the request to. Leave undefined to send to all nodes */
-      nodes?: number,
-    ) => Promise<
-      Array<
-        PromiseSettledResult<Schema.InferOutput<P["success"]>> & {
-          node: string;
-        }
-      >
-    >;
+    once: Broadcaster<P>;
     /**
-     * Call the procedure, cancelling any previous ongoing call of this procedure beforehand.
-     */
-    once: (
-      input: Schema.InferInput<P["input"]>,
-      onProgress?: (progress: Schema.InferOutput<P["progress"]>) => void,
-    ) => Promise<Schema.InferOutput<P["success"]>>;
-    /**
-     * Call the procedure with a concurrency key, cancelling any previous ongoing call of this procedure with the same key beforehand.
+     * Send the request to specific nodes, or all nodes.
+     * Cancels any previous ongoing calls of this procedure on the nodes beforehand that were also run with the specified concurrency key (first argument). See .onceBy for more details.
+     * Returns an array of results, one for each node the request was sent to.
+     * Each result is a {@link PromiseSettledResult}, with also an additional property, the node ID of the request
      */
     onceBy: (
       key: string,
-      input: Schema.InferInput<P["input"]>,
-      onProgress?: (progress: Schema.InferOutput<P["progress"]>) => void,
-    ) => Promise<Schema.InferOutput<P["success"]>>;
+      ...args: Parameters<Broadcaster<P>>
+    ) => ReturnType<Broadcaster<P>>;
   };
+  /**
+   * Call the procedure, cancelling any previous ongoing call of this procedure beforehand.
+   */
+  once: (
+    input: Schema.InferInput<P["input"]>,
+    onProgress?: (progress: Schema.InferOutput<P["progress"]>) => void,
+  ) => Promise<Schema.InferOutput<P["success"]>>;
+  /**
+   * Call the procedure with a concurrency key, cancelling any previous ongoing call of this procedure with the same key beforehand.
+   */
+  onceBy: (
+    key: string,
+    input: Schema.InferInput<P["input"]>,
+    onProgress?: (progress: Schema.InferOutput<P["progress"]>) => void,
+  ) => Promise<Schema.InferOutput<P["success"]>>;
+};
 
 /**
- * Symbol used as the key for the procedures map on the server instance
- * @internal
+ * A procedure's corresponding method on the client instance -- used to call the procedure. If you want to be able to cancel the request, you can use the `cancelable` method instead of running the procedure directly.
  */
+export type ClientMethod<P extends Procedure<Schema, Schema, Schema>> =
+  ClientMethodCallable<P> & ClientMethodExtraCallables<P>;
+
 export const zImplementations = Symbol("SWARPC implementations");
 
 /**
