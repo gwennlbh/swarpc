@@ -250,21 +250,16 @@ async function userbase() {
 To make your procedures meaningfully cancelable, you have to make use of the [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) API. This is passed as a third argument when implementing your procedures:
 
 ```js
-server.searchIMDb(async ({ query }, onProgress, abort) => {
+server.searchIMDb(async ({ query }, onProgress, { abortSignal }) => {
   // If you're doing heavy computation without fetch:
-  let aborted = false
-  abort?.addEventListener("abort", () => {
-    aborted = true
-  })
-
-  // Use `aborted` to check if the request was canceled within your hot loop
+  // Use `abortSignal?.throwIfAborted()` within hot loops and at key points
   for (...) {
-    /* here */ if (aborted) return
+    abortSignal?.throwIfAborted();
     ...
   }
 
   // When using fetch:
-  await fetch(..., { signal: abort })
+  await fetch(..., { signal: abortSignal })
 })
 ```
 
