@@ -434,22 +434,7 @@ export function Client<Procedures extends ProceduresMap>(
       return {
         request: _runProcedure({ input, onProgress, requestId, nodeId }),
         cancel(reason: string) {
-          if (!pendingRequests.has(requestId)) {
-            l.warn(
-              requestId,
-              `Cannot cancel ${functionName} request, it has already been resolved or rejected`,
-            );
-            return;
-          }
-
-          l.debug(requestId, `Cancelling ${functionName} with`, reason);
-          postMessageSync(l, nodeId ? nodes?.[nodeId] : undefined, {
-            by: "sw&rpc",
-            requestId,
-            functionName,
-            abort: { reason },
-          });
-          pendingRequests.delete(requestId);
+          cancelRequest(requestId, reason, functionName);
         },
       };
     };
