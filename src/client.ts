@@ -16,6 +16,7 @@ import {
   Hooks,
   Payload,
   PayloadCore,
+  RequestCancelledError,
   WorkerConstructor,
   zProcedures,
   type ProceduresMap,
@@ -183,7 +184,7 @@ export function Client<Procedures extends ProceduresMap>(
     l.debug(requestId, `Cancelling ${functionName} with`, reason);
 
     // Reject the promise first
-    pending.reject(new Error(reason));
+    pending.reject(new RequestCancelledError(reason));
 
     // Then send abort message to the server
     postMessageSync(l, nodeId ? nodes?.[nodeId] : undefined, {

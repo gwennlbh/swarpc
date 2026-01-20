@@ -350,3 +350,13 @@ export type WorkerConstructor<
 > = {
   new (opts?: { name?: string }): T;
 };
+
+/**
+ * A cancelable request was cancelled (either via .cancelable's .cancel() or via a .once / .onceBy call)
+ */
+export class RequestCancelledError extends Error {
+  constructor(reason: string) {
+    super(`Request was cancelled: ${reason}`);
+    this.name = "RequestCancelledError";
+  }
+}
