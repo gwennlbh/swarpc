@@ -12,7 +12,8 @@ import {
   Payload,
   PayloadCore,
   ProcedureImplementation,
-  validatePayloadCore as validatePayloadCore,
+  RequestCancelledError,
+  validatePayloadCore,
   zImplementations,
   zProcedures,
   type ProceduresMap,
@@ -202,7 +203,7 @@ export function Server<Procedures extends ProceduresMap>(
         if (!controller)
           await postError("No abort controller found for request");
 
-        controller?.abort(payload.abort.reason);
+        controller?.abort(new RequestCancelledError(payload.abort.reason));
         return;
       }
 

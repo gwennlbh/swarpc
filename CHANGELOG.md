@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Request cancellations now throw a `RequestCancelledError` instead of just a `Error`. Useful to specifically catch cancellation errors.
+
+### Added
+
+- `.broadcast.once` and `.broadcast.onceBy`. Works just like `.once` or `.onceBy`, but sends the request to multiple nodes just like `.broadcast`.
+
 ## [0.18.0] - 2026-01-08
 
 ### Added

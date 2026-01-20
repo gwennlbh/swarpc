@@ -9,13 +9,21 @@ import {
   type Logger,
   type LogLevel,
 } from "./log.js";
-import { makeNodeId, nodeIdOrSW, whoToSendTo } from "./nodes.js";
 import {
+  broadcastNodes,
+  makeNodeId,
+  nodeIdOrSW,
+  whoToSendTo,
+} from "./nodes.js";
+import {
+  Broadcaster,
   ClientMethod,
   ClientMethodCallable,
   Hooks,
   Payload,
   PayloadCore,
+  Procedure,
+  RequestCancelledError,
   WorkerConstructor,
   zProcedures,
   type ProceduresMap,
@@ -65,24 +73,6 @@ type Context<Procedures extends ProceduresMap> = {
 const pendingRequests = new Map<string, PendingRequest>();
 
 /**
- * Track ongoing requests by method name for .once() functionality
- * Key: method name, Value: request ID
- */
-const onceByMethod = new Map<string, string>();
-
-/**
- * Track ongoing requests by method name and key for .onceBy(key) functionality
- * Key: method name + key, Value: request ID
- */
-const onceByMethodAndKey = new Map<string, string>();
-
-/**
- * Track ongoing requests by global key for global onceBy() functionality
- * Key: global key, Value: request ID
- */
-const onceByGlobalKey = new Map<string, string>();
-
-/**
  * Reusable empty function for default onProgress callback
  */
 const emptyProgressCallback = () => {};
@@ -95,6 +85,8 @@ export type PendingRequest = {
   reject: (err: Error) => void;
   onProgress: (progress: any) => void;
   resolve: (result: any) => void;
+  /** Concurrency key to identify requests that should be considered the same for cancellation purposes (see .once methods) */
+  concurrencyKey?: string;
 };
 
 // Have we started the client listener?
@@ -138,6 +130,8 @@ export function Client<Procedures extends ProceduresMap>(
 ): SwarpcClient<Procedures> {
   const l = createLogger("client", loglevel);
 
+  type AnyProcedure = Procedures[keyof Procedures & string];
+
   if (restartListener) _clientListenerStarted.clear();
 
   // Store procedures on a symbol key, to avoid conflicts with procedure names
@@ -167,13 +161,63 @@ export function Client<Procedures extends ProceduresMap>(
   }
 
   /**
+   * Helper to cancel requests based on several criterias
+   */
+  function cancelRequests(
+    reason: string,
+    criterias: {
+      /** Only cancel requests for these node IDs */
+      nodeIds?: string[];
+      /** Only cancel requests for this function name */
+      functionName?: string;
+      /** Only cancel requests matching this concurrency key (must not be joined with functionName, this function takes care of that) */
+      concurrencyKey?: string;
+    },
+  ) {
+    const { nodeIds, functionName, concurrencyKey } = criterias;
+    if (!nodeIds && !functionName && !concurrencyKey) {
+      throw new Error(
+        "At least one criteria must be provided to cancel requests",
+      );
+    }
+
+    if (nodeIds?.length === 0) {
+      console.warn(
+        "[SWARPC Client] cancelRequests called with empty nodeIds array, no requests will be cancelled",
+      );
+      return;
+    }
+
+    const trackingKey = concurrencyKey
+      ? functionName
+        ? `${functionName}:${concurrencyKey}`
+        : concurrencyKey
+      : undefined;
+
+    /** Apply a criteria if first argument is truthy, otherwise return true */
+    const criteria = <T>(param: T, fn: (param: NonNullable<T>) => boolean) =>
+      param ? fn(param!) : true;
+
+    const toCancel = [...pendingRequests.entries()].filter(
+      ([_, p]) =>
+        criteria(nodeIds, (ns) => !p.nodeId || ns.includes(p.nodeId)) &&
+        criteria(functionName, (fn) => p.functionName === fn) &&
+        criteria(trackingKey, (key) => p.concurrencyKey === key),
+    );
+
+    for (const [requestId, { functionName }] of toCancel) {
+      cancelRequest(requestId, reason, functionName);
+    }
+  }
+
+  /**
    * Helper function to cancel a previous request by ID
    */
-  const cancelRequest = (
+  function cancelRequest(
     requestId: string,
     reason: string,
     functionName: string,
-  ) => {
+  ) {
     const pending = pendingRequests.get(requestId);
     if (!pending) return;
 
@@ -183,7 +227,7 @@ export function Client<Procedures extends ProceduresMap>(
     l.debug(requestId, `Cancelling ${functionName} with`, reason);
 
     // Reject the promise first
-    pending.reject(new Error(reason));
+    pending.reject(new RequestCancelledError(reason));
 
     // Then send abort message to the server
     postMessageSync(l, nodeId ? nodes?.[nodeId] : undefined, {
@@ -195,17 +239,12 @@ export function Client<Procedures extends ProceduresMap>(
 
     // Finally remove from pending requests
     pendingRequests.delete(requestId);
-  };
+  }
 
   // Map to store _runProcedure functions for each method
   const runProcedureFunctions = new Map<
     string,
-    (
-      input: unknown,
-      onProgress: (progress: unknown) => void | Promise<void>,
-      reqid?: string,
-      nodeId?: string,
-    ) => Promise<unknown>
+    ProcedureRunner<AnyProcedure>
   >();
 
   for (const functionName of Object.keys(procedures) as Array<
@@ -245,14 +284,15 @@ export function Client<Procedures extends ProceduresMap>(
     };
 
     // Set the method on the instance
-    const _runProcedure = async (
-      input: unknown,
-      onProgress: (
-        progress: unknown,
-      ) => void | Promise<void> = emptyProgressCallback,
-      reqid?: string,
-      nodeId?: string,
-    ) => {
+    type ThisProcedure = Procedures[typeof functionName];
+
+    const _runProcedure: ProcedureRunner<ThisProcedure> = async ({
+      input,
+      onProgress,
+      requestId: explicitRequestId,
+      nodeId,
+      concurrencyKey,
+    }) => {
       // Validate the input against the procedure's input schema
       const validation =
         procedures[functionName].input["~standard"].validate(input);
@@ -261,7 +301,7 @@ export function Client<Procedures extends ProceduresMap>(
       if (validation.issues)
         throw new Error(`Invalid input: ${validation.issues}`);
 
-      const requestId = reqid ?? makeRequestId();
+      const requestId = explicitRequestId ?? makeRequestId();
 
       // Choose which node to use
       nodeId ??= whoToSendTo(nodes, pendingRequests);
@@ -276,8 +316,9 @@ export function Client<Procedures extends ProceduresMap>(
         pendingRequests.set(requestId, {
           nodeId,
           functionName,
+          concurrencyKey,
           resolve,
-          onProgress,
+          onProgress: onProgress ?? emptyProgressCallback,
           reject,
         });
 
@@ -294,19 +335,13 @@ export function Client<Procedures extends ProceduresMap>(
       });
     };
 
-    // Store the _runProcedure function for use in global onceBy
-    runProcedureFunctions.set(functionName, _runProcedure);
-
-    // @ts-expect-error
-    instance[functionName] = _runProcedure;
-    instance[functionName]!.broadcast = async (
-      input,
-      onProgresses,
-      nodesCount,
-    ) => {
-      let nodesToUse: Array<string | undefined> = [undefined];
-      if (nodes) nodesToUse = Object.keys(nodes);
-      if (nodesCount) nodesToUse = nodesToUse.slice(0, nodesCount);
+    const _broadcastProcedure: ProcedureRunnerBroadcast<
+      ThisProcedure
+    > = async ({ input, onProgresses, nodesCountOrIDs, concurrencyKey }) => {
+      const nodesToUse = broadcastNodes(
+        nodes ? Object.keys(nodes) : undefined,
+        nodesCountOrIDs,
+      );
 
       const progresses = new Map<string, unknown>();
 
@@ -321,90 +356,108 @@ export function Client<Procedures extends ProceduresMap>(
 
       const results = await Promise.allSettled(
         nodesToUse.map(async (id) =>
-          _runProcedure(input, onProgress(id), undefined, id),
+          _runProcedure({
+            input,
+            onProgress: onProgress(id),
+            nodeId: id,
+            concurrencyKey,
+          }),
         ),
       );
 
       return results.map((r, i) => ({ ...r, node: nodeIdOrSW(nodesToUse[i]) }));
     };
+
+    // Store the _runProcedure function for use in global onceBy
+    runProcedureFunctions.set(functionName, _runProcedure);
+
+    // @ts-expect-error
+    instance[functionName] = (input, onProgress) =>
+      _runProcedure({ input, onProgress });
+    // @ts-expect-error
+    instance[functionName]!.broadcast = (input, onProgresses, nodes) =>
+      _broadcastProcedure({ input, onProgresses, nodesCountOrIDs: nodes });
+
+    instance[functionName]!.broadcast.once = async (
+      input,
+      onProgresses,
+      nodesCountOrIDs,
+    ) => {
+      const nodesToUse = broadcastNodes(
+        nodes ? Object.keys(nodes) : undefined,
+        nodesCountOrIDs,
+      );
+
+      // Cancel any previous ongoing calls of this method on all nodes beforehand
+      cancelRequests("Cancelled by .broadcast.once() call", {
+        functionName,
+        nodeIds: nodesToUse.filter((x): x is string => x !== undefined),
+      });
+
+      return _broadcastProcedure({
+        input,
+        onProgresses,
+        nodesCountOrIDs: nodesToUse,
+      });
+    };
+
+    instance[functionName]!.broadcast.onceBy = async (
+      concurrencyKey,
+      input,
+      onProgresses,
+      nodesCountOrIDs,
+    ) => {
+      const nodesToUse = broadcastNodes(
+        nodes ? Object.keys(nodes) : undefined,
+        nodesCountOrIDs,
+      );
+
+      // Cancel any previous ongoing calls of this method on all nodes beforehand
+      cancelRequests("Cancelled by .broadcast.once() call", {
+        concurrencyKey,
+        functionName,
+        nodeIds: nodesToUse.filter((x): x is string => x !== undefined),
+      });
+
+      return _broadcastProcedure({
+        input,
+        onProgresses,
+        nodesCountOrIDs: nodesToUse,
+        concurrencyKey,
+      });
+    };
+
     instance[functionName]!.cancelable = (input, onProgress) => {
       const requestId = makeRequestId();
       const nodeId = whoToSendTo(nodes, pendingRequests);
 
-      const l = createLogger("client", loglevel, nodeIdOrSW(nodeId), requestId);
-
       return {
-        request: _runProcedure(input, onProgress, requestId, nodeId),
+        request: _runProcedure({ input, onProgress, requestId, nodeId }),
         cancel(reason: string) {
-          if (!pendingRequests.has(requestId)) {
-            l.warn(
-              requestId,
-              `Cannot cancel ${functionName} request, it has already been resolved or rejected`,
-            );
-            return;
-          }
-
-          l.debug(requestId, `Cancelling ${functionName} with`, reason);
-          postMessageSync(l, nodeId ? nodes?.[nodeId] : undefined, {
-            by: "sw&rpc",
-            requestId,
-            functionName,
-            abort: { reason },
-          });
-          pendingRequests.delete(requestId);
+          cancelRequest(requestId, reason, functionName);
         },
       };
     };
 
     instance[functionName]!.once = async (input, onProgress) => {
       // Cancel any previous ongoing call of this method
-      const previousRequestId = onceByMethod.get(functionName);
-      if (previousRequestId) {
-        cancelRequest(
-          previousRequestId,
-          "Cancelled by .once() call",
-          functionName,
-        );
-        onceByMethod.delete(functionName);
-      }
+      cancelRequests("Cancelled by .once() call", { functionName });
 
-      const requestId = makeRequestId();
-      onceByMethod.set(functionName, requestId);
-
-      try {
-        return await _runProcedure(input, onProgress, requestId);
-      } finally {
-        // Clean up tracking when request completes
-        if (onceByMethod.get(functionName) === requestId) {
-          onceByMethod.delete(functionName);
-        }
-      }
+      return await _runProcedure({ input, onProgress });
     };
 
-    instance[functionName]!.onceBy = async (key, input, onProgress) => {
+    instance[functionName]!.onceBy = async (
+      concurrencyKey,
+      input,
+      onProgress,
+    ) => {
       // Cancel any previous ongoing call of this method with this key
-      const trackingKey = `${functionName}:${key}`;
-      const previousRequestId = onceByMethodAndKey.get(trackingKey);
-      if (previousRequestId) {
-        cancelRequest(
-          previousRequestId,
-          `Cancelled by .onceBy("${key}") call`,
-          functionName,
-        );
-        onceByMethodAndKey.delete(trackingKey);
-      }
+      cancelRequests(`Cancelled by .onceBy("${concurrencyKey}") call`, {
+        functionName,
+        concurrencyKey,
+      });
 
-      const requestId = makeRequestId();
-      onceByMethodAndKey.set(trackingKey, requestId);
-
-      try {
-        return await _runProcedure(input, onProgress, requestId);
-      } finally {
-        // Clean up tracking when request completes
-        if (onceByMethodAndKey.get(trackingKey) === requestId) {
-          onceByMethodAndKey.delete(trackingKey);
-        }
-      }
+      return await _runProcedure({ input, onProgress, concurrencyKey });
     };
   }
 
@@ -424,39 +477,23 @@ export function Client<Procedures extends ProceduresMap>(
 
       proxy[functionName] = async (input: unknown, onProgress?: any) => {
         // Cancel any previous ongoing call with this global key
-        const previousRequestId = onceByGlobalKey.get(globalKey);
-        if (previousRequestId) {
-          const pending = pendingRequests.get(previousRequestId);
-          if (pending) {
-            cancelRequest(
-              previousRequestId,
-              `Cancelled by global onceBy("${globalKey}") call`,
-              pending.functionName,
-            );
-          }
-          onceByGlobalKey.delete(globalKey);
-        }
+        cancelRequests(`Cancelled by global onceBy("${globalKey}") call`, {
+          concurrencyKey: globalKey,
+        });
 
         const requestId = makeRequestId();
-        onceByGlobalKey.set(globalKey, requestId);
 
         const _runProcedure = runProcedureFunctions.get(functionName);
         if (!_runProcedure) {
           throw new Error(`No procedure found for ${functionName}`);
         }
 
-        try {
-          return await _runProcedure(
-            input,
-            onProgress ?? emptyProgressCallback,
-            requestId,
-          );
-        } finally {
-          // Clean up tracking when request completes
-          if (onceByGlobalKey.get(globalKey) === requestId) {
-            onceByGlobalKey.delete(globalKey);
-          }
-        }
+        return await _runProcedure({
+          input,
+          onProgress,
+          requestId,
+          concurrencyKey: globalKey,
+        });
       };
     }
 
@@ -640,3 +677,21 @@ async function startClientListener<Procedures extends ProceduresMap>(
 function makeRequestId(): string {
   return Math.random().toString(16).substring(2, 8).toUpperCase();
 }
+
+type ProcedureRunner<P extends Procedure<Schema, Schema, Schema>> = (arg0: {
+  input: Schema.InferInput<P["input"]>;
+  onProgress?: (progress: Schema.InferOutput<P["progress"]>) => void;
+  requestId?: string;
+  nodeId?: string;
+  concurrencyKey?: string;
+}) => ReturnType<ClientMethodCallable<P>>;
+
+type ProcedureRunnerBroadcast<P extends Procedure<Schema, Schema, Schema>> =
+  (arg0: {
+    input: Schema.InferInput<P["input"]>;
+    onProgresses?: (
+      progresses: Map<string, Schema.InferOutput<P["progress"]>>,
+    ) => void;
+    nodesCountOrIDs?: number | Array<string | undefined>;
+    concurrencyKey?: string;
+  }) => ReturnType<Broadcaster<P>>;

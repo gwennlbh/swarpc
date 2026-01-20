@@ -68,3 +68,23 @@ export function nodeIdOrSW(
 ): string | typeof serviceWorkerNodeId {
   return id ?? serviceWorkerNodeId;
 }
+
+/**
+ * Determines which nodes to send a broadcast request to
+ * @internal
+ *
+ * Returns undefined as node ID if running in the service worker
+ */
+export function broadcastNodes(
+  /** List of node IDs or undefined is running on the service worker */
+  nodes: undefined | string[],
+  /** Node IDs, or number of nodes to send the broadcast to. Leave undefined for all nodes */
+  target: Array<string | undefined> | number | undefined,
+): Array<string | undefined> {
+  if (target && Array.isArray(target)) return target;
+  let nodesToUse: Array<string | undefined> = [undefined];
+  if (nodes) nodesToUse = [...nodes];
+  if (typeof target === "number") nodesToUse = nodesToUse.slice(0, target);
+
+  return nodesToUse;
+}

@@ -40,7 +40,7 @@ test.describe("parallel computation", () => {
             results({
               finished: progress === 100,
               progress: [0, 25, 50, 75, 100].filter((p) => p <= progress),
-              node: /N[0-9A-F]{3}/,
+              node: progress === 0 ? /(N[0-9A-F]{3}|\?)/ : /N[0-9A-F]{3}/,
             }),
             { timeout: 2_000 },
           );
