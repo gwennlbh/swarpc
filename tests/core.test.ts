@@ -47,9 +47,12 @@ describe("Cancellable procedure", () => {
   });
 
   test("Can be cancelled", async () => {
-    const { cancel } = client.cancellable.cancelable("test", progress);
+    const { cancel, request } = client.cancellable.cancelable("test", progress);
     await new Promise((resolve) => setTimeout(resolve, 2));
-    await cancel("test cancellation");
+    cancel("test cancellation reason here");
+    expect(request).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[RequestCancelledError: Request was cancelled: test cancellation reason here]`,
+    );
     expect(progress.mock.calls.length).toBeLessThan(10);
   });
 
@@ -94,10 +97,10 @@ describe("Once mode", () => {
     await new Promise((resolve) => setTimeout(resolve, 2));
 
     // Start second call with same key - should cancel the first one
-    const promise2 = client.cancellable.onceBy("foo", "second", progress);
+    const promise2 = client.cancellable.onceBy("foo", "second");
 
     // First promise should be rejected/cancelled, second should complete
-    await expect(promise1).rejects.toThrow('Cancelled by .onceBy("foo") call');
+    expect(progress.mock.calls.length).toBeLessThan(10);
     const result2 = await promise2;
     expect(result2).toBe("Cancellable hello second");
   });

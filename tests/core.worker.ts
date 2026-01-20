@@ -21,14 +21,13 @@ server.helloWithProgress(async (input, onProgress) => {
 });
 
 server.cancellable(async (input, onProgress, { abortSignal }) => {
-  let aborted = false;
-  abortSignal?.addEventListener("abort", () => {
-    aborted = true;
-  });
+  abortSignal?.throwIfAborted();
 
-  for (let i = 0; i < 10; i++) {
-    if (aborted) return "cancelled";
-    onProgress({ current: i, total: 10 });
+  const total = typeof input === "number" ? input : 10;
+
+  for (let i = 0; i < total; i++) {
+    abortSignal?.throwIfAborted();
+    onProgress({ current: i, total });
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
   return `Cancellable hello ${input}`;
