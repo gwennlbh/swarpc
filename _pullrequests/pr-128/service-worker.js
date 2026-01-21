@@ -22,6 +22,8 @@ function isPayloadInitialize(payload) {
     return false;
   if (!("isInitializeRequest" in payload))
     return false;
+  if (!("allNodeIDs" in payload))
+    return false;
   if (payload.by !== "sw&rpc")
     return false;
   if (payload.functionName !== "#initialize")
@@ -233,6 +235,7 @@ const abortedRequests = /* @__PURE__ */ new Set();
 function Server(procedures2, { loglevel = "debug", scope: scope2, _scopeType } = {}) {
   scope2 ??= self;
   const nodeId = nodeIdFromScope(scope2, _scopeType);
+  let allNodeIDs = /* @__PURE__ */ new Set();
   const l = createLogger("server", loglevel, nodeId);
   const instance = {
     [zProcedures]: procedures2,
@@ -286,6 +289,7 @@ function Server(procedures2, { loglevel = "debug", scope: scope2, _scopeType } =
         l.debug(null, "Setting up faux localStorage", localStorageData);
         new FauxLocalStorage(localStorageData).register(scope2);
         injectIntoConsoleGlobal(scope2, nodeId2, null);
+        event.data.allNodeIDs.forEach((id) => allNodeIDs.add(id));
         return;
       }
       if (!isPayloadHeader(procedures2, event.data)) {
@@ -336,6 +340,7 @@ function Server(procedures2, { loglevel = "debug", scope: scope2, _scopeType } =
           await postMsg({ progress });
         }, {
           nodeId,
+          nodes: allNodeIDs,
           abortSignal: abortControllers.get(requestId)?.signal
         });
         l.debug(requestId, `Result for ${functionName}`, result);
