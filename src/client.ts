@@ -457,6 +457,7 @@ export function Client<Procedures extends ProceduresMap>(
     };
 
     // Store the _runProcedure function for use in global onceBy
+    // TODO: set instance.onceBy[functionName] here instead of out of the loop, so we don't need that global map
     runProcedureFunctions.set(functionName, _runProcedure);
 
     // @ts-expect-error
