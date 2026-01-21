@@ -53,6 +53,13 @@ export type SwarpcClient<Procedures extends ProceduresMap> = {
   onceBy: (key: string) => {
     [F in keyof Procedures]: ClientMethodCallable<Procedures[F]>;
   };
+  /**
+   * Disconnects all event listeners created by the client, and:
+   * - for Shared Workers: closes the port started by the client
+   * - for Dedicated Workers: terminates the worker instance
+   * - for Service Workers: does nothing (there is no connection to close)
+   */
+  destroy(): void;
 } & {
   [F in keyof Procedures]: ClientMethod<Procedures[F]>;
 };
@@ -99,8 +106,10 @@ export type PendingRequest = {
   concurrencyKey?: string;
 };
 
-// Have we started the client listener?
-let _clientListenerStarted: Set<string> = new Set();
+// Map of node IDs to listener handles
+// Used to check if a listener has already been started for a given node ID
+// also used to stop listeners when destroying the client
+let _clientListeners: Map<string, { disconnect: () => void }> = new Map();
 
 /**
  *
@@ -142,12 +151,7 @@ export function Client<Procedures extends ProceduresMap>(
 
   type AnyProcedure = Procedures[keyof Procedures & string];
 
-  if (restartListener) _clientListenerStarted.clear();
-
-  // Store procedures on a symbol key, to avoid conflicts with procedure names
-  const instance = { [zProcedures]: procedures } as Partial<
-    SwarpcClient<Procedures>
-  >;
+  if (restartListener) _clientListeners.clear();
 
   nodeCount ??= navigator.hardwareConcurrency || 1;
 
@@ -169,6 +173,27 @@ export function Client<Procedures extends ProceduresMap>(
       Object.keys(nodes),
     );
   }
+
+  const instance = {
+    // Store procedures on a symbol key, to avoid conflicts with procedure names
+    [zProcedures]: procedures,
+    destroy() {
+      for (const [nodeId, listener] of _clientListeners.entries()) {
+        l.debug(null, `Destroying listener for node ${nodeId}`);
+        listener.disconnect();
+        _clientListeners.delete(nodeId);
+      }
+
+      for (const [nodeId, node] of Object.entries(nodes ?? {})) {
+        l.debug(null, `Terminating worker for node ${nodeId}`);
+        if (node instanceof SharedWorker) {
+          node.port.close();
+        } else {
+          node.terminate();
+        }
+      }
+    },
+  } as Partial<SwarpcClient<Procedures>>;
 
   /**
    * Helper to cancel requests based on several criterias
@@ -569,7 +594,6 @@ export function Client<Procedures extends ProceduresMap>(
 
 /**
  * Warms up the client by starting the listener and getting the worker, then posts a message to the worker.
- * @returns the worker to use
  */
 async function postMessage<Procedures extends ProceduresMap>(
   ctx: Context<Procedures>,
@@ -638,7 +662,7 @@ function postMessageSync<Procedures extends ProceduresMap>(
 async function startClientListener<Procedures extends ProceduresMap>(
   ctx: Context<Procedures>,
 ) {
-  if (_clientListenerStarted.has(nodeIdOrSW(ctx.nodeId))) return;
+  if (_clientListeners.has(nodeIdOrSW(ctx.nodeId))) return;
 
   const { logger: l, node: worker } = ctx;
 
@@ -721,7 +745,15 @@ async function startClientListener<Procedures extends ProceduresMap>(
     w.addEventListener("message", listener);
   }
 
-  _clientListenerStarted.add(nodeIdOrSW(ctx.nodeId));
+  _clientListeners.set(nodeIdOrSW(ctx.nodeId), {
+    disconnect() {
+      if (w instanceof SharedWorker) {
+        w.port.removeEventListener("message", listener);
+      } else {
+        w.removeEventListener("message", listener);
+      }
+    },
+  });
 
   // Recursive terminal case is ensured by calling this *after* _clientListenerStarted is set to true: startClientListener() will therefore not be called in postMessage() again.
   await postMessage(ctx, {
