@@ -65,6 +65,11 @@ export type SwarpcClient<Procedures extends ProceduresMap> = {
 };
 
 /**
+ * Names that can't be used as procedure names. Will fail at runtime, when starting the client.
+ */
+export const RESERVED_PROCEDURE_NAMES = ["onceBy", "destroy"] as const;
+
+/**
  * Context for passing around data useful for requests
  */
 type Context<Procedures extends ProceduresMap> = {
@@ -288,6 +293,14 @@ export function Client<Procedures extends ProceduresMap>(
     if (typeof functionName !== "string") {
       throw new Error(
         `[SWARPC Client] Invalid function name, don't use symbols`,
+      );
+    }
+
+    if (
+      (RESERVED_PROCEDURE_NAMES as readonly string[]).includes(functionName)
+    ) {
+      throw new Error(
+        `[SWARPC Client] Invalid function name: "${functionName}" is a reserved word and can't be used as a procedure name. Reserved names: ${RESERVED_PROCEDURE_NAMES}`,
       );
     }
 

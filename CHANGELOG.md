@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Prevent starting a client if some method names clash with reserved names (`onceBy`, `destroy`). The complete list is available on the exported constant `RESERVED_PROCEDURE_NAMES`.
+
 ### Changed
 
 - Request cancellations now throw a `RequestCancelledError` instead of just a `Error`. Useful to specifically catch cancellation errors.
