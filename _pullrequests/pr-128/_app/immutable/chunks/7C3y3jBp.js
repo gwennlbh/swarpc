@@ -128,8 +128,8 @@ function resolve_route(id, params) {
     })
   ).filter(Boolean).join("/") + (has_id_trailing_slash ? "/" : "");
 }
-const base = globalThis.__sveltekit_d0te3g?.base ?? "/cigale/_pullrequests/pr-128";
-const assets = globalThis.__sveltekit_d0te3g?.assets ?? base ?? "";
+const base = globalThis.__sveltekit_1a9pkom?.base ?? "/cigale/_pullrequests/pr-128";
+const assets = globalThis.__sveltekit_1a9pkom?.assets ?? base ?? "";
 export {
   assets as a,
   base as b,
