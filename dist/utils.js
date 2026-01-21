@@ -23,3 +23,15 @@ export function findTransferables(value) {
     }
     return [];
 }
+export function sizedArray(array) {
+    if (array.length === 0) {
+        return [];
+    }
+    return array;
+}
+export function extractFulfilleds(settleds) {
+    return settleds.filter((settled) => settled.status === "fulfilled");
+}
+export function extractRejecteds(settleds) {
+    return settleds.filter((settled) => settled.status === "rejected");
+}

@@ -18,9 +18,20 @@ export type SwarpcClient<Procedures extends ProceduresMap> = {
     onceBy: (key: string) => {
         [F in keyof Procedures]: ClientMethodCallable<Procedures[F]>;
     };
+    /**
+     * Disconnects all event listeners created by the client, and:
+     * - for Shared Workers: closes the port started by the client
+     * - for Dedicated Workers: terminates the worker instance
+     * - for Service Workers: does nothing (there is no connection to close)
+     */
+    destroy(): void;
 } & {
     [F in keyof Procedures]: ClientMethod<Procedures[F]>;
 };
+/**
+ * Names that can't be used as procedure names. Will fail at runtime, when starting the client.
+ */
+export declare const RESERVED_PROCEDURE_NAMES: readonly ["onceBy", "destroy"];
 /**
  *
  * @param procedures procedures the client will be able to call, see {@link ProceduresMap}
@@ -34,16 +45,18 @@ export type SwarpcClient<Procedures extends ProceduresMap> = {
  * @param options.restartListener If true, will force the listener to restart even if it has already been started. You should probably leave this to false, unless you are testing and want to reset the client state.
  * @param options.localStorage Define a in-memory localStorage with the given key-value pairs. Allows code called on the server to access localStorage (even though SharedWorkers don't have access to the browser's real localStorage)
  * @param options.nodes the number of workers to use for the server, defaults to {@link navigator.hardwareConcurrency}.
+ * @param options.nodeIds node IDs to use. If not provided, random IDs will be generated for each node.
  * @returns a sw&rpc client instance. Each property of the procedures map will be a method, that accepts an input and an optional onProgress callback, see {@link ClientMethod}
  *
  * An example of defining and using a client:
  * {@includeCode ../example/src/routes/+page.svelte}
  */
-export declare function Client<Procedures extends ProceduresMap>(procedures: Procedures, { worker, nodes: nodeCount, loglevel, restartListener, hooks, localStorage, }?: {
+export declare function Client<Procedures extends ProceduresMap>(procedures: Procedures, { worker, nodes: nodeCount, loglevel, restartListener, hooks, localStorage, nodeIds, }?: {
     worker?: WorkerConstructor | string;
     nodes?: number;
     hooks?: Hooks<Procedures>;
     loglevel?: LogLevel;
     restartListener?: boolean;
     localStorage?: Record<string, any>;
+    nodeIds?: string[];
 }): SwarpcClient<Procedures>;

@@ -1,21 +1,21 @@
 import { createLogger, } from "./log.js";
 import { broadcastNodes, makeNodeId, nodeIdOrSW, whoToSendTo, } from "./nodes.js";
 import { RequestCancelledError, zProcedures, } from "./types.js";
-import { findTransferables } from "./utils.js";
+import { findTransferables, extractFulfilleds, extractRejecteds, sizedArray, } from "./utils.js";
+export const RESERVED_PROCEDURE_NAMES = ["onceBy", "destroy"];
 const pendingRequests = new Map();
 const emptyProgressCallback = () => { };
-let _clientListenerStarted = new Set();
-export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug", restartListener = false, hooks = {}, localStorage = {}, } = {}) {
+let _clientListeners = new Map();
+export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug", restartListener = false, hooks = {}, localStorage = {}, nodeIds = [], } = {}) {
     const l = createLogger("client", loglevel);
     if (restartListener)
-        _clientListenerStarted.clear();
-    const instance = { [zProcedures]: procedures };
+        _clientListeners.clear();
     nodeCount ??= navigator.hardwareConcurrency || 1;
     let nodes;
     if (worker) {
         nodes = {};
-        for (const _ of Array.from({ length: nodeCount })) {
-            const id = makeNodeId();
+        for (const [i] of Array.from({ length: nodeCount }).entries()) {
+            const id = nodeIds[i] ?? makeNodeId();
             if (typeof worker === "string") {
                 nodes[id] = new Worker(worker, { name: id });
             }
@@ -25,6 +25,25 @@ export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug
         }
         l.info(null, `Started ${nodeCount} node${nodeCount > 1 ? "s" : ""}`, Object.keys(nodes));
     }
+    const instance = {
+        [zProcedures]: procedures,
+        destroy() {
+            for (const [nodeId, listener] of _clientListeners.entries()) {
+                l.debug(null, `Destroying listener for node ${nodeId}`);
+                listener.disconnect();
+                _clientListeners.delete(nodeId);
+            }
+            for (const [nodeId, node] of Object.entries(nodes ?? {})) {
+                l.debug(null, `Terminating worker for node ${nodeId}`);
+                if (node instanceof SharedWorker) {
+                    node.port.close();
+                }
+                else {
+                    node.terminate();
+                }
+            }
+        },
+    };
     function cancelRequests(reason, criterias) {
         const { nodeIds, functionName, concurrencyKey } = criterias;
         if (!nodeIds && !functionName && !concurrencyKey) {
@@ -68,11 +87,15 @@ export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug
         if (typeof functionName !== "string") {
             throw new Error(`[SWARPC Client] Invalid function name, don't use symbols`);
         }
+        if (RESERVED_PROCEDURE_NAMES.includes(functionName)) {
+            throw new Error(`[SWARPC Client] Invalid function name: "${functionName}" is a reserved word and can't be used as a procedure name. Reserved names: ${RESERVED_PROCEDURE_NAMES}`);
+        }
         const send = async (node, nodeId, requestId, msg, options) => {
             const ctx = {
                 logger: l,
                 node,
                 nodeId,
+                allNodeIDs: new Set(nodes ? Object.keys(nodes) : []),
                 hooks,
                 localStorage,
             };
@@ -122,17 +145,45 @@ export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug
                     onProgresses(progresses);
                 };
             }
-            const results = await Promise.allSettled(nodesToUse.map(async (id) => _runProcedure({
+            const settleds = await Promise.allSettled(nodesToUse.map(async (id) => _runProcedure({
                 input,
                 onProgress: onProgress(id),
                 nodeId: id,
                 concurrencyKey,
+            }))).then((results) => results.map((result, index) => ({
+                ...result,
+                node: nodeIdOrSW(nodesToUse[index]),
             })));
-            return results.map((r, i) => ({ ...r, node: nodeIdOrSW(nodesToUse[i]) }));
+            const _extras = {
+                byNode: new Map(settleds.map(({ node, ...result }) => [node, result])),
+                successes: sizedArray(extractFulfilleds(settleds).map((r) => r.value)),
+                failures: sizedArray(extractRejecteds(settleds)),
+                get failureSummary() {
+                    return this.failures
+                        ?.map(({ node, reason }) => `Node ${node}: ${reason}`)
+                        .join(";\n");
+                },
+                get ok() {
+                    return this.failures.length === 0;
+                },
+                get ko() {
+                    return this.successes.length === 0;
+                },
+                get status() {
+                    if (this.ok)
+                        return "fulfilled";
+                    if (this.ko)
+                        return "rejected";
+                    return "mixed";
+                },
+            };
+            const extras = _extras;
+            return Object.assign(settleds, extras);
         };
         runProcedureFunctions.set(functionName, _runProcedure);
         instance[functionName] = (input, onProgress) => _runProcedure({ input, onProgress });
         instance[functionName].broadcast = (input, onProgresses, nodes) => _broadcastProcedure({ input, onProgresses, nodesCountOrIDs: nodes });
+        instance[functionName].broadcast.orThrow = async (...args) => handleBroadcastOrThrowResults(await instance[functionName].broadcast(...args));
         instance[functionName].broadcast.once = async (input, onProgresses, nodesCountOrIDs) => {
             const nodesToUse = broadcastNodes(nodes ? Object.keys(nodes) : undefined, nodesCountOrIDs);
             cancelRequests("Cancelled by .broadcast.once() call", {
@@ -145,6 +196,7 @@ export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug
                 nodesCountOrIDs: nodesToUse,
             });
         };
+        instance[functionName].broadcast.once.orThrow = async (...args) => handleBroadcastOrThrowResults(await instance[functionName].broadcast.once(...args));
         instance[functionName].broadcast.onceBy = async (concurrencyKey, input, onProgresses, nodesCountOrIDs) => {
             const nodesToUse = broadcastNodes(nodes ? Object.keys(nodes) : undefined, nodesCountOrIDs);
             cancelRequests("Cancelled by .broadcast.once() call", {
@@ -159,6 +211,7 @@ export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug
                 concurrencyKey,
             });
         };
+        instance[functionName].broadcast.onceBy.orThrow = async (...args) => handleBroadcastOrThrowResults(await instance[functionName].broadcast.onceBy(...args));
         instance[functionName].cancelable = (input, onProgress) => {
             const requestId = makeRequestId();
             const nodeId = whoToSendTo(nodes, pendingRequests);
@@ -236,7 +289,7 @@ function postMessageSync(l, worker, message, options) {
     w.postMessage(message, options);
 }
 async function startClientListener(ctx) {
-    if (_clientListenerStarted.has(nodeIdOrSW(ctx.nodeId)))
+    if (_clientListeners.has(nodeIdOrSW(ctx.nodeId)))
         return;
     const { logger: l, node: worker } = ctx;
     if (!worker) {
@@ -298,15 +351,31 @@ async function startClientListener(ctx) {
     else {
         w.addEventListener("message", listener);
     }
-    _clientListenerStarted.add(nodeIdOrSW(ctx.nodeId));
+    _clientListeners.set(nodeIdOrSW(ctx.nodeId), {
+        disconnect() {
+            if (w instanceof SharedWorker) {
+                w.port.removeEventListener("message", listener);
+            }
+            else {
+                w.removeEventListener("message", listener);
+            }
+        },
+    });
     await postMessage(ctx, {
         by: "sw&rpc",
         functionName: "#initialize",
         isInitializeRequest: true,
         localStorageData: ctx.localStorage,
         nodeId: nodeIdOrSW(ctx.nodeId),
+        allNodeIDs: ctx.allNodeIDs,
     });
 }
 function makeRequestId() {
     return Math.random().toString(16).substring(2, 8).toUpperCase();
+}
+function handleBroadcastOrThrowResults(results) {
+    if (results.ok) {
+        return results.successes;
+    }
+    throw new AggregateError(results.failures.map((f) => f.reason));
 }

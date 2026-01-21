@@ -13,6 +13,8 @@ export function isPayloadInitialize(payload) {
         return false;
     if (!("isInitializeRequest" in payload))
         return false;
+    if (!("allNodeIDs" in payload))
+        return false;
     if (payload.by !== "sw&rpc")
         return false;
     if (payload.functionName !== "#initialize")

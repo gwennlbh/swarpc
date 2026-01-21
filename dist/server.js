@@ -9,6 +9,7 @@ const abortedRequests = new Set();
 export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = {}) {
     scope ??= self;
     const nodeId = nodeIdFromScope(scope, _scopeType);
+    let allNodeIDs = new Set();
     const l = createLogger("server", loglevel, nodeId);
     const instance = {
         [zProcedures]: procedures,
@@ -63,6 +64,7 @@ export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = 
                 l.debug(null, "Setting up faux localStorage", localStorageData);
                 new FauxLocalStorage(localStorageData).register(scope);
                 injectIntoConsoleGlobal(scope, nodeId, null);
+                event.data.allNodeIDs.forEach((id) => allNodeIDs.add(id));
                 return;
             }
             if (!isPayloadHeader(procedures, event.data)) {
@@ -113,6 +115,7 @@ export function Server(procedures, { loglevel = "debug", scope, _scopeType, } = 
                     await postMsg({ progress });
                 }, {
                     nodeId,
+                    nodes: allNodeIDs,
                     abortSignal: abortControllers.get(requestId)?.signal,
                 });
                 l.debug(requestId, `Result for ${functionName}`, result);
