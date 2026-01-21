@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Prevent starting a client if some method names clash with reserved names (`onceBy`, `destroy`). The complete list is available on the exported constant `RESERVED_PROCEDURE_NAMES`.
+
 ### Changed
 
 - Request cancellations now throw a `RequestCancelledError` instead of just a `Error`. Useful to specifically catch cancellation errors.
@@ -14,6 +18,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 
 - `.broadcast.once` and `.broadcast.onceBy`. Works just like `.once` or `.onceBy`, but sends the request to multiple nodes just like `.broadcast`.
+- Convenience properties on the return value of broadcasted calls
+- `.broadcast{.once,.onceBy,}.orThrow()`: aggregate method that throws if any node failed and returns the array of results otherwise.
+- `nodes` property in the third ("tools") argument of procedure implementations, containing the set of all available node IDs.
+- `Client#destroy` to terminate workers and disconnect event listeners.
+- `Client:options.nodeIds` to specify the list of node IDs to use instead of generating them automatically.
 
 ## [0.18.0] - 2026-01-08
 

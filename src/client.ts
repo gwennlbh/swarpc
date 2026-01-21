@@ -17,6 +17,9 @@ import {
 } from "./nodes.js";
 import {
   Broadcaster,
+  BroadcasterResultExtrasFailure,
+  BroadcasterResultExtrasMixed,
+  BroadcasterResultExtrasSuccess,
   ClientMethod,
   ClientMethodCallable,
   Hooks,
@@ -28,7 +31,12 @@ import {
   zProcedures,
   type ProceduresMap,
 } from "./types.js";
-import { findTransferables } from "./utils.js";
+import {
+  findTransferables,
+  extractFulfilleds,
+  extractRejecteds,
+  sizedArray,
+} from "./utils.js";
 import type { StandardSchemaV1 as Schema } from "./standardschema.js";
 
 /**
@@ -45,9 +53,21 @@ export type SwarpcClient<Procedures extends ProceduresMap> = {
   onceBy: (key: string) => {
     [F in keyof Procedures]: ClientMethodCallable<Procedures[F]>;
   };
+  /**
+   * Disconnects all event listeners created by the client, and:
+   * - for Shared Workers: closes the port started by the client
+   * - for Dedicated Workers: terminates the worker instance
+   * - for Service Workers: does nothing (there is no connection to close)
+   */
+  destroy(): void;
 } & {
   [F in keyof Procedures]: ClientMethod<Procedures[F]>;
 };
+
+/**
+ * Names that can't be used as procedure names. Will fail at runtime, when starting the client.
+ */
+export const RESERVED_PROCEDURE_NAMES = ["onceBy", "destroy"] as const;
 
 /**
  * Context for passing around data useful for requests
@@ -59,6 +79,8 @@ type Context<Procedures extends ProceduresMap> = {
   node: Worker | SharedWorker | undefined;
   /** The ID of the node to use */
   nodeId: string | undefined;
+  /** Set of all available nodes' IDs */
+  allNodeIDs: Set<string>;
   /** Hooks defined by the client */
   hooks: Hooks<Procedures>;
   /** Local storage data defined by the client for the faux local storage */
@@ -89,8 +111,10 @@ export type PendingRequest = {
   concurrencyKey?: string;
 };
 
-// Have we started the client listener?
-let _clientListenerStarted: Set<string> = new Set();
+// Map of node IDs to listener handles
+// Used to check if a listener has already been started for a given node ID
+// also used to stop listeners when destroying the client
+let _clientListeners: Map<string, { disconnect: () => void }> = new Map();
 
 /**
  *
@@ -105,6 +129,7 @@ let _clientListenerStarted: Set<string> = new Set();
  * @param options.restartListener If true, will force the listener to restart even if it has already been started. You should probably leave this to false, unless you are testing and want to reset the client state.
  * @param options.localStorage Define a in-memory localStorage with the given key-value pairs. Allows code called on the server to access localStorage (even though SharedWorkers don't have access to the browser's real localStorage)
  * @param options.nodes the number of workers to use for the server, defaults to {@link navigator.hardwareConcurrency}.
+ * @param options.nodeIds node IDs to use. If not provided, random IDs will be generated for each node.
  * @returns a sw&rpc client instance. Each property of the procedures map will be a method, that accepts an input and an optional onProgress callback, see {@link ClientMethod}
  *
  * An example of defining and using a client:
@@ -119,6 +144,7 @@ export function Client<Procedures extends ProceduresMap>(
     restartListener = false,
     hooks = {},
     localStorage = {},
+    nodeIds = [],
   }: {
     worker?: WorkerConstructor | string;
     nodes?: number;
@@ -126,26 +152,22 @@ export function Client<Procedures extends ProceduresMap>(
     loglevel?: LogLevel;
     restartListener?: boolean;
     localStorage?: Record<string, any>;
+    nodeIds?: string[];
   } = {},
 ): SwarpcClient<Procedures> {
   const l = createLogger("client", loglevel);
 
   type AnyProcedure = Procedures[keyof Procedures & string];
 
-  if (restartListener) _clientListenerStarted.clear();
-
-  // Store procedures on a symbol key, to avoid conflicts with procedure names
-  const instance = { [zProcedures]: procedures } as Partial<
-    SwarpcClient<Procedures>
-  >;
+  if (restartListener) _clientListeners.clear();
 
   nodeCount ??= navigator.hardwareConcurrency || 1;
 
   let nodes: undefined | Record<string, Worker | SharedWorker>;
   if (worker) {
     nodes = {};
-    for (const _ of Array.from({ length: nodeCount })) {
-      const id = makeNodeId();
+    for (const [i] of Array.from({ length: nodeCount }).entries()) {
+      const id = nodeIds[i] ?? makeNodeId();
       if (typeof worker === "string") {
         nodes[id] = new Worker(worker, { name: id });
       } else {
@@ -159,6 +181,27 @@ export function Client<Procedures extends ProceduresMap>(
       Object.keys(nodes),
     );
   }
+
+  const instance = {
+    // Store procedures on a symbol key, to avoid conflicts with procedure names
+    [zProcedures]: procedures,
+    destroy() {
+      for (const [nodeId, listener] of _clientListeners.entries()) {
+        l.debug(null, `Destroying listener for node ${nodeId}`);
+        listener.disconnect();
+        _clientListeners.delete(nodeId);
+      }
+
+      for (const [nodeId, node] of Object.entries(nodes ?? {})) {
+        l.debug(null, `Terminating worker for node ${nodeId}`);
+        if (node instanceof SharedWorker) {
+          node.port.close();
+        } else {
+          node.terminate();
+        }
+      }
+    },
+  } as Partial<SwarpcClient<Procedures>>;
 
   /**
    * Helper to cancel requests based on several criterias
@@ -256,6 +299,14 @@ export function Client<Procedures extends ProceduresMap>(
       );
     }
 
+    if (
+      (RESERVED_PROCEDURE_NAMES as readonly string[]).includes(functionName)
+    ) {
+      throw new Error(
+        `[SWARPC Client] Invalid function name: "${functionName}" is a reserved word and can't be used as a procedure name. Reserved names: ${RESERVED_PROCEDURE_NAMES}`,
+      );
+    }
+
     const send = async (
       node: Worker | SharedWorker | undefined,
       nodeId: string | undefined,
@@ -267,6 +318,7 @@ export function Client<Procedures extends ProceduresMap>(
         logger: l,
         node,
         nodeId,
+        allNodeIDs: new Set(nodes ? Object.keys(nodes) : []),
         hooks,
         localStorage,
       };
@@ -354,7 +406,7 @@ export function Client<Procedures extends ProceduresMap>(
         };
       }
 
-      const results = await Promise.allSettled(
+      const settleds = await Promise.allSettled(
         nodesToUse.map(async (id) =>
           _runProcedure({
             input,
@@ -363,12 +415,49 @@ export function Client<Procedures extends ProceduresMap>(
             concurrencyKey,
           }),
         ),
+      ).then((results) =>
+        results.map((result, index) => ({
+          ...result,
+          node: nodeIdOrSW(nodesToUse[index]),
+        })),
       );
 
-      return results.map((r, i) => ({ ...r, node: nodeIdOrSW(nodesToUse[i]) }));
+      const _extras = {
+        byNode: new Map(settleds.map(({ node, ...result }) => [node, result])),
+        successes: sizedArray(extractFulfilleds(settleds).map((r) => r.value)),
+        failures: sizedArray(extractRejecteds(settleds)),
+
+        get failureSummary() {
+          return this.failures
+            ?.map(({ node, reason }) => `Node ${node}: ${reason}`)
+            .join(";\n");
+        },
+
+        get ok() {
+          return this.failures.length === 0;
+        },
+
+        get ko() {
+          return this.successes.length === 0;
+        },
+
+        get status() {
+          if (this.ok) return "fulfilled";
+          if (this.ko) return "rejected";
+          return "mixed";
+        },
+      } satisfies BroadcasterResultExtrasAny<ThisProcedure>;
+
+      const extras = _extras as
+        | BroadcasterResultExtrasFailure
+        | BroadcasterResultExtrasSuccess<ThisProcedure>
+        | BroadcasterResultExtrasMixed<ThisProcedure>;
+
+      return Object.assign(settleds, extras);
     };
 
     // Store the _runProcedure function for use in global onceBy
+    // TODO: set instance.onceBy[functionName] here instead of out of the loop, so we don't need that global map
     runProcedureFunctions.set(functionName, _runProcedure);
 
     // @ts-expect-error
@@ -378,6 +467,12 @@ export function Client<Procedures extends ProceduresMap>(
     instance[functionName]!.broadcast = (input, onProgresses, nodes) =>
       _broadcastProcedure({ input, onProgresses, nodesCountOrIDs: nodes });
 
+    instance[functionName]!.broadcast.orThrow = async (...args) =>
+      handleBroadcastOrThrowResults(
+        await instance[functionName]!.broadcast(...args),
+      );
+
+    // @ts-expect-error .orThrow added later
     instance[functionName]!.broadcast.once = async (
       input,
       onProgresses,
@@ -401,6 +496,12 @@ export function Client<Procedures extends ProceduresMap>(
       });
     };
 
+    instance[functionName]!.broadcast.once.orThrow = async (...args) =>
+      handleBroadcastOrThrowResults(
+        await instance[functionName]!.broadcast.once(...args),
+      );
+
+    // @ts-expect-error .orThrow added later
     instance[functionName]!.broadcast.onceBy = async (
       concurrencyKey,
       input,
@@ -426,6 +527,11 @@ export function Client<Procedures extends ProceduresMap>(
         concurrencyKey,
       });
     };
+
+    instance[functionName]!.broadcast.onceBy.orThrow = async (...args) =>
+      handleBroadcastOrThrowResults(
+        await instance[functionName]!.broadcast.onceBy(...args),
+      );
 
     instance[functionName]!.cancelable = (input, onProgress) => {
       const requestId = makeRequestId();
@@ -505,7 +611,6 @@ export function Client<Procedures extends ProceduresMap>(
 
 /**
  * Warms up the client by starting the listener and getting the worker, then posts a message to the worker.
- * @returns the worker to use
  */
 async function postMessage<Procedures extends ProceduresMap>(
   ctx: Context<Procedures>,
@@ -574,7 +679,7 @@ function postMessageSync<Procedures extends ProceduresMap>(
 async function startClientListener<Procedures extends ProceduresMap>(
   ctx: Context<Procedures>,
 ) {
-  if (_clientListenerStarted.has(nodeIdOrSW(ctx.nodeId))) return;
+  if (_clientListeners.has(nodeIdOrSW(ctx.nodeId))) return;
 
   const { logger: l, node: worker } = ctx;
 
@@ -657,7 +762,15 @@ async function startClientListener<Procedures extends ProceduresMap>(
     w.addEventListener("message", listener);
   }
 
-  _clientListenerStarted.add(nodeIdOrSW(ctx.nodeId));
+  _clientListeners.set(nodeIdOrSW(ctx.nodeId), {
+    disconnect() {
+      if (w instanceof SharedWorker) {
+        w.port.removeEventListener("message", listener);
+      } else {
+        w.removeEventListener("message", listener);
+      }
+    },
+  });
 
   // Recursive terminal case is ensured by calling this *after* _clientListenerStarted is set to true: startClientListener() will therefore not be called in postMessage() again.
   await postMessage(ctx, {
@@ -666,6 +779,7 @@ async function startClientListener<Procedures extends ProceduresMap>(
     isInitializeRequest: true,
     localStorageData: ctx.localStorage,
     nodeId: nodeIdOrSW(ctx.nodeId),
+    allNodeIDs: ctx.allNodeIDs,
   });
 }
 
@@ -695,3 +809,22 @@ type ProcedureRunnerBroadcast<P extends Procedure<Schema, Schema, Schema>> =
     nodesCountOrIDs?: number | Array<string | undefined>;
     concurrencyKey?: string;
   }) => ReturnType<Broadcaster<P>>;
+
+function handleBroadcastOrThrowResults<
+  P extends Procedure<Schema, Schema, Schema>,
+>(
+  results: Awaited<ReturnType<Broadcaster<P>>>,
+): Awaited<ReturnType<Broadcaster<P>["orThrow"]>> {
+  if (results.ok) {
+    return results.successes;
+  }
+
+  throw new AggregateError(results.failures.map((f) => f.reason));
+}
+
+type BroadcasterResultExtrasAny<P extends Procedure<Schema, Schema, Schema>> = {
+  [K in keyof BroadcasterResultExtrasMixed<P>]:
+    | BroadcasterResultExtrasMixed<P>[K]
+    | BroadcasterResultExtrasSuccess<P>[K]
+    | BroadcasterResultExtrasFailure[K];
+};

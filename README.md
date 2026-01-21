@@ -210,6 +210,39 @@ for (const result of await client.initDB.broadcast("localhost:5432")) {
 }
 ```
 
+You also have a very convenient way to aggregate the results of all nodes, if you don't need to handle errors in a fine-grained way:
+
+```ts
+const userbase = await client.tableSize.broadcast
+  .orThrow("users")
+  .then((counts) => sum(counts))
+  .catch((e) => {
+    // e is an AggregateError with every failing node's error
+    console.error("Could not get total user count:", e);
+  });
+```
+
+Otherwise, you have access to a handful of convenience properties on the returned array, to help you narrow down what happened on each node:
+
+```ts
+async function userbase() {
+  const counts = await client.tableSize.broadcast("users");
+
+  if (counts.ko) {
+    throw new Error(
+      `All nodes failed to get table size: ${counts.failureSummary}`,
+    );
+  }
+
+  return {
+    exact: counts.ok,
+    count:
+      sum(counts.successes) +
+      average(counts.successes) * counts.failures.length,
+  };
+}
+```
+
 ### Make cancelable requests
 
 #### Implementation
@@ -217,21 +250,16 @@ for (const result of await client.initDB.broadcast("localhost:5432")) {
 To make your procedures meaningfully cancelable, you have to make use of the [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) API. This is passed as a third argument when implementing your procedures:
 
 ```js
-server.searchIMDb(async ({ query }, onProgress, abort) => {
+server.searchIMDb(async ({ query }, onProgress, { abortSignal }) => {
   // If you're doing heavy computation without fetch:
-  let aborted = false
-  abort?.addEventListener("abort", () => {
-    aborted = true
-  })
-
-  // Use `aborted` to check if the request was canceled within your hot loop
+  // Use `abortSignal?.throwIfAborted()` within hot loops and at key points
   for (...) {
-    /* here */ if (aborted) return
+    abortSignal?.throwIfAborted();
     ...
   }
 
   // When using fetch:
-  await fetch(..., { signal: abort })
+  await fetch(..., { signal: abortSignal })
 })
 ```
 

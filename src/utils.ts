@@ -33,3 +33,38 @@ export function findTransferables(value: any): Transferable[] {
 
   return [];
 }
+
+/**
+ * @internal
+ */
+export type ArrayOneOrMore<T> = [T, ...T[]];
+
+/**
+ * @internal
+ */
+export function sizedArray<T>(array: T[]): [] | ArrayOneOrMore<T> {
+  if (array.length === 0) {
+    return [];
+  }
+  return array as ArrayOneOrMore<T>;
+}
+
+/** @internal */
+export function extractFulfilleds<T, D>(
+  settleds: Array<PromiseSettledResult<T> & D>,
+): Array<PromiseFulfilledResult<T> & D> {
+  return settleds.filter(
+    (settled): settled is PromiseFulfilledResult<T> & D =>
+      settled.status === "fulfilled",
+  );
+}
+
+/** @internal */
+export function extractRejecteds<T, D>(
+  settleds: Array<PromiseSettledResult<T> & D>,
+): Array<PromiseRejectedResult & D> {
+  return settleds.filter(
+    (settled): settled is PromiseRejectedResult & D =>
+      settled.status === "rejected",
+  );
+}
