@@ -200,7 +200,7 @@ export type BroadcasterResultExtrasFailure = {
     successes: [];
     byNode: Map<string, PromiseRejectedResult>;
 };
-type ClientMethodExtraCallables<P extends Procedure<Schema, Schema, Schema>> = {
+export type ClientMethodExtraCallables<P extends Procedure<Schema, Schema, Schema>> = {
     /**
      * A method that returns a `CancelablePromise`. Cancel it by calling `.cancel(reason)` on it, and wait for the request to resolve by awaiting the `request` property on the returned object.
      */
