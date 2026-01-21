@@ -129,6 +129,7 @@ let _clientListeners: Map<string, { disconnect: () => void }> = new Map();
  * @param options.restartListener If true, will force the listener to restart even if it has already been started. You should probably leave this to false, unless you are testing and want to reset the client state.
  * @param options.localStorage Define a in-memory localStorage with the given key-value pairs. Allows code called on the server to access localStorage (even though SharedWorkers don't have access to the browser's real localStorage)
  * @param options.nodes the number of workers to use for the server, defaults to {@link navigator.hardwareConcurrency}.
+ * @param options.nodeIds node IDs to use. If not provided, random IDs will be generated for each node.
  * @returns a sw&rpc client instance. Each property of the procedures map will be a method, that accepts an input and an optional onProgress callback, see {@link ClientMethod}
  *
  * An example of defining and using a client:
@@ -143,6 +144,7 @@ export function Client<Procedures extends ProceduresMap>(
     restartListener = false,
     hooks = {},
     localStorage = {},
+    nodeIds = [],
   }: {
     worker?: WorkerConstructor | string;
     nodes?: number;
@@ -150,6 +152,7 @@ export function Client<Procedures extends ProceduresMap>(
     loglevel?: LogLevel;
     restartListener?: boolean;
     localStorage?: Record<string, any>;
+    nodeIds?: string[];
   } = {},
 ): SwarpcClient<Procedures> {
   const l = createLogger("client", loglevel);
@@ -163,8 +166,8 @@ export function Client<Procedures extends ProceduresMap>(
   let nodes: undefined | Record<string, Worker | SharedWorker>;
   if (worker) {
     nodes = {};
-    for (const _ of Array.from({ length: nodeCount })) {
-      const id = makeNodeId();
+    for (const [i] of Array.from({ length: nodeCount }).entries()) {
+      const id = nodeIds[i] ?? makeNodeId();
       if (typeof worker === "string") {
         nodes[id] = new Worker(worker, { name: id });
       } else {

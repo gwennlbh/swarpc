@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - `.broadcast{.once,.onceBy,}.orThrow()`: aggregate method that throws if any node failed and returns the array of results otherwise.
 - `nodes` property in the third ("tools") argument of procedure implementations, containing the set of all available node IDs.
 - `Client#destroy` to terminate workers and disconnect event listeners.
+- `Client:options.nodeIds` to specify the list of node IDs to use instead of generating them automatically.
 
 ## [0.18.0] - 2026-01-08
 
