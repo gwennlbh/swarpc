@@ -73,7 +73,8 @@ jobs:
           node-version-file: package.json
           cache: npm
       - run: npm ci
-      - run: npm test
+      - run: npm test -- --exclude 'tests/broadcast*'
+      - run: npm test -- broadcast
 
   knip:
     runs-on: ubuntu-latest
