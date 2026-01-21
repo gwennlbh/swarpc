@@ -7,13 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-### Fixed
-
-- Prevent starting a client if some method names clash with reserved names (`onceBy`, `destroy`). The complete list is available on the exported constant `RESERVED_PROCEDURE_NAMES`.
-
-### Changed
-
-- Request cancellations now throw a `RequestCancelledError` instead of just a `Error`. Useful to specifically catch cancellation errors.
+## [0.19.0] - 2026-01-21
 
 ### Added
 
@@ -23,6 +17,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - `nodes` property in the third ("tools") argument of procedure implementations, containing the set of all available node IDs.
 - `Client#destroy` to terminate workers and disconnect event listeners.
 - `Client:options.nodeIds` to specify the list of node IDs to use instead of generating them automatically.
+
+### Changed
+
+- Request cancellations now throw a `RequestCancelledError` instead of just a `Error`. Useful to specifically catch cancellation errors.
+
+### Fixed
+
+- Prevent starting a client if some method names clash with reserved names (`onceBy`, `destroy`). The complete list is available on the exported constant `RESERVED_PROCEDURE_NAMES`.
 
 ## [0.18.0] - 2026-01-08
 
@@ -250,7 +252,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - support for transferable objects via a new [`autotransfer` property on procedure declarations](https://swarpc.js.org/types/types.Procedure.html#autotransfer)
 
-[Unreleased]: https://github.com/gwennlbh/swarpc/compare/v0.18.0...HEAD
+[Unreleased]: https://github.com/gwennlbh/swarpc/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/gwennlbh/swarpc/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/gwennlbh/swarpc/compare/v0.17.2...v0.18.0
 [0.17.2]: https://github.com/gwennlbh/swarpc/compare/v0.17.1...v0.17.2
 [0.17.1]: https://github.com/gwennlbh/swarpc/compare/v0.17.0...v0.17.1
