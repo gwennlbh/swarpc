@@ -1,5 +1,5 @@
-import { ak as effect_tracking, g as get, a4 as source, C as render_effect, B as untrack, al as increment, I as queue_micro_task, w as hydrate_node, h as hydrating, af as active_effect, d as block, e as hydrate_next, a0 as COMMENT_NODE, H as HYDRATION_START_ELSE, v as branch, am as Batch, p as pause_effect, q as create_text, an as defer_effect, ao as set_active_effect, ap as set_active_reaction, aq as set_component_context, ar as handle_error, as as active_reaction, M as component_context, x as move_effect, at as set_signal_status, au as DIRTY, av as schedule_effect, aw as MAYBE_DIRTY, a2 as internal_set, o as destroy_effect, k as set_hydrate_node, Z as next, j as skip_nodes, ax as invoke_error_boundary, ay as svelte_boundary_reset_onerror, E as EFFECT_TRANSPARENT, az as EFFECT_PRESERVED, aA as BOUNDARY_EFFECT, aB as svelte_boundary_reset_noop, aC as define_property, aD as init_operations, _ as get_first_child, aE as HYDRATION_START, ac as get_next_sibling, aF as HYDRATION_ERROR, l as set_hydrating, aG as hydration_failed, ad as clear_text_content, a6 as array_from, aH as component_root, P as push, a1 as HYDRATION_END, aI as hydration_mismatch, Q as pop } from "./m3BSnZPG.js";
-import { b as assign_nodes } from "./Czo-4I9t.js";
+import { am as effect_tracking, g as get, a4 as source, C as render_effect, B as untrack, an as increment, I as queue_micro_task, w as hydrate_node, h as hydrating, ag as active_effect, d as block, e as hydrate_next, a0 as COMMENT_NODE, H as HYDRATION_START_ELSE, v as branch, ao as Batch, p as pause_effect, q as create_text, ap as defer_effect, aq as set_active_effect, ar as set_active_reaction, as as set_component_context, at as handle_error, au as active_reaction, M as component_context, x as move_effect, av as set_signal_status, aw as DIRTY, ax as schedule_effect, ay as MAYBE_DIRTY, a2 as internal_set, o as destroy_effect, k as set_hydrate_node, Z as next, j as skip_nodes, az as invoke_error_boundary, aA as svelte_boundary_reset_onerror, E as EFFECT_TRANSPARENT, aB as EFFECT_PRESERVED, aC as BOUNDARY_EFFECT, aD as svelte_boundary_reset_noop, aE as define_property, aF as init_operations, _ as get_first_child, aG as HYDRATION_START, ac as get_next_sibling, aH as HYDRATION_ERROR, l as set_hydrating, aI as hydration_failed, ae as clear_text_content, a6 as array_from, aJ as component_root, P as push, a1 as HYDRATION_END, aK as hydration_mismatch, Q as pop } from "./CGUuT_w7.js";
+import { b as assign_nodes } from "./B5U2deAT.js";
 function createSubscriber(start) {
   let subscribers = 0;
   let version = source(0);
@@ -339,19 +339,15 @@ class Boundary {
         this.is_pending = false;
       }
     };
-    var previous_reaction = active_reaction;
-    try {
-      set_active_reaction(null);
-      calling_on_error = true;
-      onerror?.(error, reset);
-      calling_on_error = false;
-    } catch (error2) {
-      invoke_error_boundary(error2, this.#effect && this.#effect.parent);
-    } finally {
-      set_active_reaction(previous_reaction);
-    }
-    if (failed) {
-      queue_micro_task(() => {
+    queue_micro_task(() => {
+      try {
+        calling_on_error = true;
+        onerror?.(error, reset);
+        calling_on_error = false;
+      } catch (error2) {
+        invoke_error_boundary(error2, this.#effect && this.#effect.parent);
+      }
+      if (failed) {
         this.#failed_effect = this.#run(() => {
           Batch.ensure();
           this.#is_creating_fallback = true;
@@ -374,8 +370,8 @@ class Boundary {
             this.#is_creating_fallback = false;
           }
         });
-      });
-    }
+      }
+    });
   }
 }
 const PASSIVE_EVENTS = ["touchstart", "touchmove"];

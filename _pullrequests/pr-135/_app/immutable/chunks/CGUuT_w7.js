@@ -1,6 +1,7 @@
 const DEV = false;
 var is_array = Array.isArray;
 var index_of = Array.prototype.indexOf;
+var includes = Array.prototype.includes;
 var array_from = Array.from;
 var define_property = Object.defineProperty;
 var get_descriptor = Object.getOwnPropertyDescriptor;
@@ -427,6 +428,9 @@ class Batch {
     if (this.is_deferred()) {
       this.#defer_effects(render_effects);
       this.#defer_effects(effects);
+      for (const e of this.skipped_effects) {
+        reset_branch(e);
+      }
     } else {
       for (const fn of this.#commit_callbacks) fn();
       this.#commit_callbacks.clear();
@@ -466,7 +470,7 @@ class Batch {
         } else if ((flags & EFFECT) !== 0) {
           effects.push(effect2);
         } else if (is_dirty(effect2)) {
-          if ((flags & BLOCK_EFFECT) !== 0) this.#dirty_effects.add(effect2);
+          if ((flags & BLOCK_EFFECT) !== 0) this.#maybe_dirty_effects.add(effect2);
           update_effect(effect2);
         }
         var child2 = effect2.first;
@@ -775,7 +779,7 @@ function depends_on(reaction, sources, checked) {
   if (depends !== void 0) return depends;
   if (reaction.deps !== null) {
     for (const dep of reaction.deps) {
-      if (sources.includes(dep)) {
+      if (includes.call(sources, dep)) {
         return true;
       }
       if ((dep.f & DERIVED) !== 0 && depends_on(
@@ -810,6 +814,17 @@ function schedule_effect(signal) {
     }
   }
   queued_root_effects.push(effect2);
+}
+function reset_branch(effect2) {
+  if ((effect2.f & BRANCH_EFFECT) !== 0 && (effect2.f & CLEAN) !== 0) {
+    return;
+  }
+  set_signal_status(effect2, CLEAN);
+  var e = effect2.first;
+  while (e !== null) {
+    reset_branch(e);
+    e = e.next;
+  }
 }
 function flatten(blockers, sync, async, fn) {
   const d = is_runes() ? derived : derived_safe_equal;
@@ -1101,7 +1116,7 @@ function mutable_source(initial_value, immutable = false, trackable = true) {
 function set(source2, value, should_proxy = false) {
   if (active_reaction !== null && // since we are untracking the function inside `$inspect.with` we need to add this check
   // to ensure we error if state is set inside an inspect effect
-  (!untracking || (active_reaction.f & EAGER_EFFECT) !== 0) && is_runes() && (active_reaction.f & (DERIVED | BLOCK_EFFECT | ASYNC | EAGER_EFFECT)) !== 0 && !current_sources?.includes(source2)) {
+  (!untracking || (active_reaction.f & EAGER_EFFECT) !== 0) && is_runes() && (active_reaction.f & (DERIVED | BLOCK_EFFECT | ASYNC | EAGER_EFFECT)) !== 0 && (current_sources === null || !includes.call(current_sources, source2))) {
     state_unsafe_mutation();
   }
   let new_value = should_proxy ? proxy(value) : value;
@@ -1443,6 +1458,12 @@ function child(node, is_text) {
     set_hydrate_node(text);
     return text;
   }
+  if (is_text) {
+    merge_text_nodes(
+      /** @type {Text} */
+      child2
+    );
+  }
   set_hydrate_node(child2);
   return child2;
 }
@@ -1452,11 +1473,17 @@ function first_child(node, is_text = false) {
     if (first instanceof Comment && first.data === "") return /* @__PURE__ */ get_next_sibling(first);
     return first;
   }
-  if (is_text && hydrate_node?.nodeType !== TEXT_NODE) {
-    var text = create_text();
-    hydrate_node?.before(text);
-    set_hydrate_node(text);
-    return text;
+  if (is_text) {
+    if (hydrate_node?.nodeType !== TEXT_NODE) {
+      var text = create_text();
+      hydrate_node?.before(text);
+      set_hydrate_node(text);
+      return text;
+    }
+    merge_text_nodes(
+      /** @type {Text} */
+      hydrate_node
+    );
   }
   return hydrate_node;
 }
@@ -1471,15 +1498,21 @@ function sibling(node, count = 1, is_text = false) {
   if (!hydrating) {
     return next_sibling;
   }
-  if (is_text && next_sibling?.nodeType !== TEXT_NODE) {
-    var text = create_text();
-    if (next_sibling === null) {
-      last_sibling?.after(text);
-    } else {
-      next_sibling.before(text);
+  if (is_text) {
+    if (next_sibling?.nodeType !== TEXT_NODE) {
+      var text = create_text();
+      if (next_sibling === null) {
+        last_sibling?.after(text);
+      } else {
+        next_sibling.before(text);
+      }
+      set_hydrate_node(text);
+      return text;
     }
-    set_hydrate_node(text);
-    return text;
+    merge_text_nodes(
+      /** @type {Text} */
+      next_sibling
+    );
   }
   set_hydrate_node(next_sibling);
   return next_sibling;
@@ -1489,6 +1522,21 @@ function clear_text_content(node) {
 }
 function should_defer_append() {
   return false;
+}
+function merge_text_nodes(text) {
+  if (
+    /** @type {string} */
+    text.nodeValue.length < 65536
+  ) {
+    return;
+  }
+  let next2 = text.nextSibling;
+  while (next2 !== null && next2.nodeType === TEXT_NODE) {
+    next2.remove();
+    text.nodeValue += /** @type {string} */
+    next2.nodeValue;
+    next2 = text.nextSibling;
+  }
 }
 let listening_to_form_reset = false;
 function add_form_reset_listener() {
@@ -1928,7 +1976,7 @@ function is_dirty(reaction) {
 function schedule_possible_effect_self_invalidation(signal, effect2, root = true) {
   var reactions = signal.reactions;
   if (reactions === null) return;
-  if (current_sources?.includes(signal)) {
+  if (current_sources !== null && includes.call(current_sources, signal)) {
     return;
   }
   for (var i = 0; i < reactions.length; i++) {
@@ -1986,9 +2034,12 @@ function update_reaction(reaction) {
     );
     var result = fn();
     var deps = reaction.deps;
+    var is_fork = current_batch?.is_fork;
     if (new_deps !== null) {
       var i;
-      remove_reactions(reaction, skipped_deps);
+      if (!is_fork) {
+        remove_reactions(reaction, skipped_deps);
+      }
       if (deps !== null && skipped_deps > 0) {
         deps.length = skipped_deps + new_deps.length;
         for (i = 0; i < new_deps.length; i++) {
@@ -2002,7 +2053,7 @@ function update_reaction(reaction) {
           (deps[i].reactions ??= []).push(reaction);
         }
       }
-    } else if (deps !== null && skipped_deps < deps.length) {
+    } else if (!is_fork && deps !== null && skipped_deps < deps.length) {
       remove_reactions(reaction, skipped_deps);
       deps.length = skipped_deps;
     }
@@ -2072,7 +2123,7 @@ function remove_reaction(signal, dependency) {
   if (reactions === null && (dependency.f & DERIVED) !== 0 && // Destroying a child effect while updating a parent effect can cause a dependency to appear
   // to be unused, when in fact it is used by the currently-updating parent. Checking `new_deps`
   // allows us to skip the expensive work of disconnecting and immediately reconnecting it
-  (new_deps === null || !new_deps.includes(dependency))) {
+  (new_deps === null || !includes.call(new_deps, dependency))) {
     var derived2 = (
       /** @type {Derived} */
       dependency
@@ -2132,7 +2183,7 @@ function get(signal) {
   var is_derived = (flags & DERIVED) !== 0;
   if (active_reaction !== null && !untracking) {
     var destroyed = active_effect !== null && (active_effect.f & DESTROYED) !== 0;
-    if (!destroyed && !current_sources?.includes(signal)) {
+    if (!destroyed && (current_sources === null || !includes.call(current_sources, signal))) {
       var deps = active_reaction.deps;
       if ((active_reaction.f & REACTION_IS_UPDATING) !== 0) {
         if (signal.rv < read_version) {
@@ -2150,7 +2201,7 @@ function get(signal) {
         var reactions = signal.reactions;
         if (reactions === null) {
           signal.reactions = [active_reaction];
-        } else if (!reactions.includes(active_reaction)) {
+        } else if (!includes.call(reactions, active_reaction)) {
           reactions.push(active_reaction);
         }
       }
@@ -2313,56 +2364,58 @@ export {
   is_array as a7,
   EACH_ITEM_REACTIVE as a8,
   EACH_ITEM_IMMUTABLE as a9,
-  BOUNDARY_EFFECT as aA,
-  svelte_boundary_reset_noop as aB,
-  define_property as aC,
-  init_operations as aD,
-  HYDRATION_START as aE,
-  HYDRATION_ERROR as aF,
-  hydration_failed as aG,
-  component_root as aH,
-  hydration_mismatch as aI,
-  effect as aJ,
-  STATE_SYMBOL as aK,
-  get_descriptor as aL,
-  props_invalid_value as aM,
-  PROPS_IS_UPDATED as aN,
-  is_destroying_effect as aO,
-  DESTROYED as aP,
-  PROPS_IS_BINDABLE as aQ,
-  PROPS_IS_RUNES as aR,
-  PROPS_IS_IMMUTABLE as aS,
-  PROPS_IS_LAZY_INITIAL as aT,
-  LEGACY_PROPS as aU,
-  flushSync as aV,
-  safe_not_equal as aW,
-  settled as aX,
+  svelte_boundary_reset_onerror as aA,
+  EFFECT_PRESERVED as aB,
+  BOUNDARY_EFFECT as aC,
+  svelte_boundary_reset_noop as aD,
+  define_property as aE,
+  init_operations as aF,
+  HYDRATION_START as aG,
+  HYDRATION_ERROR as aH,
+  hydration_failed as aI,
+  component_root as aJ,
+  hydration_mismatch as aK,
+  effect as aL,
+  STATE_SYMBOL as aM,
+  get_descriptor as aN,
+  props_invalid_value as aO,
+  PROPS_IS_UPDATED as aP,
+  is_destroying_effect as aQ,
+  DESTROYED as aR,
+  PROPS_IS_BINDABLE as aS,
+  PROPS_IS_RUNES as aT,
+  PROPS_IS_IMMUTABLE as aU,
+  PROPS_IS_LAZY_INITIAL as aV,
+  LEGACY_PROPS as aW,
+  flushSync as aX,
+  safe_not_equal as aY,
+  settled as aZ,
   EACH_INDEX_REACTIVE as aa,
   INERT as ab,
   get_next_sibling as ac,
-  clear_text_content as ad,
-  is_firefox as ae,
-  active_effect as af,
-  TEMPLATE_FRAGMENT as ag,
-  TEMPLATE_USE_IMPORT_NODE as ah,
-  EFFECT_RAN as ai,
-  TEXT_NODE as aj,
-  effect_tracking as ak,
-  increment as al,
-  Batch as am,
-  defer_effect as an,
-  set_active_effect as ao,
-  set_active_reaction as ap,
-  set_component_context as aq,
-  handle_error as ar,
-  active_reaction as as,
-  set_signal_status as at,
-  DIRTY as au,
-  schedule_effect as av,
-  MAYBE_DIRTY as aw,
-  invoke_error_boundary as ax,
-  svelte_boundary_reset_onerror as ay,
-  EFFECT_PRESERVED as az,
+  BRANCH_EFFECT as ad,
+  clear_text_content as ae,
+  is_firefox as af,
+  active_effect as ag,
+  TEMPLATE_FRAGMENT as ah,
+  TEMPLATE_USE_IMPORT_NODE as ai,
+  EFFECT_RAN as aj,
+  TEXT_NODE as ak,
+  merge_text_nodes as al,
+  effect_tracking as am,
+  increment as an,
+  Batch as ao,
+  defer_effect as ap,
+  set_active_effect as aq,
+  set_active_reaction as ar,
+  set_component_context as as,
+  handle_error as at,
+  active_reaction as au,
+  set_signal_status as av,
+  DIRTY as aw,
+  schedule_effect as ax,
+  MAYBE_DIRTY as ay,
+  invoke_error_boundary as az,
   state as b,
   child as c,
   block as d,

@@ -1,4 +1,4 @@
-import { m as current_batch, n as resume_effect, o as destroy_effect, p as pause_effect, q as create_text, v as branch, h as hydrating, w as hydrate_node, x as move_effect, y as should_defer_append } from "./m3BSnZPG.js";
+import { m as current_batch, n as resume_effect, o as destroy_effect, p as pause_effect, q as create_text, v as branch, h as hydrating, w as hydrate_node, x as move_effect, y as should_defer_append } from "./CGUuT_w7.js";
 class BranchManager {
   /** @type {TemplateNode} */
   anchor;

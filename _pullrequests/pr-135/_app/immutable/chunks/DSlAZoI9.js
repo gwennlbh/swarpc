@@ -1,4 +1,4 @@
-import { N as NAMESPACE_HTML, F as get_prototype_of, h as hydrating, G as get_descriptors, I as queue_micro_task, J as add_form_reset_listener, L as LOADING_ATTR_SYMBOL } from "./m3BSnZPG.js";
+import { N as NAMESPACE_HTML, F as get_prototype_of, h as hydrating, G as get_descriptors, I as queue_micro_task, J as add_form_reset_listener, L as LOADING_ATTR_SYMBOL } from "./CGUuT_w7.js";
 const IS_CUSTOM_ELEMENT = /* @__PURE__ */ Symbol("is custom element");
 const IS_HTML = /* @__PURE__ */ Symbol("is html");
 function remove_input_defaults(input) {

@@ -1,8 +1,8 @@
-import { f as from_html, a as append } from "../chunks/Czo-4I9t.js";
-import { q as create_text, d as block, k as set_hydrate_node, h as hydrating, _ as get_first_child, e as hydrate_next, g as get, $ as derived_safe_equal, i as read_hydration_instruction, H as HYDRATION_START_ELSE, j as skip_nodes, l as set_hydrating, w as hydrate_node, a0 as COMMENT_NODE, a1 as HYDRATION_END, a2 as internal_set, m as current_batch, a3 as EFFECT_OFFSCREEN, v as branch, y as should_defer_append, a4 as source, a5 as mutable_source, a6 as array_from, a7 as is_array, a8 as EACH_ITEM_REACTIVE, a9 as EACH_ITEM_IMMUTABLE, aa as EACH_INDEX_REACTIVE, n as resume_effect, p as pause_effect, ab as INERT, ac as get_next_sibling, ad as clear_text_content, o as destroy_effect, X as proxy, f as first_child, s as sibling, u as user_derived, b as state, a as set, r as reset, c as child, t as template_effect } from "../chunks/m3BSnZPG.js";
-import { d as delegate, s as set_text } from "../chunks/BHoKc4S7.js";
-import { r as remove_input_defaults } from "../chunks/Cqo5xVpJ.js";
-import { b as bind_value } from "../chunks/mW31SoLX.js";
+import { f as from_html, a as append } from "../chunks/B5U2deAT.js";
+import { q as create_text, d as block, k as set_hydrate_node, h as hydrating, _ as get_first_child, e as hydrate_next, g as get, $ as derived_safe_equal, i as read_hydration_instruction, H as HYDRATION_START_ELSE, j as skip_nodes, l as set_hydrating, w as hydrate_node, a0 as COMMENT_NODE, a1 as HYDRATION_END, a2 as internal_set, m as current_batch, a3 as EFFECT_OFFSCREEN, v as branch, y as should_defer_append, a4 as source, a5 as mutable_source, a6 as array_from, a7 as is_array, a8 as EACH_ITEM_REACTIVE, a9 as EACH_ITEM_IMMUTABLE, aa as EACH_INDEX_REACTIVE, n as resume_effect, p as pause_effect, ab as INERT, ac as get_next_sibling, ad as BRANCH_EFFECT, ae as clear_text_content, o as destroy_effect, X as proxy, f as first_child, s as sibling, u as user_derived, b as state, a as set, r as reset, c as child, t as template_effect } from "../chunks/CGUuT_w7.js";
+import { d as delegate, s as set_text } from "../chunks/C4bS4PAl.js";
+import { r as remove_input_defaults } from "../chunks/DSlAZoI9.js";
+import { b as bind_value } from "../chunks/CBVK_k8T.js";
 function index(_, i) {
   return i;
 }
@@ -196,10 +196,16 @@ function each(node, flags, get_collection, get_key, render_fn, fallback_fn = nul
     anchor = hydrate_node;
   }
 }
+function skip_to_branch(effect) {
+  while (effect !== null && (effect.f & BRANCH_EFFECT) === 0) {
+    effect = effect.next;
+  }
+  return effect;
+}
 function reconcile(state2, array, anchor, flags, get_key) {
   var length = array.length;
   var items = state2.items;
-  var current = state2.effect.first;
+  var current = skip_to_branch(state2.effect.first);
   var seen;
   var prev = null;
   var matched = [];
@@ -236,7 +242,7 @@ function reconcile(state2, array, anchor, flags, get_key) {
         prev = effect;
         matched = [];
         stashed = [];
-        current = prev.next;
+        current = skip_to_branch(prev.next);
         continue;
       }
     }
@@ -280,7 +286,7 @@ function reconcile(state2, array, anchor, flags, get_key) {
       while (current !== null && current !== effect) {
         (seen ??= /* @__PURE__ */ new Set()).add(current);
         stashed.push(current);
-        current = current.next;
+        current = skip_to_branch(current.next);
       }
       if (current === null) {
         continue;
@@ -290,7 +296,7 @@ function reconcile(state2, array, anchor, flags, get_key) {
       matched.push(effect);
     }
     prev = effect;
-    current = effect.next;
+    current = skip_to_branch(effect.next);
   }
   if (state2.outrogroups !== null) {
     for (const group of state2.outrogroups) {
@@ -316,7 +322,7 @@ function reconcile(state2, array, anchor, flags, get_key) {
       if ((current.f & INERT) === 0 && current !== state2.fallback) {
         to_destroy.push(current);
       }
-      current = current.next;
+      current = skip_to_branch(current.next);
     }
     var destroy_length = to_destroy.length;
     if (destroy_length > 0) {

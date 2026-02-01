@@ -1,4 +1,4 @@
-import { q as create_text, _ as get_first_child, ae as is_firefox, af as active_effect, ag as TEMPLATE_FRAGMENT, ah as TEMPLATE_USE_IMPORT_NODE, h as hydrating, w as hydrate_node, ai as EFFECT_RAN, e as hydrate_next, aj as TEXT_NODE, k as set_hydrate_node } from "./m3BSnZPG.js";
+import { q as create_text, _ as get_first_child, af as is_firefox, ag as active_effect, ah as TEMPLATE_FRAGMENT, ai as TEMPLATE_USE_IMPORT_NODE, h as hydrating, w as hydrate_node, aj as EFFECT_RAN, e as hydrate_next, ak as TEXT_NODE, k as set_hydrate_node, al as merge_text_nodes } from "./CGUuT_w7.js";
 function create_fragment_from_html(html) {
   var elem = document.createElement("template");
   elem.innerHTML = html.replaceAll("<!>", "<!---->");
@@ -59,6 +59,11 @@ function text(value = "") {
   if (node.nodeType !== TEXT_NODE) {
     node.before(node = create_text());
     set_hydrate_node(node);
+  } else {
+    merge_text_nodes(
+      /** @type {Text} */
+      node
+    );
   }
   assign_nodes(node, node);
   return node;

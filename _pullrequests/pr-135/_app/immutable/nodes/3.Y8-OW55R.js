@@ -1,8 +1,8 @@
-import { f as from_html, a as append } from "../chunks/Czo-4I9t.js";
-import { i as init } from "../chunks/BM3kAtWV.js";
-import { P as push, t as template_effect, Q as pop, s as sibling, c as child, r as reset } from "../chunks/m3BSnZPG.js";
-import { s as set_attribute } from "../chunks/Cqo5xVpJ.js";
-import { b as base, r as resolve_route } from "../chunks/CUNxDqLI.js";
+import { f as from_html, a as append } from "../chunks/B5U2deAT.js";
+import { i as init } from "../chunks/58kuJTsf.js";
+import { P as push, t as template_effect, Q as pop, s as sibling, c as child, r as reset } from "../chunks/CGUuT_w7.js";
+import { s as set_attribute } from "../chunks/DSlAZoI9.js";
+import { b as base, r as resolve_route } from "../chunks/DKO-yrk6.js";
 const pathname_prefix = "";
 function resolve(...args) {
   return base + pathname_prefix + resolve_route(
