@@ -12,7 +12,7 @@
     - text: "*"
     - spinbutton [ref=e10]: "4"
     - text: =
-    - button "loading... 100%, 100%, 100%, 100%, 100%, 100%, 100%, 100%" [active] [ref=e11]
+    - button "12" [active] [ref=e11]
   - generic [ref=e12]:
     - 'heading "Test 2: .onceBy(key) - cancels previous call with same key" [level=3] [ref=e13]'
     - spinbutton [ref=e14]: "3"
