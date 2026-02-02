@@ -1,5 +1,6 @@
 import { defineConfig, devices, PlaywrightTestConfig } from "@playwright/test";
 import { minutesToMilliseconds } from "date-fns";
+import { PleyeParams } from "./tests/reporters/pleye";
 
 type Project = NonNullable<PlaywrightTestConfig["projects"]>[number];
 
@@ -29,6 +30,30 @@ const webkit: Project = {
   },
 };
 
+const prNumber = process.env.PR_NUMBER
+  ? parseInt(process.env.PR_NUMBER)
+  : undefined;
+
+const pleye: PleyeParams = {
+  apiKey: process.env.PLEYE_API_KEY || "",
+  commitSha: process.env.COMMIT_SHA || "",
+  githubJobId: Number(process.env.JOB_ID),
+  serverOrigin: "https://pleye.gwen.works",
+  debug: process.env.PLEYE_DEBUG === "debug",
+  pullRequestNumber: prNumber,
+  traceViewerUrl(sha1, extension) {
+    if (!prNumber) return null;
+
+    const base = `https://swarpc.js.org/_playwright/pr-${prNumber}`;
+
+    const query = new URLSearchParams({
+      trace: `${base}/data/${sha1 + extension}`,
+    });
+
+    return new URL(`${base}/trace/index.html?${query}`);
+  },
+};
+
 /**
  * @see https://playwright.dev/docs/test-configuration
  */
@@ -52,6 +77,7 @@ export default defineConfig({
         [process.env.SHARDING ? "blob" : "html"],
         ["github"],
         ["list"],
+        ["./tests/reporters/pleye.js", pleye],
       ]
     : [],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */

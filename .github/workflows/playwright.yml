@@ -49,7 +49,7 @@ jobs:
     name: Test (shard ${{ matrix.shard-index }} of ${{ matrix.shard-count }})
     needs: prepare
     container:
-      image: mcr.microsoft.com/playwright:v1.58.1-noble
+      image: ghcr.io/gwennlbh/playwright-bun:v1.58.1
       options: --user 1001
     strategy:
       fail-fast: false
@@ -58,6 +58,8 @@ jobs:
         shard-count: [8]
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 3
       - uses: actions/setup-node@v6
         with:
           node-version-file: package.json
@@ -73,6 +75,13 @@ jobs:
         run: npx playwright test --shard=${{ matrix.shard-index}}/${{ matrix.shard-count }}
         env:
           SHARDING: "1"
+          PLEYE_API_KEY: ${{ secrets.PLEYE_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          PLEYE_DEBUG: no
+          COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          JOB_ID: ${{ job.check_run_id }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+
       - uses: actions/upload-artifact@v6
         if: ${{ !cancelled() }}
         with:
