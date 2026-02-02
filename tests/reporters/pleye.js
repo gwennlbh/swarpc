@@ -525,9 +525,9 @@ export default class Pleye {
   #run(command, ...args) {
     this.#debug(`Running command`, command, ...args)
     const [, stdout, stderr] = spawnSync(command, args).output
-    this.#debug(`Command stdout:`, stdout.toString("utf-8"))
-    this.#debug(`Command stderr:`, stderr.toString("utf-8"))
-    return stdout.toString("utf-8").trim()
+    this.#debug(`Command stdout:`, stdout?.toString("utf-8"))
+    this.#debug(`Command stderr:`, stderr?.toString("utf-8"))
+    return stdout?.toString("utf-8").trim() ?? ""
   }
 
   #debug(...args) {
