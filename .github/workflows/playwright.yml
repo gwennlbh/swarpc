@@ -49,7 +49,7 @@ jobs:
     name: Test (shard ${{ matrix.shard-index }} of ${{ matrix.shard-count }})
     needs: prepare
     container:
-      image: mcr.microsoft.com/playwright:v1.58.1-noble
+      image: ghcr.io/gwennlbh/playwright-bun:v1.58.1
       options: --user 1001
     strategy:
       fail-fast: false
