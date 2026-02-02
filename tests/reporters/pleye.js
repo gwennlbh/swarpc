@@ -5,10 +5,10 @@
 // This script is served by Pleye, on /reporter.js of your instance.
 // Pleye version branch list status icons
 
-import { createHash } from "node:crypto";
-import * as path from "node:path";
-import { readFileSync } from "node:fs";
-import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto"
+import * as path from "node:path"
+import { readFileSync } from "node:fs"
+import { spawnSync } from "node:child_process"
 
 /**
  * @import { Inputs } from '../routes/update/[repository=integer]/inputs';
@@ -46,29 +46,29 @@ import { spawnSync } from "node:child_process";
  */
 export default class Pleye {
   /** @type {string} */
-  #apiKey;
+  #apiKey
   /** @type {string} */
-  #serverOrigin;
+  #serverOrigin
   /** @type {number} */
-  #repositoryGitHubId;
+  #repositoryGitHubId
   /** @type {RunData} */
-  #runData;
+  #runData
   /** @type {boolean} */
-  #debugging;
+  #debugging
   /** @type {string} */
-  #baseDirectory;
+  #baseDirectory
   /** @type {PleyeParams['traceViewerUrl']} */
-  #traceViewerUrl;
+  #traceViewerUrl
 
   /** @type {number} */
-  #expectedTestsCount = 0;
+  #expectedTestsCount = 0
 
   /**
    * Stores the current step index for each test.
    * Test are keyed by a JSON stringified version of their TestIdentifierParams.
    * @type {Map<string, number>}
    */
-  #stepIndices = new Map();
+  #stepIndices = new Map()
 
   /**
    *
@@ -84,21 +84,23 @@ export default class Pleye {
       commitSha,
       githubJobId,
       pullRequestNumber,
-    } = params;
+    } = params
 
-    this.#apiKey = apiKey;
-    this.#serverOrigin = serverOrigin;
-    this.#repositoryGitHubId = Number(process.env.GITHUB_REPOSITORY_ID);
-    this.#debugging = debug ?? false;
+    this.#apiKey = apiKey
+    this.#serverOrigin = serverOrigin
+    this.#repositoryGitHubId = Number(process.env.GITHUB_REPOSITORY_ID)
+    this.#debugging = debug ?? false
     this.#baseDirectory =
-      baseDirectory ?? process.env.GITHUB_WORKSPACE ?? process.cwd();
-    this.#traceViewerUrl = traceViewerUrl ?? (() => null);
+      baseDirectory ?? process.env.GITHUB_WORKSPACE ?? process.cwd()
+    this.#traceViewerUrl = traceViewerUrl ?? (() => null)
 
-    const repository = process.env.GITHUB_REPOSITORY;
+    const repository = process.env.GITHUB_REPOSITORY
 
     if (!repository) {
-      throw new Error("GITHUB_REPOSITORY environment variable is not set");
+      throw new Error("GITHUB_REPOSITORY environment variable is not set")
     }
+
+    this.#debug(`Getting commit data for ${commitSha}`)
 
     const [
       commitTitle,
@@ -113,9 +115,23 @@ export default class Pleye {
       commitSha,
     ])
       .stdout.toString("utf-8")
-      .split("\n");
+      .split("\n")
 
-    const githubRunId = Number(process.env.GITHUB_RUN_ID);
+    this.#debug(`Got commit details`, {
+      commitTitle,
+      commitDate,
+      authorName,
+      authorEmail,
+      commitDescription,
+    })
+
+    const githubRunId = Number(process.env.GITHUB_RUN_ID)
+
+    this.#debug(
+      `Run ID is ${githubRunId}: https://github.com/${repository}/actions/runs/${githubRunId}`,
+    )
+
+    this.#debug(`Getting job name for job ID ${githubJobId}`)
 
     const jobName = spawnSync("gh", [
       "run",
@@ -127,7 +143,11 @@ export default class Pleye {
       `.jobs[] | select(.databaseId == ${githubJobId}).name`,
     ])
       .stdout.toString("utf-8")
-      .trim();
+      .trim()
+
+    this.#debug(`Job name is "${jobName}"`)
+
+    this.#debug(`Getting commit author username for commit ${commitSha}`)
 
     const commitUsername = spawnSync("gh", [
       "api",
@@ -136,7 +156,11 @@ export default class Pleye {
       ".author.login",
     ])
       .stdout.toString("utf-8")
-      .trim();
+      .trim()
+
+    this.#debug(`Commit author username is "${commitUsername}"`)
+
+    this.#debug("Maybe getting pull request title for PR", pullRequestNumber)
 
     const pullRequestTitle = pullRequestNumber
       ? spawnSync("gh", [
@@ -150,13 +174,16 @@ export default class Pleye {
         ])
           .stdout.toString("utf-8")
           .trim()
-      : "";
+      : ""
 
-    const branch = process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME;
+    if (pullRequestTitle)
+      this.#debug(`Pull request title is "${pullRequestTitle}"`)
+
+    const branch = process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME
     if (!branch) {
       throw new Error(
         "Could not determine branch name from GITHUB_HEAD_REF or GITHUB_REF_NAME",
-      );
+      )
     }
 
     this.#runData = {
@@ -175,7 +202,9 @@ export default class Pleye {
       branch,
       pullRequestNumber,
       pullRequestTitle,
-    };
+    }
+
+    this.#debug("Will start run with data", this.#runData)
   }
 
   /**
@@ -184,7 +213,7 @@ export default class Pleye {
    * @param {PW.Suite} suite
    */
   onBegin(config, suite) {
-    this.#expectedTestsCount = suite.allTests().length;
+    this.#expectedTestsCount = suite.allTests().length
 
     void this.#sendPayload("begin", {
       run: {
@@ -198,7 +227,7 @@ export default class Pleye {
         ignore: toArray(project.testIgnore).map(String),
         timeoutMs: project.timeout,
       })),
-    });
+    })
   }
 
   /**
@@ -210,7 +239,7 @@ export default class Pleye {
       completedAt: new Date(),
       result: result.status,
       githubJobId: this.#runData.githubJobId,
-    });
+    })
   }
 
   // TODO: onError, onExit
@@ -233,22 +262,22 @@ export default class Pleye {
    * @param {PW.TestStep} step
    */
   onStepEnd(test, result, step) {
-    const stepIdentifier = this.#stepIdentifierParams(test, result);
-    if (!stepIdentifier) return;
+    const stepIdentifier = this.#stepIdentifierParams(test, result)
+    if (!stepIdentifier) return
 
     if (step.steps.length > 0) {
       // We only care about "true" steps
-      return;
+      return
     }
 
-    const testKey = this.#stepIndicesKey(test);
-    const index = (this.#stepIndices.get(testKey) ?? -1) + 1;
-    this.#stepIndices.set(testKey, index);
+    const testKey = this.#stepIndicesKey(test)
+    const index = (this.#stepIndices.get(testKey) ?? -1) + 1
+    this.#stepIndices.set(testKey, index)
 
     if (step.duration < 1_000) {
       // Ignore steps that are less than 1 second long
       // Index is still incremented above, so that the UI knows that a step happened here
-      return;
+      return
     }
 
     void (async () => {
@@ -273,18 +302,18 @@ export default class Pleye {
           // TODO: step.parent
           // parentStepId: step.parent
         },
-      });
+      })
 
       // Small delay to ensure step-begin is processed before step-end
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100))
 
       await this.#sendPayload("step-end", {
         githubJobId: this.#runData.githubJobId,
         step: stepIdentifier,
         duration: toISOInterval(step.duration),
         error: step.error ? this.#toError(step.error) : undefined,
-      });
-    })();
+      })
+    })()
   }
 
   /**
@@ -293,16 +322,16 @@ export default class Pleye {
    * @param {PW.TestResult} result
    */
   onTestBegin(test, result) {
-    const { title, path } = splitTitlePath(test.titlePath());
+    const { title, path } = splitTitlePath(test.titlePath())
 
-    const project = test.parent?.project();
+    const project = test.parent?.project()
     if (!project) {
-      return;
+      return
     }
 
-    this.#stepIndices.set(this.#stepIndicesKey(test), -1);
+    this.#stepIndices.set(this.#stepIndicesKey(test), -1)
     if (this.#debugging)
-      console.info("[Pleye] onTestBegin, stepIndices are", this.#stepIndices);
+      console.info("[Pleye] onTestBegin, stepIndices are", this.#stepIndices)
 
     void this.#sendPayload("test-begin", {
       githubJobId: this.#runData.githubJobId,
@@ -323,7 +352,7 @@ export default class Pleye {
         retries: result.retry,
         startedAt: result.startTime,
       },
-    });
+    })
   }
 
   /**
@@ -333,12 +362,12 @@ export default class Pleye {
    */
   onTestEnd(test, result) {
     if (this.#debugging)
-      console.info("[Pleye] onTestEnd, attachments are", result.attachments);
+      console.info("[Pleye] onTestEnd, attachments are", result.attachments)
     if (this.#debugging)
       console.info(
         "[Pleye] onTestEnd, the following trace viewer URLs were derived:",
         result.attachments.map((a) => this.#attachmentTraceViewerURL(a)),
-      );
+      )
 
     void this.#sendPayload("test-end", {
       githubJobId: this.#runData.githubJobId,
@@ -359,7 +388,7 @@ export default class Pleye {
             .map((attachment) => this.#attachmentTraceViewerURL(attachment))
             .find((url) => url !== null) ?? null,
       },
-    });
+    })
   }
 
   /**
@@ -380,16 +409,16 @@ export default class Pleye {
         body: JSON.stringify(payload),
       },
     ).then(async (res) => {
-      if (!this.#debugging) return;
-      if (res.ok) return;
+      if (!this.#debugging) return
+      if (res.ok) return
       console.error(
         `Failed to send ${event.toString()} payload:`,
         res.status,
         res.statusText,
         await res.text(),
-      );
-      console.error("Payload was:", payload);
-    });
+      )
+      console.error("Payload was:", payload)
+    })
   }
 
   /**
@@ -399,18 +428,18 @@ export default class Pleye {
    * @returns {import('../routes/update/[repository=integer]/common').StepIdentifierParams | undefined}
    */
   #stepIdentifierParams(test, { retry }) {
-    const index = this.#stepIndices.get(this.#stepIndicesKey(test));
+    const index = this.#stepIndices.get(this.#stepIndicesKey(test))
 
     if (index === undefined) {
       console.error(
         "Step index not found for test:",
         test.titlePath().join(" > "),
-      );
-      console.error("Step indices map is", this.#stepIndices);
-      return undefined;
+      )
+      console.error("Step indices map is", this.#stepIndices)
+      return undefined
     }
 
-    return { index, retry, test: this.#testIdentifierParams(test) };
+    return { index, retry, test: this.#testIdentifierParams(test) }
   }
 
   /**
@@ -418,7 +447,7 @@ export default class Pleye {
    * @param {PW.TestCase} test
    */
   #stepIndicesKey(test) {
-    return JSON.stringify(this.#testIdentifierParams(test));
+    return JSON.stringify(this.#testIdentifierParams(test))
   }
 
   /**
@@ -430,7 +459,7 @@ export default class Pleye {
     return {
       filePath: this.#relativeFilepath(test.location.file),
       ...splitTitlePath(test.titlePath()),
-    };
+    }
   }
 
   /**
@@ -439,14 +468,14 @@ export default class Pleye {
    * @returns {NonNullable<Inputs['step-end']['error']>}
    */
   #toError(error) {
-    const { location, message, stack, snippet } = climbToCauseError(error);
+    const { location, message, stack, snippet } = climbToCauseError(error)
     return {
       message,
       stack,
       snippet,
       filePath: location?.file ? this.#relativeFilepath(location.file) : null,
       locationInFile: location ? [location.line, location.column] : null,
-    };
+    }
   }
 
   /**
@@ -455,10 +484,10 @@ export default class Pleye {
    */
   #relativeFilepath(absolutePath) {
     if (absolutePath.startsWith(this.#baseDirectory)) {
-      return absolutePath.slice(this.#baseDirectory.length).replace(/^\/+/, "");
+      return absolutePath.slice(this.#baseDirectory.length).replace(/^\/+/, "")
     }
 
-    return absolutePath;
+    return absolutePath
   }
 
   /**
@@ -467,7 +496,7 @@ export default class Pleye {
    * @returns {boolean}
    */
   #attachmentIsTrace(attachment) {
-    return attachment.name === "trace";
+    return attachment.name === "trace"
   }
 
   /**
@@ -475,21 +504,27 @@ export default class Pleye {
    * @param {PW.TestResult['attachments'][number]} attachment
    */
   #attachmentTraceViewerURL(attachment) {
-    if (!this.#attachmentIsTrace(attachment)) return null;
-    if (!attachment.path) return null;
+    if (!this.#attachmentIsTrace(attachment)) return null
+    if (!attachment.path) return null
 
-    let body = attachment.body;
+    let body = attachment.body
     if (!body) {
       // Read from disk
-      body = readFileSync(attachment.path);
+      body = readFileSync(attachment.path)
     }
 
-    const sha1 = calculateSha1(body);
-    const extension = path.extname(attachment.path);
+    const sha1 = calculateSha1(body)
+    const extension = path.extname(attachment.path)
 
-    if (!extension.startsWith(".")) return null;
+    if (!extension.startsWith(".")) return null
 
-    return this.#traceViewerUrl(sha1, /** @type {`.${string}`} */ (extension));
+    return this.#traceViewerUrl(sha1, /** @type {`.${string}`} */ (extension))
+  }
+
+  #debug(...args) {
+    if (this.#debugging) {
+      console.debug("[Pleye]", ...args)
+    }
   }
 }
 
@@ -499,7 +534,7 @@ export default class Pleye {
  * @returns {T[]}
  */
 function toArray(item) {
-  return Array.isArray(item) ? item : [item];
+  return Array.isArray(item) ? item : [item]
 }
 
 /**
@@ -510,19 +545,19 @@ function toArray(item) {
 function toStepCategory(category) {
   switch (category) {
     case "expect":
-      return "expect";
+      return "expect"
     case "fixture":
-      return "fixture";
+      return "fixture"
     case "hook":
-      return "hook";
+      return "hook"
     case "pw:api":
-      return "pw:api";
+      return "pw:api"
     case "test.step":
-      return "test.step";
+      return "test.step"
     case "test.attach":
-      return "test.attach";
+      return "test.attach"
     default:
-      return "custom";
+      return "custom"
   }
 }
 
@@ -532,13 +567,13 @@ function toStepCategory(category) {
  * @returns {string}
  */
 function toISOInterval(durationMs) {
-  const totalSeconds = Math.floor(durationMs / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  const milliseconds = durationMs % 1000;
+  const totalSeconds = Math.floor(durationMs / 1000)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  const milliseconds = durationMs % 1000
 
-  return `PT${hours}H${minutes}M${seconds}.${milliseconds.toString().padStart(3, "0")}S`;
+  return `PT${hours}H${minutes}M${seconds}.${milliseconds.toString().padStart(3, "0")}S`
 }
 
 /**
@@ -549,7 +584,7 @@ function toISOInterval(durationMs) {
 function bufferToText(writes) {
   return writes
     .map((chunk) => (Buffer.isBuffer(chunk) ? chunk.toString("utf-8") : chunk))
-    .join("");
+    .join("")
 }
 
 /**
@@ -559,21 +594,21 @@ function bufferToText(writes) {
  */
 function climbToCauseError(error) {
   if (error.cause) {
-    return climbToCauseError(error.cause);
+    return climbToCauseError(error.cause)
   }
 
-  return error;
+  return error
 }
 
 /**
  * @param {string[]} titlePath
  */
 function splitTitlePath(titlePath) {
-  const [_root, _project, _file, ...fullpath] = titlePath;
+  const [_root, _project, _file, ...fullpath] = titlePath
   return {
     title: fullpath.at(-1) ?? "",
     path: fullpath.slice(0, -1),
-  };
+  }
 }
 
 /**
@@ -583,7 +618,7 @@ function splitTitlePath(titlePath) {
  * @returns {string}
  */
 function calculateSha1(buffer) {
-  const hash = createHash("sha1");
-  hash.update(buffer);
-  return hash.digest("hex");
+  const hash = createHash("sha1")
+  hash.update(buffer)
+  return hash.digest("hex")
 }
