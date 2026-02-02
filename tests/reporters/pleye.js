@@ -133,7 +133,8 @@ export default class Pleye {
 
     this.#debug(`Getting job name for job ID ${githubJobId}`)
 
-    const jobName = spawnSync("gh", [
+    const jobName = this.#run(
+      "gh",
       "run",
       "view",
       githubRunId.toString(),
@@ -141,43 +142,40 @@ export default class Pleye {
       "jobs",
       "--jq",
       `.jobs[] | select(.databaseId == ${githubJobId}).name`,
-    ])
-      .stdout.toString("utf-8")
-      .trim()
+    )
 
     this.#debug(`Job name is "${jobName}"`)
 
     this.#debug(`Getting commit author username for commit ${commitSha}`)
 
-    const commitUsername = spawnSync("gh", [
+    const commitUsername = this.#run(
+      "gh",
       "api",
       `/repos/${repository}/commits/${commitSha}`,
       "--jq",
       ".author.login",
-    ])
-      .stdout.toString("utf-8")
-      .trim()
+    )
 
     this.#debug(`Commit author username is "${commitUsername}"`)
 
-    this.#debug("Maybe getting pull request title for PR", pullRequestNumber)
+    let pullRequestTitle = ""
 
-    const pullRequestTitle = pullRequestNumber
-      ? spawnSync("gh", [
-          "pr",
-          "view",
-          pullRequestNumber.toString(),
-          "--json",
-          "title",
-          "--jq",
-          ".title",
-        ])
-          .stdout.toString("utf-8")
-          .trim()
-      : ""
+    if (pullRequestNumber) {
+      this.#debug("Maybe getting pull request title for PR", pullRequestNumber)
 
-    if (pullRequestTitle)
+      pullRequestTitle = this.#run(
+        "gh",
+        "pr",
+        "view",
+        pullRequestNumber.toString(),
+        "--json",
+        "title",
+        "--jq",
+        ".title",
+      )
+
       this.#debug(`Pull request title is "${pullRequestTitle}"`)
+    }
 
     const branch = process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME
     if (!branch) {
@@ -519,6 +517,15 @@ export default class Pleye {
     if (!extension.startsWith(".")) return null
 
     return this.#traceViewerUrl(sha1, /** @type {`.${string}`} */ (extension))
+  }
+
+  /**
+   * @param {string} command
+   * @param  {...any} args
+   */
+  #run(command, ...args) {
+    this.#debug(`Running command`, command, ...args)
+    return spawnSync(command, args).stdout.toString("utf-8").trim()
   }
 
   #debug(...args) {
