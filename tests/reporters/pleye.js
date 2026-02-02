@@ -114,7 +114,7 @@ export default class Pleye {
       "-1",
       "--pretty=" + ["%s", "%cI", "%an", "%ae", "%b"].join("%n"),
       commitSha,
-    )
+    ).split("\n")
 
     this.#debug(`Got commit details`, {
       commitTitle,
@@ -524,7 +524,9 @@ export default class Pleye {
    */
   #run(command, ...args) {
     this.#debug(`Running command`, command, ...args)
-    const [, stdout, stderr] = spawnSync(command, args).output
+    const cmd = spawnSync(command, args)
+    this.#debug({ cmd })
+    const [, stdout, stderr] = cmd.output
     this.#debug(`Command stdout:`, stdout?.toString("utf-8"))
     this.#debug(`Command stderr:`, stderr?.toString("utf-8"))
     return stdout?.toString("utf-8").trim() ?? ""
