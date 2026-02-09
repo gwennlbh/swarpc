@@ -68,6 +68,11 @@ function async_derived_orphan() {
     throw new Error(`https://svelte.dev/e/async_derived_orphan`);
   }
 }
+function each_key_duplicate(a, b, value) {
+  {
+    throw new Error(`https://svelte.dev/e/each_key_duplicate`);
+  }
+}
 function effect_in_teardown(rune) {
   {
     throw new Error(`https://svelte.dev/e/effect_in_teardown`);
@@ -403,15 +408,45 @@ class Batch {
    */
   #maybe_dirty_effects = /* @__PURE__ */ new Set();
   /**
-   * A set of branches that still exist, but will be destroyed when this batch
-   * is committed — we skip over these during `process`
-   * @type {Set<Effect>}
+   * A map of branches that still exist, but will be destroyed when this batch
+   * is committed — we skip over these during `process`.
+   * The value contains child effects that were dirty/maybe_dirty before being reset,
+   * so they can be rescheduled if the branch survives.
+   * @type {Map<Effect, { d: Effect[], m: Effect[] }>}
    */
-  skipped_effects = /* @__PURE__ */ new Set();
+  #skipped_branches = /* @__PURE__ */ new Map();
   is_fork = false;
   #decrement_queued = false;
   is_deferred() {
     return this.is_fork || this.#blocking_pending > 0;
+  }
+  /**
+   * Add an effect to the #skipped_branches map and reset its children
+   * @param {Effect} effect
+   */
+  skip_effect(effect2) {
+    if (!this.#skipped_branches.has(effect2)) {
+      this.#skipped_branches.set(effect2, { d: [], m: [] });
+    }
+  }
+  /**
+   * Remove an effect from the #skipped_branches map and reschedule
+   * any tracked dirty/maybe_dirty child effects
+   * @param {Effect} effect
+   */
+  unskip_effect(effect2) {
+    var tracked = this.#skipped_branches.get(effect2);
+    if (tracked) {
+      this.#skipped_branches.delete(effect2);
+      for (var e of tracked.d) {
+        set_signal_status(e, DIRTY);
+        schedule_effect(e);
+      }
+      for (e of tracked.m) {
+        set_signal_status(e, MAYBE_DIRTY);
+        schedule_effect(e);
+      }
+    }
   }
   /**
    *
@@ -428,8 +463,8 @@ class Batch {
     if (this.is_deferred()) {
       this.#defer_effects(render_effects);
       this.#defer_effects(effects);
-      for (const e of this.skipped_effects) {
-        reset_branch(e);
+      for (const [e, t] of this.#skipped_branches) {
+        reset_branch(e, t);
       }
     } else {
       for (const fn of this.#commit_callbacks) fn();
@@ -461,7 +496,7 @@ class Batch {
       var flags = effect2.f;
       var is_branch = (flags & (BRANCH_EFFECT | ROOT_EFFECT)) !== 0;
       var is_skippable_branch = is_branch && (flags & CLEAN) !== 0;
-      var skip = is_skippable_branch || (flags & INERT) !== 0 || this.skipped_effects.has(effect2);
+      var skip = is_skippable_branch || (flags & INERT) !== 0 || this.#skipped_branches.has(effect2);
       if (!skip && effect2.fn !== null) {
         if (is_branch) {
           effect2.f ^= CLEAN;
@@ -697,6 +732,7 @@ function flush_effects() {
       if (DEV) ;
     }
   } finally {
+    queued_root_effects = [];
     is_flushing = false;
     last_scheduled_effect = null;
   }
@@ -815,14 +851,19 @@ function schedule_effect(signal) {
   }
   queued_root_effects.push(effect2);
 }
-function reset_branch(effect2) {
+function reset_branch(effect2, tracked) {
   if ((effect2.f & BRANCH_EFFECT) !== 0 && (effect2.f & CLEAN) !== 0) {
     return;
+  }
+  if ((effect2.f & DIRTY) !== 0) {
+    tracked.d.push(effect2);
+  } else if ((effect2.f & MAYBE_DIRTY) !== 0) {
+    tracked.m.push(effect2);
   }
   set_signal_status(effect2, CLEAN);
   var e = effect2.first;
   while (e !== null) {
-    reset_branch(e);
+    reset_branch(e, tracked);
     e = e.next;
   }
 }
@@ -2358,64 +2399,65 @@ export {
   HYDRATION_END as a1,
   internal_set as a2,
   EFFECT_OFFSCREEN as a3,
-  source as a4,
-  mutable_source as a5,
-  array_from as a6,
-  is_array as a7,
-  EACH_ITEM_REACTIVE as a8,
-  EACH_ITEM_IMMUTABLE as a9,
-  svelte_boundary_reset_onerror as aA,
-  EFFECT_PRESERVED as aB,
-  BOUNDARY_EFFECT as aC,
-  svelte_boundary_reset_noop as aD,
-  define_property as aE,
-  init_operations as aF,
-  HYDRATION_START as aG,
-  HYDRATION_ERROR as aH,
-  hydration_failed as aI,
-  component_root as aJ,
-  hydration_mismatch as aK,
-  effect as aL,
-  STATE_SYMBOL as aM,
-  get_descriptor as aN,
-  props_invalid_value as aO,
-  PROPS_IS_UPDATED as aP,
-  is_destroying_effect as aQ,
-  DESTROYED as aR,
-  PROPS_IS_BINDABLE as aS,
-  PROPS_IS_RUNES as aT,
-  PROPS_IS_IMMUTABLE as aU,
-  PROPS_IS_LAZY_INITIAL as aV,
-  LEGACY_PROPS as aW,
-  flushSync as aX,
-  safe_not_equal as aY,
-  settled as aZ,
-  EACH_INDEX_REACTIVE as aa,
-  INERT as ab,
-  get_next_sibling as ac,
-  BRANCH_EFFECT as ad,
-  clear_text_content as ae,
-  is_firefox as af,
-  active_effect as ag,
-  TEMPLATE_FRAGMENT as ah,
-  TEMPLATE_USE_IMPORT_NODE as ai,
-  EFFECT_RAN as aj,
-  TEXT_NODE as ak,
-  merge_text_nodes as al,
-  effect_tracking as am,
-  increment as an,
-  Batch as ao,
-  defer_effect as ap,
-  set_active_effect as aq,
-  set_active_reaction as ar,
-  set_component_context as as,
-  handle_error as at,
-  active_reaction as au,
-  set_signal_status as av,
-  DIRTY as aw,
-  schedule_effect as ax,
-  MAYBE_DIRTY as ay,
-  invoke_error_boundary as az,
+  each_key_duplicate as a4,
+  source as a5,
+  mutable_source as a6,
+  array_from as a7,
+  is_array as a8,
+  EACH_ITEM_REACTIVE as a9,
+  invoke_error_boundary as aA,
+  svelte_boundary_reset_onerror as aB,
+  EFFECT_PRESERVED as aC,
+  BOUNDARY_EFFECT as aD,
+  svelte_boundary_reset_noop as aE,
+  define_property as aF,
+  init_operations as aG,
+  HYDRATION_START as aH,
+  HYDRATION_ERROR as aI,
+  hydration_failed as aJ,
+  component_root as aK,
+  hydration_mismatch as aL,
+  effect as aM,
+  STATE_SYMBOL as aN,
+  get_descriptor as aO,
+  props_invalid_value as aP,
+  PROPS_IS_UPDATED as aQ,
+  is_destroying_effect as aR,
+  DESTROYED as aS,
+  PROPS_IS_BINDABLE as aT,
+  PROPS_IS_RUNES as aU,
+  PROPS_IS_IMMUTABLE as aV,
+  PROPS_IS_LAZY_INITIAL as aW,
+  LEGACY_PROPS as aX,
+  flushSync as aY,
+  safe_not_equal as aZ,
+  settled as a_,
+  EACH_ITEM_IMMUTABLE as aa,
+  EACH_INDEX_REACTIVE as ab,
+  INERT as ac,
+  get_next_sibling as ad,
+  BRANCH_EFFECT as ae,
+  clear_text_content as af,
+  is_firefox as ag,
+  active_effect as ah,
+  TEMPLATE_FRAGMENT as ai,
+  TEMPLATE_USE_IMPORT_NODE as aj,
+  EFFECT_RAN as ak,
+  TEXT_NODE as al,
+  merge_text_nodes as am,
+  effect_tracking as an,
+  increment as ao,
+  Batch as ap,
+  defer_effect as aq,
+  set_active_effect as ar,
+  set_active_reaction as as,
+  set_component_context as at,
+  handle_error as au,
+  active_reaction as av,
+  set_signal_status as aw,
+  DIRTY as ax,
+  schedule_effect as ay,
+  MAYBE_DIRTY as az,
   state as b,
   child as c,
   block as d,

@@ -1,5 +1,5 @@
-import { am as effect_tracking, g as get, a4 as source, C as render_effect, B as untrack, an as increment, I as queue_micro_task, w as hydrate_node, h as hydrating, ag as active_effect, d as block, e as hydrate_next, a0 as COMMENT_NODE, H as HYDRATION_START_ELSE, v as branch, ao as Batch, p as pause_effect, q as create_text, ap as defer_effect, aq as set_active_effect, ar as set_active_reaction, as as set_component_context, at as handle_error, au as active_reaction, M as component_context, x as move_effect, av as set_signal_status, aw as DIRTY, ax as schedule_effect, ay as MAYBE_DIRTY, a2 as internal_set, o as destroy_effect, k as set_hydrate_node, Z as next, j as skip_nodes, az as invoke_error_boundary, aA as svelte_boundary_reset_onerror, E as EFFECT_TRANSPARENT, aB as EFFECT_PRESERVED, aC as BOUNDARY_EFFECT, aD as svelte_boundary_reset_noop, aE as define_property, aF as init_operations, _ as get_first_child, aG as HYDRATION_START, ac as get_next_sibling, aH as HYDRATION_ERROR, l as set_hydrating, aI as hydration_failed, ae as clear_text_content, a6 as array_from, aJ as component_root, P as push, a1 as HYDRATION_END, aK as hydration_mismatch, Q as pop } from "./CGUuT_w7.js";
-import { b as assign_nodes } from "./B5U2deAT.js";
+import { an as effect_tracking, g as get, a5 as source, C as render_effect, B as untrack, ao as increment, I as queue_micro_task, w as hydrate_node, h as hydrating, ah as active_effect, d as block, e as hydrate_next, a0 as COMMENT_NODE, H as HYDRATION_START_ELSE, v as branch, ap as Batch, p as pause_effect, q as create_text, aq as defer_effect, ar as set_active_effect, as as set_active_reaction, at as set_component_context, au as handle_error, av as active_reaction, M as component_context, x as move_effect, aw as set_signal_status, ax as DIRTY, ay as schedule_effect, az as MAYBE_DIRTY, a2 as internal_set, o as destroy_effect, k as set_hydrate_node, Z as next, j as skip_nodes, aA as invoke_error_boundary, aB as svelte_boundary_reset_onerror, E as EFFECT_TRANSPARENT, aC as EFFECT_PRESERVED, aD as BOUNDARY_EFFECT, aE as svelte_boundary_reset_noop, aF as define_property, aG as init_operations, _ as get_first_child, aH as HYDRATION_START, ad as get_next_sibling, aI as HYDRATION_ERROR, l as set_hydrating, aJ as hydration_failed, af as clear_text_content, a7 as array_from, aK as component_root, P as push, a1 as HYDRATION_END, aL as hydration_mismatch, Q as pop } from "./CCSsUjsU.js";
+import { b as assign_nodes } from "./BcpvEWgN.js";
 function createSubscriber(start) {
   let subscribers = 0;
   let version = source(0);
@@ -561,14 +561,12 @@ function _mount(Component, { target, anchor, props = {}, events, context, intro 
         }
       },
       (anchor_node2) => {
-        if (context) {
-          push({});
-          var ctx = (
-            /** @type {ComponentContext} */
-            component_context
-          );
-          ctx.c = context;
-        }
+        push({});
+        var ctx = (
+          /** @type {ComponentContext} */
+          component_context
+        );
+        if (context) ctx.c = context;
         if (events) {
           props.$$events = events;
         }
@@ -588,9 +586,7 @@ function _mount(Component, { target, anchor, props = {}, events, context, intro 
             throw HYDRATION_ERROR;
           }
         }
-        if (context) {
-          pop();
-        }
+        pop();
       }
     );
     return () => {

@@ -1,4 +1,4 @@
-import { m as current_batch, n as resume_effect, o as destroy_effect, p as pause_effect, q as create_text, v as branch, h as hydrating, w as hydrate_node, x as move_effect, y as should_defer_append } from "./CGUuT_w7.js";
+import { m as current_batch, n as resume_effect, o as destroy_effect, p as pause_effect, q as create_text, v as branch, h as hydrating, w as hydrate_node, x as move_effect, y as should_defer_append } from "./CCSsUjsU.js";
 class BranchManager {
   /** @type {TemplateNode} */
   anchor;
@@ -145,16 +145,16 @@ class BranchManager {
     if (defer) {
       for (const [k, effect] of this.#onscreen) {
         if (k === key) {
-          batch.skipped_effects.delete(effect);
+          batch.unskip_effect(effect);
         } else {
-          batch.skipped_effects.add(effect);
+          batch.skip_effect(effect);
         }
       }
       for (const [k, branch2] of this.#offscreen) {
         if (k === key) {
-          batch.skipped_effects.delete(branch2.effect);
+          batch.unskip_effect(branch2.effect);
         } else {
-          batch.skipped_effects.add(branch2.effect);
+          batch.skip_effect(branch2.effect);
         }
       }
       batch.oncommit(this.#commit);

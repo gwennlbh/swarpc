@@ -81,8 +81,11 @@ function exec(match, params, matchers) {
       buffered = 0;
     }
     if (value === void 0) {
-      if (param.rest) result[param.name] = "";
-      continue;
+      if (param.rest) {
+        value = "";
+      } else {
+        continue;
+      }
     }
     if (!param.matcher || matchers[param.matcher](value)) {
       result[param.name] = value;
@@ -128,8 +131,8 @@ function resolve_route(id, params) {
     })
   ).filter(Boolean).join("/") + (has_id_trailing_slash ? "/" : "");
 }
-const base = globalThis.__sveltekit_1yos2wk?.base ?? "/cigale/_pullrequests/pr-142";
-const assets = globalThis.__sveltekit_1yos2wk?.assets ?? base ?? "";
+const base = globalThis.__sveltekit_naim62?.base ?? "/cigale/_pullrequests/pr-142";
+const assets = globalThis.__sveltekit_naim62?.assets ?? base ?? "";
 export {
   assets as a,
   base as b,

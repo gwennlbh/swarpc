@@ -1,8 +1,8 @@
-import { f as from_html, a as append } from "../chunks/B5U2deAT.js";
-import { q as create_text, d as block, k as set_hydrate_node, h as hydrating, _ as get_first_child, e as hydrate_next, g as get, $ as derived_safe_equal, i as read_hydration_instruction, H as HYDRATION_START_ELSE, j as skip_nodes, l as set_hydrating, w as hydrate_node, a0 as COMMENT_NODE, a1 as HYDRATION_END, a2 as internal_set, m as current_batch, a3 as EFFECT_OFFSCREEN, v as branch, y as should_defer_append, a4 as source, a5 as mutable_source, a6 as array_from, a7 as is_array, a8 as EACH_ITEM_REACTIVE, a9 as EACH_ITEM_IMMUTABLE, aa as EACH_INDEX_REACTIVE, n as resume_effect, p as pause_effect, ab as INERT, ac as get_next_sibling, ad as BRANCH_EFFECT, ae as clear_text_content, o as destroy_effect, X as proxy, f as first_child, s as sibling, u as user_derived, b as state, a as set, r as reset, c as child, t as template_effect } from "../chunks/CGUuT_w7.js";
-import { d as delegate, s as set_text } from "../chunks/C4bS4PAl.js";
-import { r as remove_input_defaults } from "../chunks/DSlAZoI9.js";
-import { b as bind_value } from "../chunks/CBVK_k8T.js";
+import { f as from_html, a as append } from "../chunks/BcpvEWgN.js";
+import { q as create_text, d as block, k as set_hydrate_node, h as hydrating, _ as get_first_child, e as hydrate_next, g as get, $ as derived_safe_equal, i as read_hydration_instruction, H as HYDRATION_START_ELSE, j as skip_nodes, l as set_hydrating, w as hydrate_node, a0 as COMMENT_NODE, a1 as HYDRATION_END, a2 as internal_set, m as current_batch, a3 as EFFECT_OFFSCREEN, v as branch, a4 as each_key_duplicate, y as should_defer_append, a5 as source, a6 as mutable_source, a7 as array_from, a8 as is_array, a9 as EACH_ITEM_REACTIVE, aa as EACH_ITEM_IMMUTABLE, ab as EACH_INDEX_REACTIVE, n as resume_effect, p as pause_effect, ac as INERT, ad as get_next_sibling, ae as BRANCH_EFFECT, af as clear_text_content, o as destroy_effect, X as proxy, f as first_child, s as sibling, u as user_derived, b as state, a as set, r as reset, c as child, t as template_effect } from "../chunks/CCSsUjsU.js";
+import { d as delegate, s as set_text } from "../chunks/DHxMMksq.js";
+import { r as remove_input_defaults } from "../chunks/Btt9ee8o.js";
+import { b as bind_value } from "../chunks/DqI_fMTn.js";
 function index(_, i) {
   return i;
 }
@@ -140,7 +140,7 @@ function each(node, flags, get_collection, get_key, render_fn, fallback_fn = nul
         if (item.v) internal_set(item.v, value);
         if (item.i) internal_set(item.i, index2);
         if (defer) {
-          batch.skipped_effects.delete(item.e);
+          batch.unskip_effect(item.e);
         }
       } else {
         item = create_item(
@@ -168,6 +168,11 @@ function each(node, flags, get_collection, get_key, render_fn, fallback_fn = nul
         fallback.f |= EFFECT_OFFSCREEN;
       }
     }
+    if (length > keys.size) {
+      {
+        each_key_duplicate();
+      }
+    }
     if (hydrating && length > 0) {
       set_hydrate_node(skip_nodes());
     }
@@ -175,7 +180,7 @@ function each(node, flags, get_collection, get_key, render_fn, fallback_fn = nul
       if (defer) {
         for (const [key2, item2] of items) {
           if (!keys.has(key2)) {
-            batch.skipped_effects.add(item2.e);
+            batch.skip_effect(item2.e);
           }
         }
         batch.oncommit(commit);
