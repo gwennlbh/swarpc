@@ -2,7 +2,7 @@ import { f as from_html, a as append } from "../chunks/BcpvEWgN.js";
 import { i as init } from "../chunks/kKSt4hZ0.js";
 import { P as push, f as first_child, t as template_effect, Q as pop, c as child, r as reset, s as sibling } from "../chunks/CCSsUjsU.js";
 import { s as set_text } from "../chunks/DHxMMksq.js";
-import { s as stores, p as page$2 } from "../chunks/j8x38cQW.js";
+import { s as stores, p as page$2 } from "../chunks/CEn-3EwI.js";
 const page$1 = {
   get error() {
     return page$2.error;
