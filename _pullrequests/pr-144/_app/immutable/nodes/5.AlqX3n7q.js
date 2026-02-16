@@ -1,9 +1,9 @@
-import { f as from_html, a as append, t as text, c as comment } from "../chunks/BcpvEWgN.js";
-import { P as push, X as proxy, Y as noop, g as get, Q as pop, b as state, s as sibling, c as child, u as user_derived, a as set, r as reset, Z as next, t as template_effect, f as first_child } from "../chunks/CCSsUjsU.js";
-import { d as delegate, s as set_text } from "../chunks/DHxMMksq.js";
-import { i as if_block } from "../chunks/DQhQVGX9.js";
-import { r as remove_input_defaults } from "../chunks/Btt9ee8o.js";
-import { a as bind_checked, b as bind_value } from "../chunks/DqI_fMTn.js";
+import { f as from_html, a as append, t as text } from "../chunks/BvobdH6J.js";
+import { O as push, Z as proxy, _ as noop, g as get, P as pop, a as state, c as child, s as sibling, u as user_derived, b as set, r as reset, $ as next, t as template_effect } from "../chunks/fgLhyt9-.js";
+import { d as delegate, a as delegated, s as set_text } from "../chunks/CFMc5Fxh.js";
+import { i as if_block } from "../chunks/B613TmHw.js";
+import { r as remove_input_defaults } from "../chunks/SsZcGxk6.js";
+import { a as bind_checked, b as bind_value } from "../chunks/jazgmlqp.js";
 import { R as RequestCancelledError } from "../chunks/B5z_hPLV.js";
 const entries = () => [
   { worker: "service" },
@@ -20,9 +20,6 @@ function _page($$anchor, $$props) {
   push($$props, true);
   const computeButton = ($$anchor2, index = noop, computation = noop) => {
     var button = root_1();
-    button.__click = async () => {
-      await compute(index(), computation());
-    };
     var node = child(button);
     {
       var consequent = ($$anchor3) => {
@@ -32,36 +29,25 @@ function _page($$anchor, $$props) {
         ]);
         append($$anchor3, text$1);
       };
-      var alternate_1 = ($$anchor3) => {
-        var fragment_1 = comment();
-        var node_1 = first_child(fragment_1);
-        {
-          var consequent_1 = ($$anchor4) => {
-            var text_1 = text();
-            template_effect(() => set_text(text_1, results[index()]));
-            append($$anchor4, text_1);
-          };
-          var alternate = ($$anchor4) => {
-            var text_2 = text("compute");
-            append($$anchor4, text_2);
-          };
-          if_block(
-            node_1,
-            ($$render) => {
-              if (results[index()] !== null) $$render(consequent_1);
-              else $$render(alternate, false);
-            },
-            true
-          );
-        }
-        append($$anchor3, fragment_1);
+      var consequent_1 = ($$anchor3) => {
+        var text_1 = text();
+        template_effect(() => set_text(text_1, results[index()]));
+        append($$anchor3, text_1);
+      };
+      var alternate = ($$anchor3) => {
+        var text_2 = text("compute");
+        append($$anchor3, text_2);
       };
       if_block(node, ($$render) => {
         if (loadingStates[index()]) $$render(consequent);
-        else $$render(alternate_1, false);
+        else if (results[index()] !== null) $$render(consequent_1, 1);
+        else $$render(alternate, false);
       });
     }
     reset(button);
+    delegated("click", button, async () => {
+      await compute(index(), computation());
+    });
     append($$anchor2, button);
   };
   const swarpc = user_derived(() => $$props.data.swarpc);
@@ -117,24 +103,24 @@ function _page($$anchor, $$props) {
   remove_input_defaults(input_1);
   var input_2 = sibling(input_1, 2);
   remove_input_defaults(input_2);
-  var node_2 = sibling(input_2, 2);
-  computeButton(node_2, () => 0, () => get(proc).once);
+  var node_1 = sibling(input_2, 2);
+  computeButton(node_1, () => 0, () => get(proc).once);
   reset(section);
   var section_1 = sibling(section, 2);
   var input_3 = sibling(child(section_1), 2);
   remove_input_defaults(input_3);
   var input_4 = sibling(input_3, 2);
   remove_input_defaults(input_4);
-  var node_3 = sibling(input_4, 2);
-  computeButton(node_3, () => 1, () => (...args) => get(proc).onceBy("custom-key", ...args));
+  var node_2 = sibling(input_4, 2);
+  computeButton(node_2, () => 1, () => (...args) => get(proc).onceBy("custom-key", ...args));
   reset(section_1);
   var section_2 = sibling(section_1, 2);
   var input_5 = sibling(child(section_2), 2);
   remove_input_defaults(input_5);
   var input_6 = sibling(input_5, 2);
   remove_input_defaults(input_6);
-  var node_4 = sibling(input_6, 2);
-  computeButton(node_4, () => 2, () => (...args) => get(swarpc).onceBy("global-key").multiply(...args));
+  var node_3 = sibling(input_6, 2);
+  computeButton(node_3, () => 2, () => (...args) => get(swarpc).onceBy("global-key").multiply(...args));
   reset(section_2);
   reset(div);
   bind_checked(input, () => get(broadcast), ($$value) => set(broadcast, $$value));

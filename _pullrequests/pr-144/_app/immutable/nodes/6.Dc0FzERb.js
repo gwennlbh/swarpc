@@ -1,8 +1,8 @@
-import { f as from_html, a as append } from "../chunks/BcpvEWgN.js";
-import { q as create_text, d as block, k as set_hydrate_node, h as hydrating, _ as get_first_child, e as hydrate_next, g as get, $ as derived_safe_equal, i as read_hydration_instruction, H as HYDRATION_START_ELSE, j as skip_nodes, l as set_hydrating, w as hydrate_node, a0 as COMMENT_NODE, a1 as HYDRATION_END, a2 as internal_set, m as current_batch, a3 as EFFECT_OFFSCREEN, v as branch, a4 as each_key_duplicate, y as should_defer_append, a5 as source, a6 as mutable_source, a7 as array_from, a8 as is_array, a9 as EACH_ITEM_REACTIVE, aa as EACH_ITEM_IMMUTABLE, ab as EACH_INDEX_REACTIVE, n as resume_effect, p as pause_effect, ac as INERT, ad as get_next_sibling, ae as BRANCH_EFFECT, af as clear_text_content, o as destroy_effect, X as proxy, f as first_child, s as sibling, u as user_derived, b as state, a as set, r as reset, c as child, t as template_effect } from "../chunks/CCSsUjsU.js";
-import { d as delegate, s as set_text } from "../chunks/DHxMMksq.js";
-import { r as remove_input_defaults } from "../chunks/Btt9ee8o.js";
-import { b as bind_value } from "../chunks/DqI_fMTn.js";
+import { f as from_html, a as append } from "../chunks/BvobdH6J.js";
+import { v as create_text, d as block, l as set_hydrate_node, h as hydrating, a0 as get_first_child, e as hydrate_next, g as get, a1 as derived_safe_equal, i as read_hydration_instruction, j as HYDRATION_START_ELSE, k as skip_nodes, m as set_hydrating, x as hydrate_node, a2 as COMMENT_NODE, a3 as HYDRATION_END, a4 as internal_set, n as current_batch, a5 as EFFECT_OFFSCREEN, w as branch, a6 as each_key_duplicate, z as should_defer_append, a7 as source, a8 as mutable_source, a9 as array_from, aa as is_array, ab as EACH_ITEM_REACTIVE, ac as EACH_ITEM_IMMUTABLE, ad as EACH_INDEX_REACTIVE, o as resume_effect, q as pause_effect, ae as INERT, af as get_next_sibling, ag as BRANCH_EFFECT, ah as clear_text_content, p as destroy_effect, Z as proxy, f as first_child, b as set, a as state, s as sibling, u as user_derived, r as reset, c as child, t as template_effect } from "../chunks/fgLhyt9-.js";
+import { d as delegate, a as delegated, s as set_text } from "../chunks/CFMc5Fxh.js";
+import { r as remove_input_defaults } from "../chunks/SsZcGxk6.js";
+import { b as bind_value } from "../chunks/jazgmlqp.js";
 function index(_, i) {
   return i;
 }
@@ -402,7 +402,6 @@ function _page($$anchor, $$props) {
   var input = first_child(fragment);
   remove_input_defaults(input);
   var button = sibling(input, 2);
-  button.__click = compute;
   var div = sibling(button, 2);
   each(div, 21, () => results, index, ($$anchor2, $$item, i) => {
     let result = () => get($$item).result;
@@ -422,6 +421,7 @@ function _page($$anchor, $$props) {
   });
   reset(div);
   bind_value(input, () => get(tableOf), ($$value) => set(tableOf, $$value));
+  delegated("click", button, compute);
   append($$anchor, fragment);
 }
 delegate(["click"]);

@@ -1,6 +1,7 @@
-import { N as NAMESPACE_HTML, F as get_prototype_of, h as hydrating, G as get_descriptors, I as queue_micro_task, J as add_form_reset_listener, L as LOADING_ATTR_SYMBOL } from "./CCSsUjsU.js";
+import { N as NAMESPACE_HTML, G as get_prototype_of, h as hydrating, I as get_descriptors, J as IS_XHTML, K as queue_micro_task, L as add_form_reset_listener, M as LOADING_ATTR_SYMBOL } from "./fgLhyt9-.js";
 const IS_CUSTOM_ELEMENT = /* @__PURE__ */ Symbol("is custom element");
 const IS_HTML = /* @__PURE__ */ Symbol("is html");
+const LINK_TAG = IS_XHTML ? "link" : "LINK";
 function remove_input_defaults(input) {
   if (!hydrating) return;
   var already_removed = false;
@@ -26,7 +27,7 @@ function set_attribute(element, attribute, value, skip_warning) {
   var attributes = get_attributes(element);
   if (hydrating) {
     attributes[attribute] = element.getAttribute(attribute);
-    if (attribute === "src" || attribute === "srcset" || attribute === "href" && element.nodeName === "LINK") {
+    if (attribute === "src" || attribute === "srcset" || attribute === "href" && element.nodeName === LINK_TAG) {
       return;
     }
   }

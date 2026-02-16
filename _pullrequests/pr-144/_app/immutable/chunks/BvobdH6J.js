@@ -1,7 +1,23 @@
-import { q as create_text, _ as get_first_child, ag as is_firefox, ah as active_effect, ai as TEMPLATE_FRAGMENT, aj as TEMPLATE_USE_IMPORT_NODE, h as hydrating, w as hydrate_node, ak as EFFECT_RAN, e as hydrate_next, al as TEXT_NODE, k as set_hydrate_node, am as merge_text_nodes } from "./CCSsUjsU.js";
-function create_fragment_from_html(html) {
-  var elem = document.createElement("template");
-  elem.innerHTML = html.replaceAll("<!>", "<!---->");
+import { ai as create_element, v as create_text, a0 as get_first_child, aj as is_firefox, ak as active_effect, al as TEMPLATE_FRAGMENT, am as TEMPLATE_USE_IMPORT_NODE, h as hydrating, x as hydrate_node, an as REACTION_RAN, e as hydrate_next, ao as TEXT_NODE, l as set_hydrate_node, ap as merge_text_nodes } from "./fgLhyt9-.js";
+const policy = /* @__PURE__ */ globalThis?.window?.trustedTypes?.createPolicy(
+  "svelte-trusted-html",
+  {
+    /** @param {string} html */
+    createHTML: (html) => {
+      return html;
+    }
+  }
+);
+function create_trusted_html(html) {
+  return (
+    /** @type {string} */
+    policy?.createHTML(html) ?? html
+  );
+}
+function create_fragment_from_html(html, trusted = false) {
+  var elem = create_element("template");
+  html = html.replaceAll("<!>", "<!---->");
+  elem.innerHTML = trusted ? create_trusted_html(html) : html;
   return elem.content;
 }
 function assign_nodes(start, end) {
@@ -25,7 +41,7 @@ function from_html(content, flags) {
       return hydrate_node;
     }
     if (node === void 0) {
-      node = create_fragment_from_html(has_start ? content : "<!>" + content);
+      node = create_fragment_from_html(has_start ? content : "<!>" + content, true);
       if (!is_fragment) node = /** @type {TemplateNode} */
       get_first_child(node);
     }
@@ -86,7 +102,7 @@ function append(anchor, dom) {
       /** @type {Effect & { nodes: EffectNodes }} */
       active_effect
     );
-    if ((effect.f & EFFECT_RAN) === 0 || effect.nodes.end === null) {
+    if ((effect.f & REACTION_RAN) === 0 || effect.nodes.end === null) {
       effect.nodes.end = hydrate_node;
     }
     hydrate_next();

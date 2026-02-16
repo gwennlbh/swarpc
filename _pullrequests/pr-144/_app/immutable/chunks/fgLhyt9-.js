@@ -43,14 +43,14 @@ const DIRTY = 1 << 11;
 const MAYBE_DIRTY = 1 << 12;
 const INERT = 1 << 13;
 const DESTROYED = 1 << 14;
-const EFFECT_RAN = 1 << 15;
+const REACTION_RAN = 1 << 15;
 const EFFECT_TRANSPARENT = 1 << 16;
 const EAGER_EFFECT = 1 << 17;
 const HEAD_EFFECT = 1 << 18;
 const EFFECT_PRESERVED = 1 << 19;
 const USER_EFFECT = 1 << 20;
 const EFFECT_OFFSCREEN = 1 << 25;
-const WAS_MARKED = 1 << 15;
+const WAS_MARKED = 1 << 16;
 const REACTION_IS_UPDATING = 1 << 21;
 const ASYNC = 1 << 22;
 const ERROR_VALUE = 1 << 23;
@@ -61,6 +61,7 @@ const STALE_REACTION = new class StaleReactionError extends Error {
   name = "StaleReactionError";
   message = "The reaction that called `getAbortSignal()` was re-run or destroyed";
 }();
+const IS_XHTML = /* @__PURE__ */ globalThis.document?.contentType?.includes("xml") ?? false;
 const TEXT_NODE = 3;
 const COMMENT_NODE = 8;
 function async_derived_orphan() {
@@ -195,7 +196,8 @@ function skip_nodes(remove = true) {
       if (data === HYDRATION_END) {
         if (depth === 0) return node;
         depth -= 1;
-      } else if (data === HYDRATION_START || data === HYDRATION_START_ELSE) {
+      } else if (data === HYDRATION_START || data === HYDRATION_START_ELSE || // "[1", "[2", etc. for if blocks
+      data[0] === "[" && !isNaN(Number(data.slice(1)))) {
         depth += 1;
       }
     }
@@ -294,18 +296,17 @@ function handle_error(error) {
     active_reaction.f |= ERROR_VALUE;
     return error;
   }
-  if ((effect2.f & EFFECT_RAN) === 0) {
-    if ((effect2.f & BOUNDARY_EFFECT) === 0) {
-      throw error;
-    }
-    effect2.b.error(error);
-  } else {
-    invoke_error_boundary(error, effect2);
+  if ((effect2.f & REACTION_RAN) === 0 && (effect2.f & EFFECT) === 0) {
+    throw error;
   }
+  invoke_error_boundary(error, effect2);
 }
 function invoke_error_boundary(error, effect2) {
   while (effect2 !== null) {
     if ((effect2.f & BOUNDARY_EFFECT) !== 0) {
+      if ((effect2.f & REACTION_RAN) === 0) {
+        throw error;
+      }
       try {
         effect2.b.error(error);
         return;
@@ -754,12 +755,8 @@ function flush_queued_effects(effects) {
     if ((effect2.f & (DESTROYED | INERT)) === 0 && is_dirty(effect2)) {
       eager_block_effects = /* @__PURE__ */ new Set();
       update_effect(effect2);
-      if (effect2.deps === null && effect2.first === null && effect2.nodes === null) {
-        if (effect2.teardown === null && effect2.ac === null) {
-          unlink_effect(effect2);
-        } else {
-          effect2.fn = null;
-        }
+      if (effect2.deps === null && effect2.first === null && effect2.nodes === null && effect2.teardown === null && effect2.ac === null) {
+        unlink_effect(effect2);
       }
       if (eager_block_effects?.size > 0) {
         old_values.clear();
@@ -1122,6 +1119,27 @@ function update_derived(derived2) {
     update_derived_status(derived2);
   }
 }
+function freeze_derived_effects(derived2) {
+  if (derived2.effects === null) return;
+  for (const e of derived2.effects) {
+    if (e.teardown || e.ac) {
+      e.teardown?.();
+      e.ac?.abort(STALE_REACTION);
+      e.teardown = noop;
+      e.ac = null;
+      remove_reactions(e, 0);
+      destroy_effect_children(e);
+    }
+  }
+}
+function unfreeze_derived_effects(derived2) {
+  if (derived2.effects === null) return;
+  for (const e of derived2.effects) {
+    if (e.teardown) {
+      update_effect(e);
+    }
+  }
+}
 let eager_effects = /* @__PURE__ */ new Set();
 const old_values = /* @__PURE__ */ new Map();
 let eager_effects_deferred = false;
@@ -1294,7 +1312,7 @@ function proxy(value) {
         }
         var s = sources.get(prop);
         if (s === void 0) {
-          s = with_parent(() => {
+          with_parent(() => {
             var s2 = /* @__PURE__ */ state(descriptor.value);
             sources.set(prop, s2);
             return s2;
@@ -1564,6 +1582,13 @@ function clear_text_content(node) {
 function should_defer_append() {
   return false;
 }
+function create_element(tag, namespace, is) {
+  let options = void 0;
+  return (
+    /** @type {T extends keyof HTMLElementTagNameMap ? HTMLElementTagNameMap[T] : Element} */
+    document.createElementNS(NAMESPACE_HTML, tag, options)
+  );
+}
 function merge_text_nodes(text) {
   if (
     /** @type {string} */
@@ -1673,7 +1698,6 @@ function create_effect(type, fn, sync) {
   if (sync) {
     try {
       update_effect(effect2);
-      effect2.f |= EFFECT_RAN;
     } catch (e2) {
       destroy_effect(effect2);
       throw e2;
@@ -1719,7 +1743,7 @@ function user_effect(fn) {
     /** @type {Effect} */
     active_effect.f
   );
-  var defer = !active_reaction && (flags & BRANCH_EFFECT) !== 0 && (flags & EFFECT_RAN) === 0;
+  var defer = !active_reaction && (flags & BRANCH_EFFECT) !== 0 && (flags & REACTION_RAN) === 0;
   if (defer) {
     var context = (
       /** @type {ComponentContext} */
@@ -2074,6 +2098,7 @@ function update_reaction(reaction) {
       reaction.fn
     );
     var result = fn();
+    reaction.f |= REACTION_RAN;
     var deps = reaction.deps;
     var is_fork = current_batch?.is_fork;
     if (new_deps !== null) {
@@ -2174,7 +2199,7 @@ function remove_reaction(signal, dependency) {
       derived2.f &= ~WAS_MARKED;
     }
     update_derived_status(derived2);
-    destroy_derived_effects(derived2);
+    freeze_derived_effects(derived2);
     remove_reactions(derived2, 0);
   }
 }
@@ -2265,7 +2290,7 @@ function get(signal) {
       return value;
     }
     var should_connect = (derived2.f & CONNECTED) === 0 && !untracking && active_reaction !== null && (is_updating_effect || (active_reaction.f & CONNECTED) !== 0);
-    var is_new = derived2.deps === null;
+    var is_new = (derived2.f & REACTION_RAN) === 0;
     if (is_dirty(derived2)) {
       if (should_connect) {
         derived2.f |= CONNECTED;
@@ -2273,6 +2298,7 @@ function get(signal) {
       update_derived(derived2);
     }
     if (should_connect && !is_new) {
+      unfreeze_derived_effects(derived2);
       reconnect(derived2);
     }
   }
@@ -2285,11 +2311,15 @@ function get(signal) {
   return signal.v;
 }
 function reconnect(derived2) {
-  if (derived2.deps === null) return;
   derived2.f |= CONNECTED;
+  if (derived2.deps === null) return;
   for (const dep of derived2.deps) {
     (dep.reactions ??= []).push(derived2);
     if ((dep.f & DERIVED) !== 0 && (dep.f & CONNECTED) === 0) {
+      unfreeze_derived_effects(
+        /** @type {Derived} */
+        dep
+      );
       reconnect(
         /** @type {Derived} */
         dep
@@ -2366,99 +2396,101 @@ function deep_read(value, visited = /* @__PURE__ */ new Set()) {
   }
 }
 export {
-  derived_safe_equal as $,
-  tick as A,
-  untrack as B,
-  render_effect as C,
-  previous_batch as D,
+  next as $,
+  listen_to_event_and_reset_event as A,
+  tick as B,
+  untrack as C,
+  render_effect as D,
   EFFECT_TRANSPARENT as E,
-  get_prototype_of as F,
-  get_descriptors as G,
-  HYDRATION_START_ELSE as H,
-  queue_micro_task as I,
-  add_form_reset_listener as J,
-  user_effect as K,
-  LOADING_ATTR_SYMBOL as L,
-  component_context as M,
+  previous_batch as F,
+  get_prototype_of as G,
+  HYDRATION_START as H,
+  get_descriptors as I,
+  IS_XHTML as J,
+  queue_micro_task as K,
+  add_form_reset_listener as L,
+  LOADING_ATTR_SYMBOL as M,
   NAMESPACE_HTML as N,
-  legacy_mode_flag as O,
-  push as P,
-  pop as Q,
+  push as O,
+  pop as P,
+  component_context as Q,
   user_pre_effect as R,
-  run_all as S,
-  run as T,
-  deep_read_state as U,
-  derived as V,
-  enable_legacy_mode_flag as W,
-  proxy as X,
-  noop as Y,
-  next as Z,
-  get_first_child as _,
-  set as a,
-  COMMENT_NODE as a0,
-  HYDRATION_END as a1,
-  internal_set as a2,
-  EFFECT_OFFSCREEN as a3,
-  each_key_duplicate as a4,
-  source as a5,
-  mutable_source as a6,
-  array_from as a7,
-  is_array as a8,
-  EACH_ITEM_REACTIVE as a9,
-  invoke_error_boundary as aA,
-  svelte_boundary_reset_onerror as aB,
-  EFFECT_PRESERVED as aC,
-  BOUNDARY_EFFECT as aD,
-  svelte_boundary_reset_noop as aE,
-  define_property as aF,
-  init_operations as aG,
-  HYDRATION_START as aH,
-  HYDRATION_ERROR as aI,
-  hydration_failed as aJ,
-  component_root as aK,
-  hydration_mismatch as aL,
-  effect as aM,
-  STATE_SYMBOL as aN,
-  get_descriptor as aO,
-  props_invalid_value as aP,
-  PROPS_IS_UPDATED as aQ,
-  is_destroying_effect as aR,
-  DESTROYED as aS,
-  PROPS_IS_BINDABLE as aT,
-  PROPS_IS_RUNES as aU,
-  PROPS_IS_IMMUTABLE as aV,
-  PROPS_IS_LAZY_INITIAL as aW,
-  LEGACY_PROPS as aX,
-  flushSync as aY,
-  safe_not_equal as aZ,
-  settled as a_,
-  EACH_ITEM_IMMUTABLE as aa,
-  EACH_INDEX_REACTIVE as ab,
-  INERT as ac,
-  get_next_sibling as ad,
-  BRANCH_EFFECT as ae,
-  clear_text_content as af,
-  is_firefox as ag,
-  active_effect as ah,
-  TEMPLATE_FRAGMENT as ai,
-  TEMPLATE_USE_IMPORT_NODE as aj,
-  EFFECT_RAN as ak,
-  TEXT_NODE as al,
-  merge_text_nodes as am,
-  effect_tracking as an,
-  increment as ao,
-  Batch as ap,
-  defer_effect as aq,
-  set_active_effect as ar,
-  set_active_reaction as as,
-  set_component_context as at,
-  handle_error as au,
-  active_reaction as av,
-  set_signal_status as aw,
-  DIRTY as ax,
-  schedule_effect as ay,
-  MAYBE_DIRTY as az,
-  state as b,
+  user_effect as S,
+  run_all as T,
+  run as U,
+  deep_read_state as V,
+  derived as W,
+  enable_legacy_mode_flag as X,
+  legacy_mode_flag as Y,
+  proxy as Z,
+  noop as _,
+  state as a,
+  safe_not_equal as a$,
+  get_first_child as a0,
+  derived_safe_equal as a1,
+  COMMENT_NODE as a2,
+  HYDRATION_END as a3,
+  internal_set as a4,
+  EFFECT_OFFSCREEN as a5,
+  each_key_duplicate as a6,
+  source as a7,
+  mutable_source as a8,
+  array_from as a9,
+  DIRTY as aA,
+  schedule_effect as aB,
+  MAYBE_DIRTY as aC,
+  invoke_error_boundary as aD,
+  svelte_boundary_reset_onerror as aE,
+  EFFECT_PRESERVED as aF,
+  BOUNDARY_EFFECT as aG,
+  svelte_boundary_reset_noop as aH,
+  define_property as aI,
+  init_operations as aJ,
+  HYDRATION_ERROR as aK,
+  hydration_failed as aL,
+  component_root as aM,
+  hydration_mismatch as aN,
+  effect as aO,
+  STATE_SYMBOL as aP,
+  get_descriptor as aQ,
+  props_invalid_value as aR,
+  PROPS_IS_UPDATED as aS,
+  is_destroying_effect as aT,
+  DESTROYED as aU,
+  PROPS_IS_BINDABLE as aV,
+  PROPS_IS_RUNES as aW,
+  PROPS_IS_IMMUTABLE as aX,
+  PROPS_IS_LAZY_INITIAL as aY,
+  LEGACY_PROPS as aZ,
+  flushSync as a_,
+  is_array as aa,
+  EACH_ITEM_REACTIVE as ab,
+  EACH_ITEM_IMMUTABLE as ac,
+  EACH_INDEX_REACTIVE as ad,
+  INERT as ae,
+  get_next_sibling as af,
+  BRANCH_EFFECT as ag,
+  clear_text_content as ah,
+  create_element as ai,
+  is_firefox as aj,
+  active_effect as ak,
+  TEMPLATE_FRAGMENT as al,
+  TEMPLATE_USE_IMPORT_NODE as am,
+  REACTION_RAN as an,
+  TEXT_NODE as ao,
+  merge_text_nodes as ap,
+  effect_tracking as aq,
+  increment as ar,
+  Batch as as,
+  defer_effect as at,
+  set_active_effect as au,
+  set_active_reaction as av,
+  set_component_context as aw,
+  handle_error as ax,
+  active_reaction as ay,
+  set_signal_status as az,
+  set as b,
+  settled as b0,
   child as c,
   block as d,
   hydrate_next as e,
@@ -2466,21 +2498,21 @@ export {
   get as g,
   hydrating as h,
   read_hydration_instruction as i,
-  skip_nodes as j,
-  set_hydrate_node as k,
-  set_hydrating as l,
-  current_batch as m,
-  resume_effect as n,
-  destroy_effect as o,
-  pause_effect as p,
-  create_text as q,
+  HYDRATION_START_ELSE as j,
+  skip_nodes as k,
+  set_hydrate_node as l,
+  set_hydrating as m,
+  current_batch as n,
+  resume_effect as o,
+  destroy_effect as p,
+  pause_effect as q,
   reset as r,
   sibling as s,
   template_effect as t,
   user_derived as u,
-  branch as v,
-  hydrate_node as w,
-  move_effect as x,
-  should_defer_append as y,
-  listen_to_event_and_reset_event as z
+  create_text as v,
+  branch as w,
+  hydrate_node as x,
+  move_effect as y,
+  should_defer_append as z
 };

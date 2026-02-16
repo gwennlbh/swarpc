@@ -1,5 +1,5 @@
-import { an as effect_tracking, g as get, a5 as source, C as render_effect, B as untrack, ao as increment, I as queue_micro_task, w as hydrate_node, h as hydrating, ah as active_effect, d as block, e as hydrate_next, a0 as COMMENT_NODE, H as HYDRATION_START_ELSE, v as branch, ap as Batch, p as pause_effect, q as create_text, aq as defer_effect, ar as set_active_effect, as as set_active_reaction, at as set_component_context, au as handle_error, av as active_reaction, M as component_context, x as move_effect, aw as set_signal_status, ax as DIRTY, ay as schedule_effect, az as MAYBE_DIRTY, a2 as internal_set, o as destroy_effect, k as set_hydrate_node, Z as next, j as skip_nodes, aA as invoke_error_boundary, aB as svelte_boundary_reset_onerror, E as EFFECT_TRANSPARENT, aC as EFFECT_PRESERVED, aD as BOUNDARY_EFFECT, aE as svelte_boundary_reset_noop, aF as define_property, aG as init_operations, _ as get_first_child, aH as HYDRATION_START, ad as get_next_sibling, aI as HYDRATION_ERROR, l as set_hydrating, aJ as hydration_failed, af as clear_text_content, a7 as array_from, aK as component_root, P as push, a1 as HYDRATION_END, aL as hydration_mismatch, Q as pop } from "./CCSsUjsU.js";
-import { b as assign_nodes } from "./BcpvEWgN.js";
+import { aq as effect_tracking, g as get, a7 as source, D as render_effect, C as untrack, ar as increment, K as queue_micro_task, x as hydrate_node, h as hydrating, ak as active_effect, d as block, e as hydrate_next, a2 as COMMENT_NODE, j as HYDRATION_START_ELSE, w as branch, as as Batch, q as pause_effect, v as create_text, at as defer_effect, au as set_active_effect, av as set_active_reaction, aw as set_component_context, ax as handle_error, ay as active_reaction, Q as component_context, y as move_effect, az as set_signal_status, aA as DIRTY, aB as schedule_effect, aC as MAYBE_DIRTY, a4 as internal_set, p as destroy_effect, l as set_hydrate_node, $ as next, k as skip_nodes, aD as invoke_error_boundary, aE as svelte_boundary_reset_onerror, E as EFFECT_TRANSPARENT, aF as EFFECT_PRESERVED, aG as BOUNDARY_EFFECT, aH as svelte_boundary_reset_noop, aI as define_property, aJ as init_operations, a0 as get_first_child, H as HYDRATION_START, af as get_next_sibling, aK as HYDRATION_ERROR, m as set_hydrating, aL as hydration_failed, ah as clear_text_content, a9 as array_from, aM as component_root, O as push, a3 as HYDRATION_END, aN as hydration_mismatch, P as pop } from "./fgLhyt9-.js";
+import { b as assign_nodes } from "./BvobdH6J.js";
 function createSubscriber(start) {
   let subscribers = 0;
   let version = source(0);
@@ -378,8 +378,12 @@ const PASSIVE_EVENTS = ["touchstart", "touchmove"];
 function is_passive_event(name) {
   return PASSIVE_EVENTS.includes(name);
 }
+const event_symbol = /* @__PURE__ */ Symbol("events");
 const all_registered_events = /* @__PURE__ */ new Set();
 const root_event_handles = /* @__PURE__ */ new Set();
+function delegated(event_name, element, handler) {
+  (element[event_symbol] ??= {})[event_name] = handler;
+}
 function delegate(events) {
   for (var i = 0; i < events.length; i++) {
     all_registered_events.add(events[i]);
@@ -439,12 +443,12 @@ function handle_event_propagation(event) {
       var parent_element = current_target.assignedSlot || current_target.parentNode || /** @type {any} */
       current_target.host || null;
       try {
-        var delegated = current_target["__" + event_name];
-        if (delegated != null && (!/** @type {any} */
+        var delegated2 = current_target[event_symbol]?.[event_name];
+        if (delegated2 != null && (!/** @type {any} */
         current_target.disabled || // DOM could've been updated already by the time this is reached, so we check this as well
         // -> the target could not have been disabled because it emits the event in the first place
         event.target === current_target)) {
-          delegated.call(current_target, event);
+          delegated2.call(current_target, event);
         }
       } catch (error) {
         if (throw_error) {
@@ -528,7 +532,7 @@ function hydrate(component, options) {
     set_hydrate_node(previous_hydrate_node);
   }
 }
-const document_listeners = /* @__PURE__ */ new Map();
+const listeners = /* @__PURE__ */ new Map();
 function _mount(Component, { target, anchor, props = {}, events, context, intro = true }) {
   init_operations();
   var registered_events = /* @__PURE__ */ new Set();
@@ -538,13 +542,19 @@ function _mount(Component, { target, anchor, props = {}, events, context, intro 
       if (registered_events.has(event_name)) continue;
       registered_events.add(event_name);
       var passive = is_passive_event(event_name);
-      target.addEventListener(event_name, handle_event_propagation, { passive });
-      var n = document_listeners.get(event_name);
-      if (n === void 0) {
-        document.addEventListener(event_name, handle_event_propagation, { passive });
-        document_listeners.set(event_name, 1);
-      } else {
-        document_listeners.set(event_name, n + 1);
+      for (const node of [target, document]) {
+        var counts = listeners.get(node);
+        if (counts === void 0) {
+          counts = /* @__PURE__ */ new Map();
+          listeners.set(node, counts);
+        }
+        var count = counts.get(event_name);
+        if (count === void 0) {
+          node.addEventListener(event_name, handle_event_propagation, { passive });
+          counts.set(event_name, 1);
+        } else {
+          counts.set(event_name, count + 1);
+        }
       }
     }
   };
@@ -591,16 +601,24 @@ function _mount(Component, { target, anchor, props = {}, events, context, intro 
     );
     return () => {
       for (var event_name of registered_events) {
-        target.removeEventListener(event_name, handle_event_propagation);
-        var n = (
-          /** @type {number} */
-          document_listeners.get(event_name)
-        );
-        if (--n === 0) {
-          document.removeEventListener(event_name, handle_event_propagation);
-          document_listeners.delete(event_name);
-        } else {
-          document_listeners.set(event_name, n);
+        for (const node of [target, document]) {
+          var counts = (
+            /** @type {Map<string, number>} */
+            listeners.get(node)
+          );
+          var count = (
+            /** @type {number} */
+            counts.get(event_name)
+          );
+          if (--count == 0) {
+            node.removeEventListener(event_name, handle_event_propagation);
+            counts.delete(event_name);
+            if (counts.size === 0) {
+              listeners.delete(node);
+            }
+          } else {
+            counts.set(event_name, count);
+          }
         }
       }
       root_event_handles.delete(event_handle);
@@ -622,6 +640,7 @@ function unmount(component, options) {
   return Promise.resolve();
 }
 export {
+  delegated as a,
   delegate as d,
   hydrate as h,
   mount as m,

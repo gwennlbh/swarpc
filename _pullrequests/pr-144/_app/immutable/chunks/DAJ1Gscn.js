@@ -1,181 +1,7 @@
-import { Y as noop$1, aZ as safe_not_equal, b as state, g as get$1, a as set$1, A as tick, a_ as settled } from "./CCSsUjsU.js";
-import { b as base64_decode, H as HttpError, S as SvelteKitError, R as Redirect } from "./BHuZ28Z_.js";
-import { p as parse_route_id, e as exec, a as assets, b as base } from "./CDBJb_IF.js";
-import { o as onMount } from "./BarQ5Ks7.js";
-const subscriber_queue = [];
-function writable(value, start2 = noop$1) {
-  let stop = null;
-  const subscribers = /* @__PURE__ */ new Set();
-  function set2(new_value) {
-    if (safe_not_equal(value, new_value)) {
-      value = new_value;
-      if (stop) {
-        const run_queue = !subscriber_queue.length;
-        for (const subscriber of subscribers) {
-          subscriber[1]();
-          subscriber_queue.push(subscriber, value);
-        }
-        if (run_queue) {
-          for (let i = 0; i < subscriber_queue.length; i += 2) {
-            subscriber_queue[i][0](subscriber_queue[i + 1]);
-          }
-          subscriber_queue.length = 0;
-        }
-      }
-    }
-  }
-  function update2(fn) {
-    set2(fn(
-      /** @type {T} */
-      value
-    ));
-  }
-  function subscribe(run, invalidate = noop$1) {
-    const subscriber = [run, invalidate];
-    subscribers.add(subscriber);
-    if (subscribers.size === 1) {
-      stop = start2(set2, update2) || noop$1;
-    }
-    run(
-      /** @type {T} */
-      value
-    );
-    return () => {
-      subscribers.delete(subscriber);
-      if (subscribers.size === 0 && stop) {
-        stop();
-        stop = null;
-      }
-    };
-  }
-  return { set: set2, update: update2, subscribe };
-}
-new URL("sveltekit-internal://");
-function normalize_path(path, trailing_slash) {
-  if (path === "/" || trailing_slash === "ignore") return path;
-  if (trailing_slash === "never") {
-    return path.endsWith("/") ? path.slice(0, -1) : path;
-  } else if (trailing_slash === "always" && !path.endsWith("/")) {
-    return path + "/";
-  }
-  return path;
-}
-function decode_pathname(pathname) {
-  return pathname.split("%25").map(decodeURI).join("%25");
-}
-function decode_params(params) {
-  for (const key in params) {
-    params[key] = decodeURIComponent(params[key]);
-  }
-  return params;
-}
-function strip_hash({ href }) {
-  return href.split("#")[0];
-}
-function make_trackable(url, callback, search_params_callback, allow_hash = false) {
-  const tracked = new URL(url);
-  Object.defineProperty(tracked, "searchParams", {
-    value: new Proxy(tracked.searchParams, {
-      get(obj, key) {
-        if (key === "get" || key === "getAll" || key === "has") {
-          return (param, ...rest) => {
-            search_params_callback(param);
-            return obj[key](param, ...rest);
-          };
-        }
-        callback();
-        const value = Reflect.get(obj, key);
-        return typeof value === "function" ? value.bind(obj) : value;
-      }
-    }),
-    enumerable: true,
-    configurable: true
-  });
-  const tracked_url_properties = ["href", "pathname", "search", "toString", "toJSON"];
-  if (allow_hash) tracked_url_properties.push("hash");
-  for (const property of tracked_url_properties) {
-    Object.defineProperty(tracked, property, {
-      get() {
-        callback();
-        return url[property];
-      },
-      enumerable: true,
-      configurable: true
-    });
-  }
-  return tracked;
-}
-function hash(...values) {
-  let hash2 = 5381;
-  for (const value of values) {
-    if (typeof value === "string") {
-      let i = value.length;
-      while (i) hash2 = hash2 * 33 ^ value.charCodeAt(--i);
-    } else if (ArrayBuffer.isView(value)) {
-      const buffer = new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
-      let i = buffer.length;
-      while (i) hash2 = hash2 * 33 ^ buffer[--i];
-    } else {
-      throw new TypeError("value must be a string or TypedArray");
-    }
-  }
-  return (hash2 >>> 0).toString(36);
-}
-const native_fetch = window.fetch;
-{
-  window.fetch = (input, init) => {
-    const method = input instanceof Request ? input.method : init?.method || "GET";
-    if (method !== "GET") {
-      cache.delete(build_selector(input));
-    }
-    return native_fetch(input, init);
-  };
-}
-const cache = /* @__PURE__ */ new Map();
-function initial_fetch(resource, opts) {
-  const selector = build_selector(resource, opts);
-  const script = document.querySelector(selector);
-  if (script?.textContent) {
-    script.remove();
-    let { body, ...init } = JSON.parse(script.textContent);
-    const ttl = script.getAttribute("data-ttl");
-    if (ttl) cache.set(selector, { body, init, ttl: 1e3 * Number(ttl) });
-    const b64 = script.getAttribute("data-b64");
-    if (b64 !== null) {
-      body = base64_decode(body);
-    }
-    return Promise.resolve(new Response(body, init));
-  }
-  return window.fetch(resource, opts);
-}
-function subsequent_fetch(resource, resolved, opts) {
-  if (cache.size > 0) {
-    const selector = build_selector(resource, opts);
-    const cached = cache.get(selector);
-    if (cached) {
-      if (performance.now() < cached.ttl && ["default", "force-cache", "only-if-cached", void 0].includes(opts?.cache)) {
-        return new Response(cached.body, cached.init);
-      }
-      cache.delete(selector);
-    }
-  }
-  return window.fetch(resolved, opts);
-}
-function build_selector(resource, opts) {
-  const url = JSON.stringify(resource instanceof Request ? resource.url : resource);
-  let selector = `script[data-sveltekit-fetched][data-url=${url}]`;
-  if (opts?.headers || opts?.body) {
-    const values = [];
-    if (opts.headers) {
-      values.push([...new Headers(opts.headers)].join(","));
-    }
-    if (opts.body && (typeof opts.body === "string" || ArrayBuffer.isView(opts.body))) {
-      values.push(opts.body);
-    }
-    selector += `[data-hash="${hash(...values)}"]`;
-  }
-  return selector;
-}
+import { B as tick, b0 as settled } from "./fgLhyt9-.js";
+import { a as parse_route_id, e as exec, c as create_updated_store, H as HISTORY_INDEX, N as NAVIGATION_INDEX, d as resolve_url, i as is_external_url, b as base, s as scroll_state, p as page, w as writable, n as navigating, f as find_anchor, g as get_link_info, h as get_router_options, j as strip_hash, S as STATES_KEY, P as PAGE_URL_KEY, k as notifiable_store, l as decode_params, m as make_trackable, o as normalize_path, q as origin, t as PRELOAD_PRIORITIES, u as decode_pathname, v as SNAPSHOT_KEY, x as subsequent_fetch, y as initial_fetch, z as SCROLL_KEY, A as update } from "./B5ljqIA4.js";
+import { H as HttpError, S as SvelteKitError, R as Redirect } from "./kMd03mTr.js";
+import "./BqB-gMnm.js";
 function parse({ nodes, server_loads, dictionary, matchers }) {
   const layouts_with_server_load = new Set(server_loads);
   return Object.entries(dictionary).map(([id, [leaf, layouts, errors]]) => {
@@ -220,205 +46,6 @@ function set(key, value, stringify = JSON.stringify) {
   } catch {
   }
 }
-const version = "1771205334549";
-const SNAPSHOT_KEY = "sveltekit:snapshot";
-const SCROLL_KEY = "sveltekit:scroll";
-const STATES_KEY = "sveltekit:states";
-const PAGE_URL_KEY = "sveltekit:pageurl";
-const HISTORY_INDEX = "sveltekit:history";
-const NAVIGATION_INDEX = "sveltekit:navigation";
-const PRELOAD_PRIORITIES = (
-  /** @type {const} */
-  {
-    tap: 1,
-    hover: 2,
-    viewport: 3,
-    eager: 4,
-    off: -1,
-    false: -1
-  }
-);
-const origin = location.origin;
-function resolve_url(url) {
-  if (url instanceof URL) return url;
-  let baseURI = document.baseURI;
-  if (!baseURI) {
-    const baseTags = document.getElementsByTagName("base");
-    baseURI = baseTags.length ? baseTags[0].href : document.URL;
-  }
-  return new URL(url, baseURI);
-}
-function scroll_state() {
-  return {
-    x: pageXOffset,
-    y: pageYOffset
-  };
-}
-function link_option(element, name) {
-  const value = (
-    /** @type {ValidLinkOptions<T> | null} */
-    element.getAttribute(`data-sveltekit-${name}`)
-  );
-  return value;
-}
-const levels = {
-  ...PRELOAD_PRIORITIES,
-  "": PRELOAD_PRIORITIES.hover
-};
-function parent_element(element) {
-  let parent = element.assignedSlot ?? element.parentNode;
-  if (parent?.nodeType === 11) parent = parent.host;
-  return (
-    /** @type {Element} */
-    parent
-  );
-}
-function find_anchor(element, target2) {
-  while (element && element !== target2) {
-    if (element.nodeName.toUpperCase() === "A" && element.hasAttribute("href")) {
-      return (
-        /** @type {HTMLAnchorElement | SVGAElement} */
-        element
-      );
-    }
-    element = /** @type {Element} */
-    parent_element(element);
-  }
-}
-function get_link_info(a, base2, uses_hash_router) {
-  let url;
-  try {
-    url = new URL(a instanceof SVGAElement ? a.href.baseVal : a.href, document.baseURI);
-    if (uses_hash_router && url.hash.match(/^#[^/]/)) {
-      const route = location.hash.split("#")[1] || "/";
-      url.hash = `#${route}${url.hash}`;
-    }
-  } catch {
-  }
-  const target2 = a instanceof SVGAElement ? a.target.baseVal : a.target;
-  const external = !url || !!target2 || is_external_url(url, base2, uses_hash_router) || (a.getAttribute("rel") || "").split(/\s+/).includes("external");
-  const download = url?.origin === origin && a.hasAttribute("download");
-  return { url, external, target: target2, download };
-}
-function get_router_options(element) {
-  let keepfocus = null;
-  let noscroll = null;
-  let preload_code = null;
-  let preload_data = null;
-  let reload = null;
-  let replace_state = null;
-  let el = element;
-  while (el && el !== document.documentElement) {
-    if (preload_code === null) preload_code = link_option(el, "preload-code");
-    if (preload_data === null) preload_data = link_option(el, "preload-data");
-    if (keepfocus === null) keepfocus = link_option(el, "keepfocus");
-    if (noscroll === null) noscroll = link_option(el, "noscroll");
-    if (reload === null) reload = link_option(el, "reload");
-    if (replace_state === null) replace_state = link_option(el, "replacestate");
-    el = /** @type {Element} */
-    parent_element(el);
-  }
-  function get_option_state(value) {
-    switch (value) {
-      case "":
-      case "true":
-        return true;
-      case "off":
-      case "false":
-        return false;
-      default:
-        return void 0;
-    }
-  }
-  return {
-    preload_code: levels[preload_code ?? "off"],
-    preload_data: levels[preload_data ?? "off"],
-    keepfocus: get_option_state(keepfocus),
-    noscroll: get_option_state(noscroll),
-    reload: get_option_state(reload),
-    replace_state: get_option_state(replace_state)
-  };
-}
-function notifiable_store(value) {
-  const store = writable(value);
-  let ready = true;
-  function notify() {
-    ready = true;
-    store.update((val) => val);
-  }
-  function set2(new_value) {
-    ready = false;
-    store.set(new_value);
-  }
-  function subscribe(run) {
-    let old_value;
-    return store.subscribe((new_value) => {
-      if (old_value === void 0 || ready && new_value !== old_value) {
-        run(old_value = new_value);
-      }
-    });
-  }
-  return { notify, set: set2, subscribe };
-}
-const updated_listener = {
-  v: () => {
-  }
-};
-function create_updated_store() {
-  const { set: set2, subscribe } = writable(false);
-  let timeout;
-  async function check() {
-    clearTimeout(timeout);
-    try {
-      const res = await fetch(`${assets}/${"_app/version.json"}`, {
-        headers: {
-          pragma: "no-cache",
-          "cache-control": "no-cache"
-        }
-      });
-      if (!res.ok) {
-        return false;
-      }
-      const data = await res.json();
-      const updated2 = data.version !== version;
-      if (updated2) {
-        set2(true);
-        updated_listener.v();
-        clearTimeout(timeout);
-      }
-      return updated2;
-    } catch {
-      return false;
-    }
-  }
-  return {
-    subscribe,
-    check
-  };
-}
-function is_external_url(url, base2, hash_routing) {
-  if (url.origin !== origin || !url.pathname.startsWith(base2)) {
-    return true;
-  }
-  if (hash_routing) {
-    return url.pathname !== location.pathname;
-  }
-  return false;
-}
-function load_css(deps) {
-  return;
-}
-const valid_layout_exports = /* @__PURE__ */ new Set([
-  "load",
-  "prerender",
-  "csr",
-  "ssr",
-  "trailingSlash",
-  "config"
-]);
-/* @__PURE__ */ new Set([...valid_layout_exports, "entries"]);
-const valid_layout_server_exports = /* @__PURE__ */ new Set([...valid_layout_exports]);
-/* @__PURE__ */ new Set([...valid_layout_server_exports, "actions", "entries"]);
 function compact(arr) {
   return arr.filter(
     /** @returns {val is NonNullable<T>} */
@@ -430,105 +57,6 @@ function get_status(error) {
 }
 function get_message(error) {
   return error instanceof SvelteKitError ? error.text : "Internal Error";
-}
-let page;
-let navigating;
-let updated;
-const is_legacy = onMount.toString().includes("$$") || /function \w+\(\) \{\}/.test(onMount.toString());
-if (is_legacy) {
-  page = {
-    data: {},
-    form: null,
-    error: null,
-    params: {},
-    route: { id: null },
-    state: {},
-    status: -1,
-    url: new URL("https://example.com")
-  };
-  navigating = { current: null };
-  updated = { current: false };
-} else {
-  page = new class Page {
-    #data = state({});
-    get data() {
-      return get$1(this.#data);
-    }
-    set data(value) {
-      set$1(this.#data, value);
-    }
-    #form = state(null);
-    get form() {
-      return get$1(this.#form);
-    }
-    set form(value) {
-      set$1(this.#form, value);
-    }
-    #error = state(null);
-    get error() {
-      return get$1(this.#error);
-    }
-    set error(value) {
-      set$1(this.#error, value);
-    }
-    #params = state({});
-    get params() {
-      return get$1(this.#params);
-    }
-    set params(value) {
-      set$1(this.#params, value);
-    }
-    #route = state({ id: null });
-    get route() {
-      return get$1(this.#route);
-    }
-    set route(value) {
-      set$1(this.#route, value);
-    }
-    #state = state({});
-    get state() {
-      return get$1(this.#state);
-    }
-    set state(value) {
-      set$1(this.#state, value);
-    }
-    #status = state(-1);
-    get status() {
-      return get$1(this.#status);
-    }
-    set status(value) {
-      set$1(this.#status, value);
-    }
-    #url = state(new URL("https://example.com"));
-    get url() {
-      return get$1(this.#url);
-    }
-    set url(value) {
-      set$1(this.#url, value);
-    }
-  }();
-  navigating = new class Navigating {
-    #current = state(null);
-    get current() {
-      return get$1(this.#current);
-    }
-    set current(value) {
-      set$1(this.#current, value);
-    }
-  }();
-  updated = new class Updated {
-    #current = state(false);
-    get current() {
-      return get$1(this.#current);
-    }
-    set current(value) {
-      set$1(this.#current, value);
-    }
-  }();
-  updated_listener.v = () => updated.current = true;
-}
-function update(new_page) {
-  Object.assign(page, new_page);
 }
 const noop_span = {
   spanContext() {
@@ -653,8 +181,8 @@ let token;
 const preload_tokens = /* @__PURE__ */ new Set();
 const query_map = /* @__PURE__ */ new Map();
 async function start(_app, _target, hydrate) {
-  if (globalThis.__sveltekit_lv4eri?.data) {
-    globalThis.__sveltekit_lv4eri.data;
+  if (globalThis.__sveltekit_y2i89n?.data) {
+    globalThis.__sveltekit_y2i89n.data;
   }
   if (document.URL !== location.href) {
     location.href = location.href;
@@ -805,7 +333,8 @@ async function initialize(result, target2, hydrate) {
       to: {
         params: current.params,
         route: { id: current.route?.id ?? null },
-        url: new URL(location.href)
+        url: new URL(location.href),
+        scroll: scroll_positions[current_history_index] ?? scroll_state()
       },
       willUnload: false,
       type: "enter",
@@ -1134,8 +663,8 @@ async function load_route({ id, invalidating, url, params, route, preload }) {
         if (err instanceof HttpError) {
           error = err.body;
         } else {
-          const updated2 = await stores.updated.check();
-          if (updated2) {
+          const updated = await stores.updated.check();
+          if (updated) {
             await update_service_worker();
             return await native_navigation(url);
           }
@@ -1292,9 +821,9 @@ function get_url_path(url) {
 function get_page_key(url) {
   return (app.hash ? url.hash.replace(/^#/, "") : url.pathname) + url.search;
 }
-function _before_navigate({ url, type, intent, delta, event }) {
+function _before_navigate({ url, type, intent, delta, event, scroll }) {
   let should_block = false;
-  const nav = create_navigation(current, intent, url, type);
+  const nav = create_navigation(current, intent, url, type, scroll ?? null);
   if (delta !== void 0) {
     nav.navigation.delta = delta;
   }
@@ -1320,7 +849,7 @@ async function navigate({
   keepfocus,
   noscroll,
   replace_state,
-  state: state2 = {},
+  state = {},
   redirect_count = 0,
   nav_token = {},
   accept = noop,
@@ -1335,6 +864,7 @@ async function navigate({
     type,
     delta: popped?.delta,
     intent,
+    scroll: popped?.scroll,
     // @ts-ignore
     event
   });
@@ -1384,7 +914,7 @@ async function navigate({
         keepfocus,
         noscroll,
         replace_state,
-        state: state2,
+        state,
         redirect_count: redirect_count + 1,
         nav_token
       });
@@ -1405,8 +935,8 @@ async function navigate({
     /** @type {number} */
     navigation_result.props.page.status >= 400
   ) {
-    const updated2 = await stores.updated.check();
-    if (updated2) {
+    const updated = await stores.updated.check();
+    if (updated) {
       await update_service_worker();
       await native_navigation(url, replace_state);
     }
@@ -1417,13 +947,13 @@ async function navigate({
   if (navigation_result.props.page.url.pathname !== url.pathname) {
     url.pathname = navigation_result.props.page.url.pathname;
   }
-  state2 = popped ? popped.state : state2;
+  state = popped ? popped.state : state;
   if (!popped) {
     const change = replace_state ? 0 : 1;
     const entry = {
       [HISTORY_INDEX]: current_history_index += change,
       [NAVIGATION_INDEX]: current_navigation_index += change,
-      [STATES_KEY]: state2
+      [STATES_KEY]: state
     };
     const fn = replace_state ? history.replaceState : history.pushState;
     fn.call(history, entry, "", url);
@@ -1433,7 +963,7 @@ async function navigate({
   }
   const load_cache_fork = intent && load_cache?.id === intent.id ? load_cache.fork : null;
   load_cache = null;
-  navigation_result.props.page.state = state2;
+  navigation_result.props.page.state = state;
   let commit_promise;
   if (started) {
     const after_navigate = (await Promise.all(
@@ -1479,18 +1009,13 @@ async function navigate({
   await commit_promise;
   await tick();
   await tick();
-  let scroll = popped ? popped.scroll : noscroll ? scroll_state() : null;
+  let deep_linked = null;
   if (autoscroll) {
-    const deep_linked = url.hash && document.getElementById(get_id(url));
+    const scroll = popped ? popped.scroll : noscroll ? scroll_state() : null;
     if (scroll) {
       scrollTo(scroll.x, scroll.y);
-    } else if (deep_linked) {
+    } else if (deep_linked = url.hash && document.getElementById(get_id(url))) {
       deep_linked.scrollIntoView();
-      const { top, left } = deep_linked.getBoundingClientRect();
-      scroll = {
-        x: pageXOffset + left,
-        y: pageYOffset + top
-      };
     } else {
       scrollTo(0, 0);
     }
@@ -1502,7 +1027,7 @@ async function navigate({
     document.activeElement !== document.body
   );
   if (!keepfocus && !changed_focus) {
-    reset_focus(url, scroll);
+    reset_focus(url, !deep_linked);
   }
   autoscroll = true;
   if (navigation_result.props.page) {
@@ -1513,6 +1038,9 @@ async function navigate({
     restore_snapshot(current_navigation_index);
   }
   nav.fulfil(void 0);
+  if (nav.navigation.to) {
+    nav.navigation.to.scroll = scroll_state();
+  }
   after_navigate_callbacks.forEach(
     (fn) => fn(
       /** @type {import('@sveltejs/kit').AfterNavigate} */
@@ -1687,9 +1215,9 @@ function _start_router() {
     if (!is_svg_a_element && url.protocol !== location.protocol && !(url.protocol === "https:" || url.protocol === "http:"))
       return;
     if (download) return;
-    const [nonhash, hash2] = (app.hash ? url.hash.replace(/^#/, "") : url.href).split("#");
+    const [nonhash, hash] = (app.hash ? url.hash.replace(/^#/, "") : url.href).split("#");
     const same_pathname = nonhash === strip_hash(location);
-    if (external || options.reload && (!same_pathname || !hash2)) {
+    if (external || options.reload && (!same_pathname || !hash)) {
       if (_before_navigate({ url, type: "link", event })) {
         is_navigating = true;
       } else {
@@ -1697,14 +1225,14 @@ function _start_router() {
       }
       return;
     }
-    if (hash2 !== void 0 && same_pathname) {
+    if (hash !== void 0 && same_pathname) {
       const [, current_hash] = current.url.href.split("#");
-      if (current_hash === hash2) {
+      if (current_hash === hash) {
         event.preventDefault();
-        if (hash2 === "" || hash2 === "top" && a.ownerDocument.getElementById("top") === null) {
+        if (hash === "" || hash === "top" && a.ownerDocument.getElementById("top") === null) {
           scrollTo({ top: 0 });
         } else {
-          const element = a.ownerDocument.getElementById(decodeURIComponent(hash2));
+          const element = a.ownerDocument.getElementById(decodeURIComponent(hash));
           if (element) {
             element.scrollIntoView();
             element.focus();
@@ -1778,14 +1306,14 @@ function _start_router() {
       token = {};
       if (history_index === current_history_index) return;
       const scroll = scroll_positions[history_index];
-      const state2 = event.state[STATES_KEY] ?? {};
+      const state = event.state[STATES_KEY] ?? {};
       const url = new URL(event.state[PAGE_URL_KEY] ?? location.href);
       const navigation_index = event.state[NAVIGATION_INDEX];
       const is_hash_change = current.url ? strip_hash(location) === strip_hash(current.url) : false;
       const shallow = navigation_index === current_navigation_index && (has_navigated || is_hash_change);
       if (shallow) {
-        if (state2 !== page.state) {
-          page.state = state2;
+        if (state !== page.state) {
+          page.state = state;
         }
         update_url(url);
         scroll_positions[current_history_index] = scroll_state();
@@ -1798,7 +1326,7 @@ function _start_router() {
         type: "popstate",
         url,
         popped: {
-          state: state2,
+          state,
           scroll,
           delta
         },
@@ -1933,23 +1461,20 @@ function deserialize_uses(uses) {
   };
 }
 let resetting_focus = false;
-function reset_focus(url, scroll = null) {
+function reset_focus(url, scroll = true) {
   const autofocus = document.querySelector("[autofocus]");
   if (autofocus) {
     autofocus.focus();
   } else {
     const id = get_id(url);
     if (id && document.getElementById(id)) {
-      const { x, y } = scroll ?? scroll_state();
+      const { x, y } = scroll_state();
       setTimeout(() => {
         const history_state = history.state;
         resetting_focus = true;
-        location.replace(`#${id}`);
-        if (app.hash) {
-          location.replace(url.hash);
-        }
-        history.replaceState(history_state, "", url.hash);
-        scrollTo(x, y);
+        location.replace(new URL(`#${id}`, location.href));
+        history.replaceState(history_state, "", url);
+        if (scroll) scrollTo(x, y);
         resetting_focus = false;
       });
     } else {
@@ -1983,7 +1508,7 @@ function reset_focus(url, scroll = null) {
     }
   }
 }
-function create_navigation(current2, intent, url, type) {
+function create_navigation(current2, intent, url, type, target_scroll = null) {
   let fulfil;
   let reject;
   const complete = new Promise((f, r) => {
@@ -1998,12 +1523,14 @@ function create_navigation(current2, intent, url, type) {
       from: {
         params: current2.params,
         route: { id: current2.route?.id ?? null },
-        url: current2.url
+        url: current2.url,
+        scroll: scroll_state()
       },
       to: url && {
         params: intent?.params ?? null,
         route: { id: intent?.route?.id ?? null },
-        url
+        url,
+        scroll: target_scroll
       },
       willUnload: !intent,
       type,
@@ -2047,7 +1574,5 @@ function get_id(url) {
 }
 export {
   start as a,
-  load_css as l,
-  page as p,
   stores as s
 };
