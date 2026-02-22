@@ -1,5 +1,5 @@
 import { B as tick, b1 as settled } from "./D9tyZ3BP.js";
-import { a as parse_route_id, e as exec, c as create_updated_store, H as HISTORY_INDEX, N as NAVIGATION_INDEX, d as resolve_url, i as is_external_url, b as base, s as scroll_state, p as page, w as writable, n as navigating, f as find_anchor, g as get_link_info, h as get_router_options, j as strip_hash, S as STATES_KEY, P as PAGE_URL_KEY, k as notifiable_store, l as decode_params, m as make_trackable, o as normalize_path, q as origin, t as PRELOAD_PRIORITIES, u as decode_pathname, v as SNAPSHOT_KEY, x as subsequent_fetch, y as initial_fetch, z as SCROLL_KEY, A as update } from "./Dqkd6Sc-.js";
+import { a as parse_route_id, e as exec, c as create_updated_store, H as HISTORY_INDEX, N as NAVIGATION_INDEX, d as resolve_url, i as is_external_url, b as base, s as scroll_state, p as page, w as writable, n as navigating, f as find_anchor, g as get_link_info, h as get_router_options, j as strip_hash, S as STATES_KEY, P as PAGE_URL_KEY, k as notifiable_store, l as decode_params, m as make_trackable, o as normalize_path, q as origin, t as PRELOAD_PRIORITIES, u as decode_pathname, v as SNAPSHOT_KEY, x as subsequent_fetch, y as initial_fetch, z as SCROLL_KEY, A as update } from "./DcsaJQeH.js";
 import { H as HttpError, S as SvelteKitError, R as Redirect } from "./kMd03mTr.js";
 import "./BqB-gMnm.js";
 function parse({ nodes, server_loads, dictionary, matchers }) {
@@ -181,8 +181,8 @@ let token;
 const preload_tokens = /* @__PURE__ */ new Set();
 const query_map = /* @__PURE__ */ new Map();
 async function start(_app, _target, hydrate) {
-  if (globalThis.__sveltekit_1czagux?.data) {
-    globalThis.__sveltekit_1czagux.data;
+  if (globalThis.__sveltekit_161d7j?.data) {
+    globalThis.__sveltekit_161d7j.data;
   }
   if (document.URL !== location.href) {
     location.href = location.href;
