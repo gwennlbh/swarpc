@@ -1,6 +1,6 @@
 import { f as from_html, a as append, t as text } from "../chunks/CuTRY4pO.js";
 import { O as push, Z as proxy, _ as noop, g as get, P as pop, a as state, c as child, s as sibling, u as user_derived, b as set, r as reset, $ as next, t as template_effect } from "../chunks/D9tyZ3BP.js";
-import { d as delegate, a as delegated, s as set_text } from "../chunks/B5ePLMr6.js";
+import { d as delegate, a as delegated, s as set_text } from "../chunks/Ck0220X1.js";
 import { i as if_block } from "../chunks/Cp8pF2WO.js";
 import { r as remove_input_defaults } from "../chunks/CGkmFTti.js";
 import { a as bind_checked, b as bind_value } from "../chunks/D4gCD1eo.js";

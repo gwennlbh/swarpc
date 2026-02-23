@@ -509,10 +509,10 @@ function handle_event_propagation(event) {
   }
 }
 function set_text(text, value) {
-  var str = value == null ? "" : typeof value === "object" ? value + "" : value;
+  var str = value == null ? "" : typeof value === "object" ? `${value}` : value;
   if (str !== (text.__t ??= text.nodeValue)) {
     text.__t = str;
-    text.nodeValue = str + "";
+    text.nodeValue = `${str}`;
   }
 }
 function mount(component, options) {
