@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `.duration` property to the argument of hooks, containing the duration of the procedure call in milliseconds.
+
 ## [0.19.0] - 2026-01-21
 
 ### Added
