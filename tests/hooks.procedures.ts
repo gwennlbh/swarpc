@@ -17,4 +17,9 @@ export const procedures = {
     progress: type({ percent: ["number", "=>", Math.floor] }),
     success: type("number"),
   },
+  sleep: {
+    input: type({ ms: "number" }),
+    progress: type("undefined"),
+    success: type("undefined"),
+  },
 } as const satisfies ProceduresMap;

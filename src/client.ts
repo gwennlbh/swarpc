@@ -104,11 +104,13 @@ export type PendingRequest = {
   /** ID of the node the request was sent to. udefined if running on a service worker */
   nodeId?: string;
   functionName: string;
+  /** Used for timings info. Millisecond timestamp. */
+  startedAt: number;
+  /** Concurrency key to identify requests that should be considered the same for cancellation purposes (see .once methods) */
+  concurrencyKey?: string;
   reject: (err: Error) => void;
   onProgress: (progress: any) => void;
   resolve: (result: any) => void;
-  /** Concurrency key to identify requests that should be considered the same for cancellation purposes (see .once methods) */
-  concurrencyKey?: string;
 };
 
 // Map of node IDs to listener handles
@@ -368,6 +370,7 @@ export function Client<Procedures extends ProceduresMap>(
         pendingRequests.set(requestId, {
           nodeId,
           functionName,
+          startedAt: performance.now(),
           concurrencyKey,
           resolve,
           onProgress: onProgress ?? emptyProgressCallback,
@@ -730,12 +733,15 @@ async function startClientListener<Procedures extends ProceduresMap>(
       );
     }
 
+    const duration = performance.now() - handlers.startedAt;
+
     // React to the data received: call hook, call handler,
     // and remove the request from pendingRequests (unless it's a progress update)
     if ("error" in data) {
       ctx.hooks.error?.({
         procedure: data.functionName,
         error: new Error(data.error.message),
+        duration,
       });
       handlers.reject(new Error(data.error.message));
       pendingRequests.delete(requestId);
@@ -743,12 +749,14 @@ async function startClientListener<Procedures extends ProceduresMap>(
       ctx.hooks.progress?.({
         procedure: data.functionName,
         data: data.progress,
+        duration,
       });
       handlers.onProgress(data.progress);
     } else if ("result" in data) {
       ctx.hooks.success?.({
         procedure: data.functionName,
         data: data.result,
+        duration,
       });
       handlers.resolve(data.result);
       pendingRequests.delete(requestId);

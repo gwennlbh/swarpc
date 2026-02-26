@@ -64,4 +64,24 @@ describe("Client hooks", { sequential: true }, async () => {
       [{ procedure: "divide", data: { percent: 100 } }],
     ]);
   });
+
+  test("hooks contain call duration in milliseconds", async () => {
+    const success = vi.fn();
+    const client = Client(procedures, {
+      worker: Worker,
+      nodes: 1,
+      hooks: { success },
+      loglevel: "warn",
+      restartListener: true,
+    });
+    await client.sleep({ ms: 100 });
+    expect(success).toHaveBeenCalledTimes(1);
+    expect(success).toHaveBeenCalledExactlyOnceWith({
+      procedure: "sleep",
+      data: undefined,
+      duration: expect.any(Number),
+    });
+    console.debug("Duration:", success.mock.calls[0][0].duration);
+    expect(success.mock.calls[0][0].duration).toBeGreaterThanOrEqual(100);
+  });
 });

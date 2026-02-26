@@ -10,6 +10,9 @@ const server = Server(procedures, {
 });
 server.echo(async ({ value }) => value);
 server.add(async ({ a, b }) => a + b);
+server.sleep(async ({ ms }) => {
+  await new Promise((r) => setTimeout(r, ms));
+});
 server.divide(async ({ a, b }, onProgress) => {
   for (let i = 1; i <= 3; i++) {
     await new Promise((r) => setTimeout(r, 5));
