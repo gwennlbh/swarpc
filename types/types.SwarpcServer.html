@@ -3,9 +3,12 @@
 	<head>
 		<title>This page has moved to SwarpcServer.html</title>
 		<meta charset="utf-8" />
-		<meta http-equiv="refresh" content="0;URL='SwarpcServer.html'" />
+		<noscript>
+			<meta http-equiv="refresh" content="0;URL='SwarpcServer.html'" />
+		</noscript>
 	</head>
 	<body>
+		<script>location.replace('SwarpcServer.html' + location.hash)</script>
 		<p>This page has moved to <a href="SwarpcServer.html">SwarpcServer.html</a>.</p>
 	</body>
 </html>

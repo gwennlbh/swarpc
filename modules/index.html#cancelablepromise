@@ -3,9 +3,12 @@
 	<head>
 		<title>This page has moved to ../functions/CancelablePromise.html</title>
 		<meta charset="utf-8" />
-		<meta http-equiv="refresh" content="0;URL='../functions/CancelablePromise.html'" />
+		<noscript>
+			<meta http-equiv="refresh" content="0;URL='../functions/CancelablePromise.html'" />
+		</noscript>
 	</head>
 	<body>
+		<script>location.replace('../functions/CancelablePromise.html' + location.hash)</script>
 		<p>This page has moved to <a href="../functions/CancelablePromise.html">../functions/CancelablePromise.html</a>.</p>
 	</body>
 </html>

@@ -3,9 +3,12 @@
 	<head>
 		<title>This page has moved to Server.html</title>
 		<meta charset="utf-8" />
-		<meta http-equiv="refresh" content="0;URL='Server.html'" />
+		<noscript>
+			<meta http-equiv="refresh" content="0;URL='Server.html'" />
+		</noscript>
 	</head>
 	<body>
+		<script>location.replace('Server.html' + location.hash)</script>
 		<p>This page has moved to <a href="Server.html">Server.html</a>.</p>
 	</body>
 </html>

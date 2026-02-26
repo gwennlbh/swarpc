@@ -3,9 +3,12 @@
 	<head>
 		<title>This page has moved to PayloadCore.html</title>
 		<meta charset="utf-8" />
-		<meta http-equiv="refresh" content="0;URL='PayloadCore.html'" />
+		<noscript>
+			<meta http-equiv="refresh" content="0;URL='PayloadCore.html'" />
+		</noscript>
 	</head>
 	<body>
+		<script>location.replace('PayloadCore.html' + location.hash)</script>
 		<p>This page has moved to <a href="PayloadCore.html">PayloadCore.html</a>.</p>
 	</body>
 </html>

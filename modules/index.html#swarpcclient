@@ -3,9 +3,12 @@
 	<head>
 		<title>This page has moved to ../functions/SwarpcClient.html</title>
 		<meta charset="utf-8" />
-		<meta http-equiv="refresh" content="0;URL='../functions/SwarpcClient.html'" />
+		<noscript>
+			<meta http-equiv="refresh" content="0;URL='../functions/SwarpcClient.html'" />
+		</noscript>
 	</head>
 	<body>
+		<script>location.replace('../functions/SwarpcClient.html' + location.hash)</script>
 		<p>This page has moved to <a href="../functions/SwarpcClient.html">../functions/SwarpcClient.html</a>.</p>
 	</body>
 </html>

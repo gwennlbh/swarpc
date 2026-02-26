@@ -3,9 +3,12 @@
 	<head>
 		<title>This page has moved to ClientMethod.html</title>
 		<meta charset="utf-8" />
-		<meta http-equiv="refresh" content="0;URL='ClientMethod.html'" />
+		<noscript>
+			<meta http-equiv="refresh" content="0;URL='ClientMethod.html'" />
+		</noscript>
 	</head>
 	<body>
+		<script>location.replace('ClientMethod.html' + location.hash)</script>
 		<p>This page has moved to <a href="ClientMethod.html">ClientMethod.html</a>.</p>
 	</body>
 </html>
