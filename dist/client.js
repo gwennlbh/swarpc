@@ -120,6 +120,7 @@ export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug
                 pendingRequests.set(requestId, {
                     nodeId,
                     functionName,
+                    startedAt: performance.now(),
                     concurrencyKey,
                     resolve,
                     onProgress: onProgress ?? emptyProgressCallback,
@@ -320,10 +321,12 @@ async function startClientListener(ctx) {
         if (!handlers) {
             throw new Error(`[SWARPC Client] ${requestId} has no active request handlers, cannot process ${JSON.stringify(data)}`);
         }
+        const duration = performance.now() - handlers.startedAt;
         if ("error" in data) {
             ctx.hooks.error?.({
                 procedure: data.functionName,
                 error: new Error(data.error.message),
+                duration,
             });
             handlers.reject(new Error(data.error.message));
             pendingRequests.delete(requestId);
@@ -332,6 +335,7 @@ async function startClientListener(ctx) {
             ctx.hooks.progress?.({
                 procedure: data.functionName,
                 data: data.progress,
+                duration,
             });
             handlers.onProgress(data.progress);
         }
@@ -339,6 +343,7 @@ async function startClientListener(ctx) {
             ctx.hooks.success?.({
                 procedure: data.functionName,
                 data: data.result,
+                duration,
             });
             handlers.resolve(data.result);
             pendingRequests.delete(requestId);

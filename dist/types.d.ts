@@ -90,6 +90,8 @@ type ProcedureNameAndData<Procedures extends ProceduresMap, Key extends "progres
     [K in keyof Procedures]: {
         procedure: K;
         data: Schema.InferOutput<Procedures[K][Key]>;
+        /** Time in milliseconds the procedure call took */
+        duration: number;
     };
 }[keyof Procedures];
 /**
@@ -102,9 +104,12 @@ export type Hooks<Procedures extends ProceduresMap> = {
     success?: (arg: ProcedureNameAndData<Procedures, "success">) => void;
     /**
      * Called when a procedure call has failed.
+     * @param arg
+     * @param arg.duration time in milliseconds the procedure call took
      */
     error?: (arg: {
         procedure: keyof Procedures;
+        duration: number;
         error: Error;
     }) => void;
     /**
