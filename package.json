@@ -79,6 +79,9 @@
     "npm": "11.10.1"
   },
   "lint-staged": {
+    ".prettierrc": [
+      "prettier --write"
+    ],
     "*.{ts,js,md,json,yaml,yml}": [
       "oxlint --fix",
       "prettier --write"
