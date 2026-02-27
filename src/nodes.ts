@@ -1,4 +1,4 @@
-import { PendingRequest } from "./client.js";
+import { PendingRequest } from "./types.js";
 import { scopeIsDedicated, scopeIsShared } from "./scopes.js";
 
 /**
