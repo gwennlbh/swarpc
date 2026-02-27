@@ -101,7 +101,7 @@ export function postMessageSync<Procedures extends ProceduresMap>(
  * @param ctx.worker if provided, the client will use this worker to listen for messages, instead of using the service worker
  * @returns
  */
-export async function startClientListener<Procedures extends ProceduresMap>(
+async function startClientListener<Procedures extends ProceduresMap>(
   ctx: Context<Procedures>,
 ) {
   if (_clientListeners.has(nodeIdOrSW(ctx.nodeId))) return;
