@@ -7,17 +7,19 @@
 import { createLogger, injectIntoConsoleGlobal, type LogLevel } from "./log.js";
 import {
   ImplementationsMap,
-  isPayloadHeader,
-  isPayloadInitialize,
-  Payload,
-  PayloadCore,
   ProcedureImplementation,
   RequestCancelledError,
-  validatePayloadCore,
   zImplementations,
   zProcedures,
   type ProceduresMap,
 } from "./types.js";
+import {
+  isPayloadHeader,
+  isPayloadInitialize,
+  Payload,
+  PayloadCore,
+  validatePayloadCore,
+} from "./payload.js";
 import { findTransferables } from "./utils.js";
 import { FauxLocalStorage } from "./localstorage.js";
 import { scopeIsDedicated, scopeIsShared, scopeIsService } from "./scopes.js";
