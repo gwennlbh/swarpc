@@ -1,5 +1,6 @@
 import { createLogger, injectIntoConsoleGlobal } from "./log.js";
-import { isPayloadHeader, isPayloadInitialize, RequestCancelledError, validatePayloadCore, zImplementations, zProcedures, } from "./types.js";
+import { RequestCancelledError, zImplementations, zProcedures, } from "./types.js";
+import { isPayloadHeader, isPayloadInitialize, validatePayloadCore, } from "./payload.js";
 import { findTransferables } from "./utils.js";
 import { FauxLocalStorage } from "./localstorage.js";
 import { scopeIsDedicated, scopeIsShared, scopeIsService } from "./scopes.js";
