@@ -1,0 +1,52 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - spinbutton [ref=e3]: "4"
+  - button "Compute" [active] [ref=e4]
+  - generic [ref=e5]:
+    - paragraph [ref=e6]:
+      - code [ref=e7]:
+        - text: 4 · 0 = 0
+        - text: 50% from N11A
+    - paragraph [ref=e8]:
+      - code [ref=e9]:
+        - text: 4 · 1 = 0
+        - text: 50% from NE6D
+    - paragraph [ref=e10]:
+      - code [ref=e11]:
+        - text: 4 · 2 = 0
+        - text: 50% from N57B
+    - paragraph [ref=e12]:
+      - code [ref=e13]:
+        - text: 4 · 3 = 0
+        - text: 50% from N09D
+    - paragraph [ref=e14]:
+      - code [ref=e15]:
+        - text: 4 · 4 = 0
+        - text: 50% from ND17
+    - paragraph [ref=e16]:
+      - code [ref=e17]:
+        - text: 4 · 5 = 0
+        - text: 50% from NB73
+    - paragraph [ref=e18]:
+      - code [ref=e19]:
+        - text: 4 · 6 = 0
+        - text: 50% from N833
+    - paragraph [ref=e20]:
+      - code [ref=e21]:
+        - text: 4 · 7 = 0
+        - text: 50% from N1BD
+    - paragraph [ref=e22]:
+      - code [ref=e23]:
+        - text: 4 · 8 = 0
+        - text: 50% from N401
+    - paragraph [ref=e24]:
+      - code [ref=e25]:
+        - text: 4 · 9 = 0
+        - text: 50% from N81E
+    - paragraph [ref=e26]:
+      - code [ref=e27]:
+        - text: 4 · 10 = 0
+        - text: 50% from N11A
+```
