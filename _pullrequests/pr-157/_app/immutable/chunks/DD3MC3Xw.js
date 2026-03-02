@@ -1,4 +1,4 @@
-import { n as current_batch, o as resume_effect, p as destroy_effect, q as pause_effect, v as create_text, w as branch, h as hydrating, x as hydrate_node, y as move_effect, z as should_defer_append } from "./D9tyZ3BP.js";
+import { o as resume_effect, p as destroy_effect, q as pause_effect, v as create_text, w as branch, x as current_batch, h as hydrating, n as hydrate_node, y as move_effect, z as should_defer_append } from "./BfvVvcMy.js";
 class BranchManager {
   /** @type {TemplateNode} */
   anchor;
@@ -43,11 +43,10 @@ class BranchManager {
     this.anchor = anchor;
     this.#transition = transition;
   }
-  #commit = () => {
-    var batch = (
-      /** @type {Batch} */
-      current_batch
-    );
+  /**
+   * @param {Batch} batch
+   */
+  #commit = (batch) => {
     if (!this.#batches.has(batch)) return;
     var key = (
       /** @type {Key} */
@@ -163,7 +162,7 @@ class BranchManager {
       if (hydrating) {
         this.anchor = hydrate_node;
       }
-      this.#commit();
+      this.#commit(batch);
     }
   }
 }
