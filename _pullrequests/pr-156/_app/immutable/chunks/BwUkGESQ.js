@@ -1,14 +1,19 @@
-import { d as block, h as hydrating, e as hydrate_next, E as EFFECT_TRANSPARENT, i as read_hydration_instruction, H as HYDRATION_START, j as HYDRATION_START_ELSE, k as skip_nodes, l as set_hydrate_node, m as set_hydrating } from "./D9tyZ3BP.js";
-import { B as BranchManager } from "./CSdnGwkJ.js";
+import { d as block, h as hydrating, e as hydrate_next, E as EFFECT_TRANSPARENT, i as read_hydration_instruction, H as HYDRATION_START, j as HYDRATION_START_ELSE, k as skip_nodes, l as set_hydrate_node, m as set_hydrating, n as hydrate_node } from "./BfvVvcMy.js";
+import { B as BranchManager } from "./DD3MC3Xw.js";
 function if_block(node, fn, elseif = false) {
+  var marker;
   if (hydrating) {
+    marker = hydrate_node;
     hydrate_next();
   }
   var branches = new BranchManager(node);
   var flags = elseif ? EFFECT_TRANSPARENT : 0;
   function update_branch(key, fn2) {
     if (hydrating) {
-      const data = read_hydration_instruction(node);
+      var data = read_hydration_instruction(
+        /** @type {TemplateNode} */
+        marker
+      );
       var hydrated_key;
       if (data === HYDRATION_START) {
         hydrated_key = 0;

@@ -361,8 +361,8 @@ let previous_batch = null;
 let batch_values = null;
 let queued_root_effects = [];
 let last_scheduled_effect = null;
-let is_flushing = false;
 let is_flushing_sync = false;
+let collected_effects = null;
 class Batch {
   /**
    * The current values of any sources that are updated in this batch
@@ -379,7 +379,7 @@ class Batch {
   /**
    * When the batch is committed (and the DOM is updated), we need to remove old branches
    * and append new ones by calling the functions added inside (if/each/key/etc) blocks
-   * @type {Set<() => void>}
+   * @type {Set<(batch: Batch) => void>}
    */
   #commit_callbacks = /* @__PURE__ */ new Set();
   /**
@@ -459,11 +459,12 @@ class Batch {
   process(root_effects) {
     queued_root_effects = [];
     this.apply();
-    var effects = [];
+    var effects = collected_effects = [];
     var render_effects = [];
     for (const root of root_effects) {
       this.#traverse_effect_tree(root, effects, render_effects);
     }
+    collected_effects = null;
     if (this.#is_deferred()) {
       this.#defer_effects(render_effects);
       this.#defer_effects(effects);
@@ -471,15 +472,17 @@ class Batch {
         reset_branch(e, t);
       }
     } else {
-      for (const fn of this.#commit_callbacks) fn();
+      previous_batch = this;
+      current_batch = null;
+      for (const fn of this.#commit_callbacks) fn(this);
       this.#commit_callbacks.clear();
       if (this.#pending === 0) {
         this.#commit();
       }
-      previous_batch = this;
-      current_batch = null;
       flush_queued_effects(render_effects);
       flush_queued_effects(effects);
+      this.#dirty_effects.clear();
+      this.#maybe_dirty_effects.clear();
       previous_batch = null;
       this.#deferred?.resolve();
     }
@@ -558,14 +561,14 @@ class Batch {
     batch_values = null;
   }
   flush() {
-    this.activate();
     if (queued_root_effects.length > 0) {
+      current_batch = this;
       flush_effects();
-      if (current_batch !== null && current_batch !== this) {
-        return;
-      }
-    } else if (this.#pending === 0) {
-      this.process([]);
+    } else if (this.#pending === 0 && !this.is_fork) {
+      for (const fn of this.#commit_callbacks) fn(this);
+      this.#commit_callbacks.clear();
+      this.#commit();
+      this.#deferred?.resolve();
     }
     this.deactivate();
   }
@@ -576,6 +579,7 @@ class Batch {
   #commit() {
     if (batches.size > 1) {
       this.previous.clear();
+      var previous_batch2 = current_batch;
       var previous_batch_values = batch_values;
       var is_earlier = true;
       for (const batch of batches) {
@@ -617,9 +621,10 @@ class Batch {
           queued_root_effects = prev_queued_root_effects;
         }
       }
-      current_batch = null;
+      current_batch = previous_batch2;
       batch_values = previous_batch_values;
     }
+    this.#skipped_branches.clear();
     batches.delete(this);
   }
   /**
@@ -660,7 +665,7 @@ class Batch {
     }
     this.flush();
   }
-  /** @param {() => void} fn */
+  /** @param {(batch: Batch) => void} fn */
   oncommit(fn) {
     this.#commit_callbacks.add(fn);
   }
@@ -715,7 +720,6 @@ function flushSync(fn) {
   }
 }
 function flush_effects() {
-  is_flushing = true;
   var source_stacks = null;
   try {
     var flush_count = 0;
@@ -732,8 +736,8 @@ function flush_effects() {
     }
   } finally {
     queued_root_effects = [];
-    is_flushing = false;
     last_scheduled_effect = null;
+    collected_effects = null;
   }
 }
 function infinite_loop_guard() {
@@ -841,8 +845,10 @@ function schedule_effect(signal) {
   while (effect2.parent !== null) {
     effect2 = effect2.parent;
     var flags = effect2.f;
-    if (is_flushing && effect2 === active_effect && (flags & BLOCK_EFFECT) !== 0 && (flags & HEAD_EFFECT) === 0 && (flags & REACTION_RAN) !== 0) {
-      return;
+    if (collected_effects !== null && effect2 === active_effect) {
+      if ((signal.f & RENDER_EFFECT) === 0) {
+        return;
+      }
     }
     if ((flags & (ROOT_EFFECT | BRANCH_EFFECT)) !== 0) {
       if ((flags & CLEAN) === 0) {
@@ -1684,7 +1690,7 @@ function push_effect(effect2, parent_effect) {
     parent_effect.last = effect2;
   }
 }
-function create_effect(type, fn, sync) {
+function create_effect(type, fn) {
   var parent = active_effect;
   if (parent !== null && (parent.f & INERT) !== 0) {
     type |= INERT;
@@ -1705,22 +1711,26 @@ function create_effect(type, fn, sync) {
     wv: 0,
     ac: null
   };
-  if (sync) {
+  var e = effect2;
+  if ((type & EFFECT) !== 0) {
+    if (collected_effects !== null) {
+      collected_effects.push(effect2);
+    } else {
+      schedule_effect(effect2);
+    }
+  } else if (fn !== null) {
     try {
       update_effect(effect2);
     } catch (e2) {
       destroy_effect(effect2);
       throw e2;
     }
-  } else if (fn !== null) {
-    schedule_effect(effect2);
-  }
-  var e = effect2;
-  if (sync && e.deps === null && e.teardown === null && e.nodes === null && e.first === e.last && // either `null`, or a singular child
-  (e.f & EFFECT_PRESERVED) === 0) {
-    e = e.first;
-    if ((type & BLOCK_EFFECT) !== 0 && (type & EFFECT_TRANSPARENT) !== 0 && e !== null) {
-      e.f |= EFFECT_TRANSPARENT;
+    if (e.deps === null && e.teardown === null && e.nodes === null && e.first === e.last && // either `null`, or a singular child
+    (e.f & EFFECT_PRESERVED) === 0) {
+      e = e.first;
+      if ((type & BLOCK_EFFECT) !== 0 && (type & EFFECT_TRANSPARENT) !== 0 && e !== null) {
+        e.f |= EFFECT_TRANSPARENT;
+      }
     }
   }
   if (e !== null) {
@@ -1742,7 +1752,7 @@ function effect_tracking() {
   return active_reaction !== null && !untracking;
 }
 function teardown(fn) {
-  const effect2 = create_effect(RENDER_EFFECT, null, false);
+  const effect2 = create_effect(RENDER_EFFECT, null);
   set_signal_status(effect2, CLEAN);
   effect2.teardown = fn;
   return effect2;
@@ -1765,15 +1775,15 @@ function user_effect(fn) {
   }
 }
 function create_user_effect(fn) {
-  return create_effect(EFFECT | USER_EFFECT, fn, false);
+  return create_effect(EFFECT | USER_EFFECT, fn);
 }
 function user_pre_effect(fn) {
   validate_effect();
-  return create_effect(RENDER_EFFECT | USER_EFFECT, fn, true);
+  return create_effect(RENDER_EFFECT | USER_EFFECT, fn);
 }
 function component_root(fn) {
   Batch.ensure();
-  const effect2 = create_effect(ROOT_EFFECT | EFFECT_PRESERVED, fn, true);
+  const effect2 = create_effect(ROOT_EFFECT | EFFECT_PRESERVED, fn);
   return (options = {}) => {
     return new Promise((fulfil) => {
       if (options.outro) {
@@ -1789,25 +1799,25 @@ function component_root(fn) {
   };
 }
 function effect(fn) {
-  return create_effect(EFFECT, fn, false);
+  return create_effect(EFFECT, fn);
 }
 function async_effect(fn) {
-  return create_effect(ASYNC | EFFECT_PRESERVED, fn, true);
+  return create_effect(ASYNC | EFFECT_PRESERVED, fn);
 }
 function render_effect(fn, flags = 0) {
-  return create_effect(RENDER_EFFECT | flags, fn, true);
+  return create_effect(RENDER_EFFECT | flags, fn);
 }
 function template_effect(fn, sync = [], async = [], blockers = []) {
   flatten(blockers, sync, async, (values) => {
-    create_effect(RENDER_EFFECT, () => fn(...values.map(get)), true);
+    create_effect(RENDER_EFFECT, () => fn(...values.map(get)));
   });
 }
 function block(fn, flags = 0) {
-  var effect2 = create_effect(BLOCK_EFFECT | flags, fn, true);
+  var effect2 = create_effect(BLOCK_EFFECT | flags, fn);
   return effect2;
 }
 function branch(fn) {
-  return create_effect(BRANCH_EFFECT | EFFECT_PRESERVED, fn, true);
+  return create_effect(BRANCH_EFFECT | EFFECT_PRESERVED, fn);
 }
 function execute_effect_teardown(effect2) {
   var teardown2 = effect2.teardown;
@@ -2513,7 +2523,7 @@ export {
   skip_nodes as k,
   set_hydrate_node as l,
   set_hydrating as m,
-  current_batch as n,
+  hydrate_node as n,
   resume_effect as o,
   destroy_effect as p,
   pause_effect as q,
@@ -2523,7 +2533,7 @@ export {
   user_derived as u,
   create_text as v,
   branch as w,
-  hydrate_node as x,
+  current_batch as x,
   move_effect as y,
   should_defer_append as z
 };
