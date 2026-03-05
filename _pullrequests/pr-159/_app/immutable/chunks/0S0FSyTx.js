@@ -308,9 +308,9 @@ function resolve_route(id, params) {
     })
   ).filter(Boolean).join("/") + (has_id_trailing_slash ? "/" : "");
 }
-const base = globalThis.__sveltekit_1dficc9?.base ?? "/cigale/_pullrequests/pr-159";
-const assets = globalThis.__sveltekit_1dficc9?.assets ?? base ?? "";
-const version = "1772417717297";
+const base = globalThis.__sveltekit_1hp611a?.base ?? "/cigale/_pullrequests/pr-159";
+const assets = globalThis.__sveltekit_1hp611a?.assets ?? base ?? "";
+const version = "1772704197260";
 const SNAPSHOT_KEY = "sveltekit:snapshot";
 const SCROLL_KEY = "sveltekit:scroll";
 const STATES_KEY = "sveltekit:states";
