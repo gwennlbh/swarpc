@@ -629,6 +629,7 @@ class Batch {
   discard() {
     for (const fn of this.#discard_callbacks) fn(this);
     this.#discard_callbacks.clear();
+    batches.delete(this);
   }
   #commit() {
     for (const batch of batches) {
@@ -644,11 +645,12 @@ class Batch {
         }
         sources.push(source3);
       }
-      if (sources.length === 0) {
-        continue;
-      }
       var others = [...batch.current.keys()].filter((s) => !this.current.has(s));
-      if (others.length > 0) {
+      if (others.length === 0) {
+        if (is_earlier) {
+          batch.discard();
+        }
+      } else if (sources.length > 0) {
         batch.activate();
         var marked = /* @__PURE__ */ new Set();
         var checked = /* @__PURE__ */ new Map();
