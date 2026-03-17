@@ -1,9 +1,9 @@
-import { f as from_html, a as append, t as text } from "../chunks/DZo5_qKz.js";
-import { f as first_child, g as get, c as child, s as sibling, a as state, r as reset, b as set, u as user_derived, t as template_effect } from "../chunks/BfvVvcMy.js";
-import { d as delegate, a as delegated, s as set_text } from "../chunks/BJmypUAI.js";
-import { i as if_block } from "../chunks/BwUkGESQ.js";
-import { r as remove_input_defaults } from "../chunks/CQNZnu2W.js";
-import { b as bind_value } from "../chunks/CgHfaNe3.js";
+import { f as from_html, a as append, t as text } from "../chunks/CWPLrOC0.js";
+import { f as first_child, g as get, c as child, s as sibling, a as state, r as reset, b as set, u as user_derived, t as template_effect } from "../chunks/aeDwZSEd.js";
+import { d as delegate, a as delegated, s as set_text } from "../chunks/C9PsBoAL.js";
+import { i as if_block } from "../chunks/BGVLaK7Y.js";
+import { r as remove_input_defaults } from "../chunks/FyQvz4Ck.js";
+import { b as bind_value } from "../chunks/C1HAqAkF.js";
 var root_4 = from_html(`<button>Cancel</button>`);
 var root = from_html(`<search><input type="number"/> * <input type="number"/> = <button><!></button></search> <!>`, 1);
 function _page($$anchor, $$props) {
@@ -40,7 +40,7 @@ function _page($$anchor, $$props) {
     if_block(node, ($$render) => {
       if (get(loading)) $$render(consequent);
       else if (get(result)) $$render(consequent_1, 1);
-      else $$render(alternate, false);
+      else $$render(alternate, -1);
     });
   }
   reset(button);

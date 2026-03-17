@@ -1,5 +1,5 @@
-import { aq as effect_tracking, g as get, a7 as source, D as render_effect, C as untrack, ar as increment, K as queue_micro_task, n as hydrate_node, h as hydrating, ak as active_effect, as as BOUNDARY_EFFECT, d as block, e as hydrate_next, j as HYDRATION_START_ELSE, at as HYDRATION_START_FAILED, w as branch, v as create_text, au as Batch, q as pause_effect, y as move_effect, av as set_signal_status, aw as DIRTY, ax as schedule_effect, ay as MAYBE_DIRTY, az as defer_effect, aA as set_active_effect, aB as set_active_reaction, aC as set_component_context, aD as handle_error, aE as active_reaction, Q as component_context, a4 as internal_set, p as destroy_effect, l as set_hydrate_node, $ as next, k as skip_nodes, aF as invoke_error_boundary, E as EFFECT_TRANSPARENT, aG as EFFECT_PRESERVED, aH as svelte_boundary_reset_onerror, aI as svelte_boundary_reset_noop, aJ as define_property, aK as init_operations, a0 as get_first_child, a2 as COMMENT_NODE, H as HYDRATION_START, af as get_next_sibling, aL as HYDRATION_ERROR, m as set_hydrating, aM as hydration_failed, ah as clear_text_content, aN as component_root, a9 as array_from, O as push, a3 as HYDRATION_END, aO as hydration_mismatch, P as pop } from "./BfvVvcMy.js";
-import { b as assign_nodes } from "./DZo5_qKz.js";
+import { ap as effect_tracking, g as get, a5 as source, C as render_effect, B as untrack, aq as increment, G as queue_micro_task, m as hydrate_node, h as hydrating, aj as active_effect, ar as BOUNDARY_EFFECT, d as block, e as hydrate_next, $ as HYDRATION_START_ELSE, as as HYDRATION_START_FAILED, v as branch, q as create_text, p as pause_effect, w as current_batch, x as move_effect, at as defer_effect, au as set_active_effect, av as set_active_reaction, aw as set_component_context, ax as Batch, ay as handle_error, az as active_reaction, M as component_context, a2 as internal_set, o as destroy_effect, k as set_hydrate_node, Y as next, j as skip_nodes, aA as invoke_error_boundary, E as EFFECT_TRANSPARENT, aB as EFFECT_PRESERVED, aC as svelte_boundary_reset_onerror, aD as svelte_boundary_reset_noop, aE as define_property, aF as init_operations, Z as get_first_child, a0 as COMMENT_NODE, aG as HYDRATION_START, ae as get_next_sibling, aH as HYDRATION_ERROR, l as set_hydrating, aI as hydration_failed, ag as clear_text_content, aJ as component_root, a7 as array_from, J as push, a1 as HYDRATION_END, aK as hydration_mismatch, K as pop } from "./aeDwZSEd.js";
+import { b as assign_nodes } from "./CWPLrOC0.js";
 function createSubscriber(start) {
   let subscribers = 0;
   let version = source(0);
@@ -157,7 +157,6 @@ class Boundary {
       var anchor = create_text();
       fragment.append(anchor);
       this.#main_effect = this.#run(() => {
-        Batch.ensure();
         return branch(() => this.#children(anchor));
       });
       if (this.#pending_count === 0) {
@@ -170,7 +169,10 @@ class Boundary {
             this.#pending_effect = null;
           }
         );
-        this.#resolve();
+        this.#resolve(
+          /** @type {Batch} */
+          current_batch
+        );
       }
     });
   }
@@ -191,24 +193,21 @@ class Boundary {
         );
         this.#pending_effect = branch(() => pending(this.#anchor));
       } else {
-        this.#resolve();
+        this.#resolve(
+          /** @type {Batch} */
+          current_batch
+        );
       }
     } catch (error) {
       this.error(error);
     }
   }
-  #resolve() {
+  /**
+   * @param {Batch} batch
+   */
+  #resolve(batch) {
     this.is_pending = false;
-    for (const e of this.#dirty_effects) {
-      set_signal_status(e, DIRTY);
-      schedule_effect(e);
-    }
-    for (const e of this.#maybe_dirty_effects) {
-      set_signal_status(e, MAYBE_DIRTY);
-      schedule_effect(e);
-    }
-    this.#dirty_effects.clear();
-    this.#maybe_dirty_effects.clear();
+    batch.transfer_effects(this.#dirty_effects, this.#maybe_dirty_effects);
   }
   /**
    * Defer an effect inside a pending boundary until the boundary resolves
@@ -239,6 +238,7 @@ class Boundary {
     set_active_reaction(this.#effect);
     set_component_context(this.#effect.ctx);
     try {
+      Batch.ensure();
       return fn();
     } catch (e) {
       handle_error(e);
@@ -253,17 +253,18 @@ class Boundary {
    * Updates the pending count associated with the currently visible pending snippet,
    * if any, such that we can replace the snippet with content once work is done
    * @param {1 | -1} d
+   * @param {Batch} batch
    */
-  #update_pending_count(d) {
+  #update_pending_count(d, batch) {
     if (!this.has_pending_snippet()) {
       if (this.parent) {
-        this.parent.#update_pending_count(d);
+        this.parent.#update_pending_count(d, batch);
       }
       return;
     }
     this.#pending_count += d;
     if (this.#pending_count === 0) {
-      this.#resolve();
+      this.#resolve(batch);
       if (this.#pending_effect) {
         pause_effect(this.#pending_effect, () => {
           this.#pending_effect = null;
@@ -280,9 +281,10 @@ class Boundary {
    * and controls when the current `pending` snippet (if any) is removed.
    * Do not call from inside the class
    * @param {1 | -1} d
+   * @param {Batch} batch
    */
-  update_pending_count(d) {
-    this.#update_pending_count(d);
+  update_pending_count(d, batch) {
+    this.#update_pending_count(d, batch);
     this.#local_pending_count += d;
     if (!this.#effect_pending || this.#pending_count_update_queued) return;
     this.#pending_count_update_queued = true;
@@ -344,7 +346,6 @@ class Boundary {
         });
       }
       this.#run(() => {
-        Batch.ensure();
         this.#render();
       });
     };
@@ -358,7 +359,6 @@ class Boundary {
       }
       if (failed) {
         this.#failed_effect = this.#run(() => {
-          Batch.ensure();
           try {
             return branch(() => {
               var effect = (
