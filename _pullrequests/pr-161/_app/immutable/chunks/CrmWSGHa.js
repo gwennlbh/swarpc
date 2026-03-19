@@ -1,5 +1,5 @@
-import { B as tick, b1 as settled } from "./BfvVvcMy.js";
-import { a as parse_route_id, e as exec, c as create_updated_store, H as HISTORY_INDEX, N as NAVIGATION_INDEX, d as resolve_url, i as is_external_url, b as base, s as scroll_state, p as page, w as writable, n as navigating, f as find_anchor, g as get_link_info, h as get_router_options, j as strip_hash, S as STATES_KEY, P as PAGE_URL_KEY, k as notifiable_store, l as decode_params, m as make_trackable, o as normalize_path, q as origin, t as PRELOAD_PRIORITIES, u as decode_pathname, v as SNAPSHOT_KEY, x as subsequent_fetch, y as initial_fetch, z as SCROLL_KEY, A as update } from "./DudOoMcW.js";
+import { A as tick, aZ as settled } from "./aeDwZSEd.js";
+import { a as parse_route_id, e as exec, c as create_updated_store, H as HISTORY_INDEX, N as NAVIGATION_INDEX, d as resolve_url, i as is_external_url, b as base, s as scroll_state, p as page, w as writable, n as navigating, f as find_anchor, g as get_link_info, h as get_router_options, j as strip_hash, S as STATES_KEY, P as PAGE_URL_KEY, k as notifiable_store, l as decode_params, m as make_trackable, o as normalize_path, q as origin, t as PRELOAD_PRIORITIES, u as decode_pathname, v as SNAPSHOT_KEY, x as subsequent_fetch, y as initial_fetch, z as SCROLL_KEY, A as update } from "./DQHtTLA1.js";
 import { H as HttpError, S as SvelteKitError, R as Redirect } from "./kMd03mTr.js";
 import "./BqB-gMnm.js";
 function parse({ nodes, server_loads, dictionary, matchers }) {
@@ -99,6 +99,7 @@ const noop_span_context = {
   traceFlags: 0
 };
 const ICON_REL_ATTRIBUTES = /* @__PURE__ */ new Set(["icon", "shortcut icon", "apple-touch-icon"]);
+let rendering_error = null;
 const scroll_positions = /* @__PURE__ */ get(SCROLL_KEY) ?? {};
 const snapshots = /* @__PURE__ */ get(SNAPSHOT_KEY) ?? {};
 const stores = {
@@ -181,8 +182,8 @@ let token;
 const preload_tokens = /* @__PURE__ */ new Set();
 const query_map = /* @__PURE__ */ new Map();
 async function start(_app, _target, hydrate) {
-  if (globalThis.__sveltekit_1r389zm?.data) {
-    globalThis.__sveltekit_1r389zm.data;
+  if (globalThis.__sveltekit_e1gt89?.data) {
+    globalThis.__sveltekit_e1gt89.data;
   }
   if (document.URL !== location.href) {
     location.href = location.href;
@@ -313,7 +314,15 @@ async function _preload_code(url) {
   }
 }
 async function initialize(result, target2, hydrate) {
-  current = result.state;
+  const nav = {
+    params: current.params,
+    route: { id: current.route?.id ?? null },
+    url: new URL(location.href)
+  };
+  current = {
+    ...result.state,
+    nav
+  };
   const style = document.querySelector("style[data-sveltekit]");
   if (style) style.remove();
   Object.assign(
@@ -326,7 +335,9 @@ async function initialize(result, target2, hydrate) {
     props: { ...result.props, stores, components },
     hydrate,
     // @ts-ignore Svelte 5 specific: asynchronously instantiate the component, i.e. don't call flushSync
-    sync: false
+    sync: false,
+    // @ts-ignore Svelte 5 specific: transformError allows to transform errors before they are passed to boundaries
+    transformError: void 0
   });
   void await Promise.resolve();
   restore_snapshot(current_navigation_index);
@@ -334,9 +345,7 @@ async function initialize(result, target2, hydrate) {
     const navigation = {
       from: null,
       to: {
-        params: current.params,
-        route: { id: current.route?.id ?? null },
-        url: new URL(location.href),
+        ...nav,
         scroll: scroll_positions[current_history_index] ?? scroll_state()
       },
       willUnload: false,
@@ -347,7 +356,16 @@ async function initialize(result, target2, hydrate) {
   }
   started = true;
 }
-function get_navigation_result_from_branch({ url, params, branch, status, error, route, form }) {
+async function get_navigation_result_from_branch({
+  url,
+  params,
+  branch,
+  errors,
+  status,
+  error,
+  route,
+  form
+}) {
   let slash = "never";
   if (base && (url.pathname === base || url.pathname === base + "/")) {
     slash = "always";
@@ -373,6 +391,23 @@ function get_navigation_result_from_branch({ url, params, branch, status, error,
       page: clone_page(page)
     }
   };
+  if (errors && false) {
+    let last_idx = -1;
+    result.props.errors = await Promise.all(
+      // eslint-disable-next-line @typescript-eslint/await-thenable
+      branch.map((b, i) => {
+        if (i === 0) return void 0;
+        if (!b) return null;
+        i--;
+        while (i > last_idx + 1 && !errors[i]) i -= 1;
+        last_idx = i;
+        return errors[i]?.().then((e) => e.component).catch(() => void 0);
+      }).filter((e) => e !== null)
+    );
+  }
+  if (error && false) {
+    result.props.error = error;
+  }
   if (form !== void 0) {
     result.props.form = form;
   }
@@ -679,6 +714,7 @@ async function load_route({ id, invalidating, url, params, route, preload }) {
             url,
             params,
             branch: branch.slice(0, error_load.idx).concat(error_load.node),
+            errors,
             status,
             error,
             route
@@ -695,6 +731,7 @@ async function load_route({ id, invalidating, url, params, route, preload }) {
     url,
     params,
     branch,
+    errors,
     status: 200,
     error: null,
     route,
@@ -753,6 +790,7 @@ async function load_root_error_page({ status, error, url, route }) {
       branch: [root_layout, root_error],
       status,
       error,
+      errors: [],
       route: null
     });
   } catch (error2) {
@@ -993,7 +1031,21 @@ async function navigate({
         after_navigate_callbacks.add(fn);
       });
     }
-    current = navigation_result.state;
+    const target2 = (
+      /** @type {import('@sveltejs/kit').NavigationTarget} */
+      nav.navigation.to
+    );
+    current = {
+      ...navigation_result.state,
+      nav: {
+        params: (
+          /** @type {Record<string, any>} */
+          target2.params
+        ),
+        route: target2.route,
+        url: target2.url
+      }
+    };
     if (navigation_result.props.page) {
       navigation_result.props.page.url = url;
     }
@@ -1001,7 +1053,11 @@ async function navigate({
     if (fork) {
       commit_promise = fork.commit();
     } else {
+      rendering_error = null;
       root.$set(navigation_result.props);
+      if (rendering_error) {
+        Object.assign(navigation_result.props.page, rendering_error);
+      }
       update(navigation_result.props.page);
       commit_promise = settled?.();
     }
@@ -1035,6 +1091,9 @@ async function navigate({
   }
   autoscroll = true;
   if (navigation_result.props.page) {
+    if (rendering_error) {
+      Object.assign(navigation_result.props.page, rendering_error);
+    }
     Object.assign(page, navigation_result.props.page);
   }
   is_navigating = false;
@@ -1426,12 +1485,14 @@ async function _hydrate(target2, { status = 200, error, node_ids, params, route,
         }
       }
     }
-    result = get_navigation_result_from_branch({
+    result = await get_navigation_result_from_branch({
       url,
       params,
       branch,
       status,
       error,
+      errors: parsed_route?.errors,
+      // TODO load earlier?
       form,
       route: parsed_route ?? null
     });

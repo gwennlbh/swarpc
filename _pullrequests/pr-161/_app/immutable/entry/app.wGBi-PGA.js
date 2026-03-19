@@ -1,10 +1,20 @@
-const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["../nodes/0.CuABBnCS.js","../chunks/D8HaC4jT.js","../chunks/DZo5_qKz.js","../chunks/BfvVvcMy.js","../chunks/DD3MC3Xw.js","../nodes/1.BffzGmGZ.js","../chunks/C7vf3zr2.js","../chunks/BJmypUAI.js","../chunks/DudOoMcW.js","../chunks/Day5Ov8X.js","../chunks/BqB-gMnm.js","../chunks/Boa-3ts_.js","../chunks/kMd03mTr.js","../nodes/2.DAs95moV.js","../chunks/B5z_hPLV.js","../nodes/3.BOyH-88P.js","../chunks/CQNZnu2W.js","../nodes/4.DSHxedwc.js","../chunks/BwUkGESQ.js","../chunks/CgHfaNe3.js","../nodes/5.BiCr4UyT.js","../assets/5.BnF6-MMK.css","../nodes/6.DAiJtzGj.js","../assets/6.3kMZvOdl.css"])))=>i.map(i=>d[i]);
-import { h as hydrating, e as hydrate_next, d as block, E as EFFECT_TRANSPARENT, i as read_hydration_instruction, k as skip_nodes, l as set_hydrate_node, m as set_hydrating, H as HYDRATION_START, n as hydrate_node, aP as effect, D as render_effect, C as untrack, K as queue_micro_task, aQ as STATE_SYMBOL, aR as get_descriptor, aS as props_invalid_value, aT as PROPS_IS_UPDATED, g as get, W as derived, a1 as derived_safe_equal, Z as proxy, b as set, aU as is_destroying_effect, ak as active_effect, aV as DESTROYED, aW as PROPS_IS_BINDABLE, Y as legacy_mode_flag, aX as PROPS_IS_RUNES, aY as PROPS_IS_IMMUTABLE, aZ as PROPS_IS_LAZY_INITIAL, a_ as LEGACY_PROPS, a$ as flushSync, aJ as define_property, a8 as mutable_source, O as push, R as user_pre_effect, S as user_effect, a as state, B as tick, f as first_child, s as sibling, P as pop, c as child, r as reset, u as user_derived, t as template_effect } from "../chunks/BfvVvcMy.js";
-import { h as hydrate, m as mount, u as unmount, s as set_text } from "../chunks/BJmypUAI.js";
-import { f as from_html, a as append, c as comment, t as text } from "../chunks/DZo5_qKz.js";
-import { o as onMount } from "../chunks/Day5Ov8X.js";
-import { i as if_block } from "../chunks/BwUkGESQ.js";
-import { B as BranchManager } from "../chunks/DD3MC3Xw.js";
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["../nodes/0.BblTRB6j.js","../chunks/C3pqhxqv.js","../chunks/CWPLrOC0.js","../chunks/aeDwZSEd.js","../chunks/zAvPtT5X.js","../nodes/1.Bh0UrNfn.js","../chunks/33LIZSpI.js","../chunks/C9PsBoAL.js","../chunks/DQHtTLA1.js","../chunks/BIghDc4y.js","../chunks/BqB-gMnm.js","../chunks/CrmWSGHa.js","../chunks/kMd03mTr.js","../nodes/2.CmrbAUgL.js","../chunks/B5z_hPLV.js","../nodes/3.CZMEQH2h.js","../chunks/FyQvz4Ck.js","../nodes/4.XB6A-4cR.js","../chunks/BGVLaK7Y.js","../chunks/C1HAqAkF.js","../nodes/5.Cn_nTF-U.js","../assets/5.BnF6-MMK.css","../nodes/6.CGK627nU.js","../assets/6.3kMZvOdl.css"])))=>i.map(i=>d[i]);
+import { h as hydrating, e as hydrate_next, d as block, E as EFFECT_TRANSPARENT, i as read_hydration_instruction, j as skip_nodes, k as set_hydrate_node, l as set_hydrating, aG as HYDRATION_START, m as hydrate_node, M as component_context, aL as effect, C as render_effect, B as untrack, aj as active_effect, aM as DESTROYING, aN as STATE_SYMBOL, aO as get_descriptor, aP as props_invalid_value, aQ as PROPS_IS_UPDATED, g as get, T as derived, _ as derived_safe_equal, W as proxy, b as set, aR as is_destroying_effect, ac as DESTROYED, aS as PROPS_IS_BINDABLE, V as legacy_mode_flag, aT as PROPS_IS_RUNES, aU as PROPS_IS_IMMUTABLE, aV as PROPS_IS_LAZY_INITIAL, aW as LEGACY_PROPS, aX as flushSync, aE as define_property, a6 as mutable_source, J as push, O as user_pre_effect, P as user_effect, a as state, A as tick, f as first_child, s as sibling, K as pop, c as child, r as reset, u as user_derived, t as template_effect } from "../chunks/aeDwZSEd.js";
+import { h as hydrate, m as mount, u as unmount, s as set_text } from "../chunks/C9PsBoAL.js";
+import { f as from_html, a as append, c as comment, t as text } from "../chunks/CWPLrOC0.js";
+import { o as onMount } from "../chunks/BIghDc4y.js";
+import { i as if_block } from "../chunks/BGVLaK7Y.js";
+import { B as BranchManager } from "../chunks/zAvPtT5X.js";
+let is_store_binding = false;
+function capture_store_binding(fn) {
+  var previous_is_store_binding = is_store_binding;
+  try {
+    is_store_binding = false;
+    return [fn(), is_store_binding];
+  } finally {
+    is_store_binding = previous_is_store_binding;
+  }
+}
 function component(node, get_component, render_fn) {
   var hydration_start_node;
   if (hydrating) {
@@ -38,6 +48,14 @@ function is_bound_this(bound_value, element_or_component) {
   return bound_value === element_or_component || bound_value?.[STATE_SYMBOL] === element_or_component;
 }
 function bind_this(element_or_component = {}, update, get_value, get_parts) {
+  var component_effect = (
+    /** @type {ComponentContext} */
+    component_context.r
+  );
+  var parent = (
+    /** @type {Effect} */
+    active_effect
+  );
   effect(() => {
     var old_parts;
     var parts;
@@ -54,24 +72,23 @@ function bind_this(element_or_component = {}, update, get_value, get_parts) {
       });
     });
     return () => {
-      queue_micro_task(() => {
+      let p = parent;
+      while (p !== component_effect && p.parent !== null && p.parent.f & DESTROYING) {
+        p = p.parent;
+      }
+      const teardown = () => {
         if (parts && is_bound_this(get_value(...parts), element_or_component)) {
           update(null, ...parts);
         }
-      });
+      };
+      const original_teardown = p.teardown;
+      p.teardown = () => {
+        teardown();
+        original_teardown?.();
+      };
     };
   });
   return element_or_component;
-}
-let is_store_binding = false;
-function capture_store_binding(fn) {
-  var previous_is_store_binding = is_store_binding;
-  try {
-    is_store_binding = false;
-    return [fn(), is_store_binding];
-  } finally {
-    is_store_binding = previous_is_store_binding;
-  }
 }
 function prop(props, key, flags, fallback) {
   var runes = !legacy_mode_flag || (flags & PROPS_IS_RUNES) !== 0;
@@ -95,7 +112,7 @@ function prop(props, key, flags, fallback) {
     }
     return fallback_value;
   };
-  var setter;
+  let setter;
   if (bindable) {
     var is_entry_props = STATE_SYMBOL in props || LEGACY_PROPS in props;
     setter = get_descriptor(props, key)?.set ?? (is_entry_props && key in props ? (v) => props[key] = v : void 0);
@@ -480,7 +497,7 @@ function Root($$anchor, $$props) {
                 };
                 if_block(node_2, ($$render) => {
                   if ($$props.constructors[2]) $$render(consequent);
-                  else $$render(alternate, false);
+                  else $$render(alternate, -1);
                 });
               }
               append($$anchor4, fragment_2);
@@ -518,7 +535,7 @@ function Root($$anchor, $$props) {
     };
     if_block(node, ($$render) => {
       if ($$props.constructors[1]) $$render(consequent_1);
-      else $$render(alternate_1, false);
+      else $$render(alternate_1, -1);
     });
   }
   var node_7 = sibling(node, 2);
@@ -548,13 +565,13 @@ function Root($$anchor, $$props) {
 }
 const root = asClassComponent(Root);
 const nodes = [
-  () => __vitePreload(() => import("../nodes/0.CuABBnCS.js"), true ? __vite__mapDeps([0,1,2,3,4]) : void 0, import.meta.url),
-  () => __vitePreload(() => import("../nodes/1.BffzGmGZ.js"), true ? __vite__mapDeps([5,2,3,6,7,8,9,10,11,12]) : void 0, import.meta.url),
-  () => __vitePreload(() => import("../nodes/2.DAs95moV.js"), true ? __vite__mapDeps([13,12,10,14,1,2,3,4]) : void 0, import.meta.url),
-  () => __vitePreload(() => import("../nodes/3.BOyH-88P.js"), true ? __vite__mapDeps([15,2,3,6,16,8,9,10]) : void 0, import.meta.url),
-  () => __vitePreload(() => import("../nodes/4.DSHxedwc.js"), true ? __vite__mapDeps([17,2,3,7,18,4,16,19]) : void 0, import.meta.url),
-  () => __vitePreload(() => import("../nodes/5.BiCr4UyT.js"), true ? __vite__mapDeps([20,2,3,7,18,4,16,19,14,21]) : void 0, import.meta.url),
-  () => __vitePreload(() => import("../nodes/6.DAiJtzGj.js"), true ? __vite__mapDeps([22,2,3,7,16,19,23]) : void 0, import.meta.url)
+  () => __vitePreload(() => import("../nodes/0.BblTRB6j.js"), true ? __vite__mapDeps([0,1,2,3,4]) : void 0, import.meta.url),
+  () => __vitePreload(() => import("../nodes/1.Bh0UrNfn.js"), true ? __vite__mapDeps([5,2,3,6,7,8,9,10,11,12]) : void 0, import.meta.url),
+  () => __vitePreload(() => import("../nodes/2.CmrbAUgL.js"), true ? __vite__mapDeps([13,12,10,14,1,2,3,4]) : void 0, import.meta.url),
+  () => __vitePreload(() => import("../nodes/3.CZMEQH2h.js"), true ? __vite__mapDeps([15,2,3,6,16,8,9,10]) : void 0, import.meta.url),
+  () => __vitePreload(() => import("../nodes/4.XB6A-4cR.js"), true ? __vite__mapDeps([17,2,3,7,18,4,16,19]) : void 0, import.meta.url),
+  () => __vitePreload(() => import("../nodes/5.Cn_nTF-U.js"), true ? __vite__mapDeps([20,2,3,7,18,4,16,19,14,21]) : void 0, import.meta.url),
+  () => __vitePreload(() => import("../nodes/6.CGK627nU.js"), true ? __vite__mapDeps([22,2,3,7,16,19,23]) : void 0, import.meta.url)
 ];
 const server_loads = [];
 const dictionary = {

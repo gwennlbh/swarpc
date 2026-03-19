@@ -1,9 +1,9 @@
-import { f as from_html, a as append, t as text } from "../chunks/DZo5_qKz.js";
-import { O as push, Z as proxy, _ as noop, g as get, P as pop, a as state, c as child, s as sibling, u as user_derived, b as set, r as reset, $ as next, t as template_effect } from "../chunks/BfvVvcMy.js";
-import { d as delegate, a as delegated, s as set_text } from "../chunks/BJmypUAI.js";
-import { i as if_block } from "../chunks/BwUkGESQ.js";
-import { r as remove_input_defaults } from "../chunks/CQNZnu2W.js";
-import { a as bind_checked, b as bind_value } from "../chunks/CgHfaNe3.js";
+import { f as from_html, a as append, t as text } from "../chunks/CWPLrOC0.js";
+import { J as push, W as proxy, X as noop, g as get, K as pop, a as state, c as child, s as sibling, u as user_derived, b as set, r as reset, Y as next, t as template_effect } from "../chunks/aeDwZSEd.js";
+import { d as delegate, a as delegated, s as set_text } from "../chunks/C9PsBoAL.js";
+import { i as if_block } from "../chunks/BGVLaK7Y.js";
+import { r as remove_input_defaults } from "../chunks/FyQvz4Ck.js";
+import { a as bind_checked, b as bind_value } from "../chunks/C1HAqAkF.js";
 import { R as RequestCancelledError } from "../chunks/B5z_hPLV.js";
 const entries = () => [
   { worker: "service" },
@@ -41,7 +41,7 @@ function _page($$anchor, $$props) {
       if_block(node, ($$render) => {
         if (loadingStates[index()]) $$render(consequent);
         else if (results[index()] !== null) $$render(consequent_1, 1);
-        else $$render(alternate, false);
+        else $$render(alternate, -1);
       });
     }
     reset(button);

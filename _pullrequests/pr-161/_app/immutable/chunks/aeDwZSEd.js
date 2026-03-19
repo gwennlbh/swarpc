@@ -44,6 +44,7 @@ const MAYBE_DIRTY = 1 << 12;
 const INERT = 1 << 13;
 const DESTROYED = 1 << 14;
 const REACTION_RAN = 1 << 15;
+const DESTROYING = 1 << 25;
 const EFFECT_TRANSPARENT = 1 << 16;
 const EAGER_EFFECT = 1 << 17;
 const HEAD_EFFECT = 1 << 18;
@@ -249,6 +250,10 @@ function push(props, runes = false, fn) {
     e: null,
     s: props,
     x: null,
+    r: (
+      /** @type {Effect} */
+      active_effect
+    ),
     l: legacy_mode_flag && !runes ? { s: null, u: null, $: [] } : null
   };
 }
@@ -357,13 +362,17 @@ function defer_effect(effect2, dirty_effects, maybe_dirty_effects) {
 }
 const batches = /* @__PURE__ */ new Set();
 let current_batch = null;
-let previous_batch = null;
 let batch_values = null;
-let queued_root_effects = [];
 let last_scheduled_effect = null;
 let is_flushing_sync = false;
+let is_processing = false;
 let collected_effects = null;
+let legacy_updates = null;
+var flush_count = 0;
+let uid = 1;
 class Batch {
+  // for debugging. TODO remove once async is stable
+  id = uid++;
   /**
    * The current values of any sources that are updated in this batch
    * They keys of this map are identical to `this.#previous`
@@ -401,6 +410,11 @@ class Batch {
    * @type {{ promise: Promise<void>, resolve: (value?: any) => void, reject: (reason: unknown) => void } | null}
    */
   #deferred = null;
+  /**
+   * The root effects that need to be flushed
+   * @type {Effect[]}
+   */
+  #roots = [];
   /**
    * Deferred effects (which run after async work has completed) that are DIRTY
    * @type {Set<Effect>}
@@ -444,27 +458,53 @@ class Batch {
       this.#skipped_branches.delete(effect2);
       for (var e of tracked.d) {
         set_signal_status(e, DIRTY);
-        schedule_effect(e);
+        this.schedule(e);
       }
       for (e of tracked.m) {
         set_signal_status(e, MAYBE_DIRTY);
-        schedule_effect(e);
+        this.schedule(e);
       }
     }
   }
-  /**
-   *
-   * @param {Effect[]} root_effects
-   */
-  process(root_effects) {
-    queued_root_effects = [];
+  #process() {
+    if (flush_count++ > 1e3) {
+      batches.delete(this);
+      infinite_loop_guard();
+    }
+    if (!this.#is_deferred()) {
+      for (const e of this.#dirty_effects) {
+        this.#maybe_dirty_effects.delete(e);
+        set_signal_status(e, DIRTY);
+        this.schedule(e);
+      }
+      for (const e of this.#maybe_dirty_effects) {
+        set_signal_status(e, MAYBE_DIRTY);
+        this.schedule(e);
+      }
+    }
+    const roots = this.#roots;
+    this.#roots = [];
     this.apply();
     var effects = collected_effects = [];
     var render_effects = [];
-    for (const root of root_effects) {
-      this.#traverse_effect_tree(root, effects, render_effects);
+    var updates = legacy_updates = [];
+    for (const root of roots) {
+      try {
+        this.#traverse(root, effects, render_effects);
+      } catch (e) {
+        reset_all(root);
+        throw e;
+      }
+    }
+    current_batch = null;
+    if (updates.length > 0) {
+      var batch = Batch.ensure();
+      for (const e of updates) {
+        batch.schedule(e);
+      }
     }
     collected_effects = null;
+    legacy_updates = null;
     if (this.#is_deferred()) {
       this.#defer_effects(render_effects);
       this.#defer_effects(effects);
@@ -472,21 +512,33 @@ class Batch {
         reset_branch(e, t);
       }
     } else {
-      previous_batch = this;
-      current_batch = null;
-      for (const fn of this.#commit_callbacks) fn(this);
-      this.#commit_callbacks.clear();
       if (this.#pending === 0) {
-        this.#commit();
+        batches.delete(this);
       }
-      flush_queued_effects(render_effects);
-      flush_queued_effects(effects);
       this.#dirty_effects.clear();
       this.#maybe_dirty_effects.clear();
-      previous_batch = null;
+      for (const fn of this.#commit_callbacks) fn(this);
+      this.#commit_callbacks.clear();
+      flush_queued_effects(render_effects);
+      flush_queued_effects(effects);
       this.#deferred?.resolve();
     }
-    batch_values = null;
+    var next_batch = (
+      /** @type {Batch | null} */
+      /** @type {unknown} */
+      current_batch
+    );
+    if (this.#roots.length > 0) {
+      const batch2 = next_batch ??= this;
+      batch2.#roots.push(...this.#roots.filter((r) => !batch2.#roots.includes(r)));
+    }
+    if (next_batch !== null) {
+      batches.add(next_batch);
+      next_batch.#process();
+    }
+    if (!batches.has(this)) {
+      this.#commit();
+    }
   }
   /**
    * Traverse the effect tree, executing effects or stashing
@@ -495,7 +547,7 @@ class Batch {
    * @param {Effect[]} effects
    * @param {Effect[]} render_effects
    */
-  #traverse_effect_tree(root, effects, render_effects) {
+  #traverse(root, effects, render_effects) {
     root.f ^= CLEAN;
     var effect2 = root.first;
     while (effect2 !== null) {
@@ -540,11 +592,11 @@ class Batch {
    * Associate a change to a given source with the current
    * batch, noting its previous and current values
    * @param {Source} source
-   * @param {any} value
+   * @param {any} old_value
    */
-  capture(source2, value) {
-    if (value !== UNINITIALIZED && !this.previous.has(source2)) {
-      this.previous.set(source2, value);
+  capture(source2, old_value) {
+    if (old_value !== UNINITIALIZED && !this.previous.has(source2)) {
+      this.previous.set(source2, old_value);
     }
     if ((source2.f & ERROR_VALUE) === 0) {
       this.current.set(source2, source2.v);
@@ -553,79 +605,68 @@ class Batch {
   }
   activate() {
     current_batch = this;
-    this.apply();
   }
   deactivate() {
-    if (current_batch !== this) return;
     current_batch = null;
     batch_values = null;
   }
   flush() {
-    if (queued_root_effects.length > 0) {
+    try {
+      is_processing = true;
       current_batch = this;
-      flush_effects();
-    } else if (this.#pending === 0 && !this.is_fork) {
-      for (const fn of this.#commit_callbacks) fn(this);
-      this.#commit_callbacks.clear();
-      this.#commit();
-      this.#deferred?.resolve();
+      this.#process();
+    } finally {
+      flush_count = 0;
+      last_scheduled_effect = null;
+      collected_effects = null;
+      legacy_updates = null;
+      is_processing = false;
+      current_batch = null;
+      batch_values = null;
+      old_values.clear();
     }
-    this.deactivate();
   }
   discard() {
     for (const fn of this.#discard_callbacks) fn(this);
     this.#discard_callbacks.clear();
+    batches.delete(this);
   }
   #commit() {
-    if (batches.size > 1) {
-      this.previous.clear();
-      var previous_batch2 = current_batch;
-      var previous_batch_values = batch_values;
-      var is_earlier = true;
-      for (const batch of batches) {
-        if (batch === this) {
-          is_earlier = false;
-          continue;
-        }
-        const sources = [];
-        for (const [source2, value] of this.current) {
-          if (batch.current.has(source2)) {
-            if (is_earlier && value !== batch.current.get(source2)) {
-              batch.current.set(source2, value);
-            } else {
-              continue;
-            }
+    for (const batch of batches) {
+      var is_earlier = batch.id < this.id;
+      var sources = [];
+      for (const [source3, value] of this.current) {
+        if (batch.current.has(source3)) {
+          if (is_earlier && value !== batch.current.get(source3)) {
+            batch.current.set(source3, value);
+          } else {
+            continue;
           }
-          sources.push(source2);
         }
-        if (sources.length === 0) {
-          continue;
-        }
-        const others = [...batch.current.keys()].filter((s) => !this.current.has(s));
-        if (others.length > 0) {
-          var prev_queued_root_effects = queued_root_effects;
-          queued_root_effects = [];
-          const marked = /* @__PURE__ */ new Set();
-          const checked = /* @__PURE__ */ new Map();
-          for (const source2 of sources) {
-            mark_effects(source2, others, marked, checked);
-          }
-          if (queued_root_effects.length > 0) {
-            current_batch = batch;
-            batch.apply();
-            for (const root of queued_root_effects) {
-              batch.#traverse_effect_tree(root, [], []);
-            }
-            batch.deactivate();
-          }
-          queued_root_effects = prev_queued_root_effects;
-        }
+        sources.push(source3);
       }
-      current_batch = previous_batch2;
-      batch_values = previous_batch_values;
+      var others = [...batch.current.keys()].filter((s) => !this.current.has(s));
+      if (others.length === 0) {
+        if (is_earlier) {
+          batch.discard();
+        }
+      } else if (sources.length > 0) {
+        batch.activate();
+        var marked = /* @__PURE__ */ new Set();
+        var checked = /* @__PURE__ */ new Map();
+        for (var source2 of sources) {
+          mark_effects(source2, others, marked, checked);
+        }
+        if (batch.#roots.length > 0) {
+          batch.apply();
+          for (var root of batch.#roots) {
+            batch.#traverse(root, [], []);
+          }
+          batch.#roots = [];
+        }
+        batch.deactivate();
+      }
     }
-    this.#skipped_branches.clear();
-    batches.delete(this);
   }
   /**
    *
@@ -636,34 +677,32 @@ class Batch {
     if (blocking) this.#blocking_pending += 1;
   }
   /**
-   *
    * @param {boolean} blocking
+   * @param {boolean} skip - whether to skip updates (because this is triggered by a stale reaction)
    */
-  decrement(blocking) {
+  decrement(blocking, skip) {
     this.#pending -= 1;
     if (blocking) this.#blocking_pending -= 1;
-    if (this.#decrement_queued) return;
+    if (this.#decrement_queued || skip) return;
     this.#decrement_queued = true;
     queue_micro_task(() => {
       this.#decrement_queued = false;
-      if (!this.#is_deferred()) {
-        this.revive();
-      } else if (queued_root_effects.length > 0) {
-        this.flush();
-      }
+      this.flush();
     });
   }
-  revive() {
-    for (const e of this.#dirty_effects) {
-      this.#maybe_dirty_effects.delete(e);
-      set_signal_status(e, DIRTY);
-      schedule_effect(e);
+  /**
+   * @param {Set<Effect>} dirty_effects
+   * @param {Set<Effect>} maybe_dirty_effects
+   */
+  transfer_effects(dirty_effects, maybe_dirty_effects) {
+    for (const e of dirty_effects) {
+      this.#dirty_effects.add(e);
     }
-    for (const e of this.#maybe_dirty_effects) {
-      set_signal_status(e, MAYBE_DIRTY);
-      schedule_effect(e);
+    for (const e of maybe_dirty_effects) {
+      this.#maybe_dirty_effects.add(e);
     }
-    this.flush();
+    dirty_effects.clear();
+    maybe_dirty_effects.clear();
   }
   /** @param {(batch: Batch) => void} fn */
   oncommit(fn) {
@@ -679,20 +718,53 @@ class Batch {
   static ensure() {
     if (current_batch === null) {
       const batch = current_batch = new Batch();
-      batches.add(current_batch);
-      if (!is_flushing_sync) {
-        queue_micro_task(() => {
-          if (current_batch !== batch) {
-            return;
-          }
-          batch.flush();
-        });
+      if (!is_processing) {
+        batches.add(current_batch);
+        if (!is_flushing_sync) {
+          queue_micro_task(() => {
+            if (current_batch !== batch) {
+              return;
+            }
+            batch.flush();
+          });
+        }
       }
     }
     return current_batch;
   }
   apply() {
-    return;
+    {
+      batch_values = null;
+      return;
+    }
+  }
+  /**
+   *
+   * @param {Effect} effect
+   */
+  schedule(effect2) {
+    last_scheduled_effect = effect2;
+    if (effect2.b?.is_pending && (effect2.f & (EFFECT | RENDER_EFFECT | MANAGED_EFFECT)) !== 0 && (effect2.f & REACTION_RAN) === 0) {
+      effect2.b.defer_effect(effect2);
+      return;
+    }
+    var e = effect2;
+    while (e.parent !== null) {
+      e = e.parent;
+      var flags = e.f;
+      if (collected_effects !== null && e === active_effect) {
+        if ((active_reaction === null || (active_reaction.f & DERIVED) === 0) && true) {
+          return;
+        }
+      }
+      if ((flags & (ROOT_EFFECT | BRANCH_EFFECT)) !== 0) {
+        if ((flags & CLEAN) === 0) {
+          return;
+        }
+        e.f ^= CLEAN;
+      }
+    }
+    this.#roots.push(e);
   }
 }
 function flushSync(fn) {
@@ -703,41 +775,16 @@ function flushSync(fn) {
     if (fn) ;
     while (true) {
       flush_tasks();
-      if (queued_root_effects.length === 0) {
-        current_batch?.flush();
-        if (queued_root_effects.length === 0) {
-          last_scheduled_effect = null;
-          return (
-            /** @type {T} */
-            result
-          );
-        }
+      if (current_batch === null) {
+        return (
+          /** @type {T} */
+          result
+        );
       }
-      flush_effects();
+      current_batch.flush();
     }
   } finally {
     is_flushing_sync = was_flushing_sync;
-  }
-}
-function flush_effects() {
-  var source_stacks = null;
-  try {
-    var flush_count = 0;
-    while (queued_root_effects.length > 0) {
-      var batch = Batch.ensure();
-      if (flush_count++ > 1e3) {
-        var updates, entry;
-        if (DEV) ;
-        infinite_loop_guard();
-      }
-      batch.process(queued_root_effects);
-      old_values.clear();
-      if (DEV) ;
-    }
-  } finally {
-    queued_root_effects = [];
-    last_scheduled_effect = null;
-    collected_effects = null;
   }
 }
 function infinite_loop_guard() {
@@ -835,29 +882,8 @@ function depends_on(reaction, sources, checked) {
   checked.set(reaction, false);
   return false;
 }
-function schedule_effect(signal) {
-  var effect2 = last_scheduled_effect = signal;
-  var boundary = effect2.b;
-  if (boundary?.is_pending && (signal.f & (EFFECT | RENDER_EFFECT | MANAGED_EFFECT)) !== 0 && (signal.f & REACTION_RAN) === 0) {
-    boundary.defer_effect(signal);
-    return;
-  }
-  while (effect2.parent !== null) {
-    effect2 = effect2.parent;
-    var flags = effect2.f;
-    if (collected_effects !== null && effect2 === active_effect) {
-      if ((signal.f & RENDER_EFFECT) === 0) {
-        return;
-      }
-    }
-    if ((flags & (ROOT_EFFECT | BRANCH_EFFECT)) !== 0) {
-      if ((flags & CLEAN) === 0) {
-        return;
-      }
-      effect2.f ^= CLEAN;
-    }
-  }
-  queued_root_effects.push(effect2);
+function schedule_effect(effect2) {
+  current_batch.schedule(effect2);
 }
 function reset_branch(effect2, tracked) {
   if ((effect2.f & BRANCH_EFFECT) !== 0 && (effect2.f & CLEAN) !== 0) {
@@ -872,6 +898,14 @@ function reset_branch(effect2, tracked) {
   var e = effect2.first;
   while (e !== null) {
     reset_branch(e, tracked);
+    e = e.next;
+  }
+}
+function reset_all(effect2) {
+  set_signal_status(effect2, CLEAN);
+  var e = effect2.first;
+  while (e !== null) {
+    reset_all(e);
     e = e.next;
   }
 }
@@ -903,26 +937,39 @@ function flatten(blockers, sync, async, fn) {
     blocker_promise.then(() => finish(sync.map(d)));
     return;
   }
+  var decrement_pending = increment_pending();
   function run2() {
-    restore();
-    Promise.all(async.map((expression) => /* @__PURE__ */ async_derived(expression))).then((result) => finish([...sync.map(d), ...result])).catch((error) => invoke_error_boundary(error, parent));
+    Promise.all(async.map((expression) => /* @__PURE__ */ async_derived(expression))).then((result) => finish([...sync.map(d), ...result])).catch((error) => invoke_error_boundary(error, parent)).finally(() => decrement_pending());
   }
   if (blocker_promise) {
-    blocker_promise.then(run2);
+    blocker_promise.then(() => {
+      restore();
+      run2();
+      unset_context();
+    });
   } else {
     run2();
   }
 }
 function capture() {
-  var previous_effect = active_effect;
+  var previous_effect = (
+    /** @type {Effect} */
+    active_effect
+  );
   var previous_reaction = active_reaction;
   var previous_component_context = component_context;
-  var previous_batch2 = current_batch;
+  var previous_batch = (
+    /** @type {Batch} */
+    current_batch
+  );
   return function restore(activate_batch = true) {
     set_active_effect(previous_effect);
     set_active_reaction(previous_reaction);
     set_component_context(previous_component_context);
-    if (activate_batch) previous_batch2?.activate();
+    if (activate_batch && (previous_effect.f & DESTROYED) === 0) {
+      previous_batch?.activate();
+      previous_batch?.apply();
+    }
   };
 }
 function unset_context(deactivate_batch = true) {
@@ -942,11 +989,11 @@ function increment_pending() {
     current_batch
   );
   var blocking = boundary.is_rendered();
-  boundary.update_pending_count(1);
+  boundary.update_pending_count(1, batch);
   batch.increment(blocking);
-  return () => {
-    boundary.update_pending_count(-1);
-    batch.decrement(blocking);
+  return (skip = false) => {
+    boundary.update_pending_count(-1, batch);
+    batch.decrement(blocking, skip);
   };
 }
 // @__NO_SIDE_EFFECTS__
@@ -999,6 +1046,10 @@ function async_derived(fn, label, location) {
   var should_suspend = !active_reaction;
   var deferreds = /* @__PURE__ */ new Map();
   async_effect(() => {
+    var effect2 = (
+      /** @type {Effect} */
+      active_effect
+    );
     var d = deferred();
     promise = d.promise;
     try {
@@ -1012,18 +1063,35 @@ function async_derived(fn, label, location) {
       current_batch
     );
     if (should_suspend) {
-      var decrement_pending = increment_pending();
-      deferreds.get(batch)?.reject(STALE_REACTION);
-      deferreds.delete(batch);
+      if ((effect2.f & REACTION_RAN) !== 0) {
+        var decrement_pending = increment_pending();
+      }
+      if (
+        /** @type {Boundary} */
+        parent.b.is_rendered()
+      ) {
+        deferreds.get(batch)?.reject(STALE_REACTION);
+        deferreds.delete(batch);
+      } else {
+        for (const d2 of deferreds.values()) {
+          d2.reject(STALE_REACTION);
+        }
+        deferreds.clear();
+      }
       deferreds.set(batch, d);
     }
     const handler = (value, error = void 0) => {
+      if (decrement_pending) {
+        var skip = error === STALE_REACTION;
+        decrement_pending(skip);
+      }
+      if (error === STALE_REACTION || (effect2.f & DESTROYED) !== 0) {
+        return;
+      }
       batch.activate();
       if (error) {
-        if (error !== STALE_REACTION) {
-          signal.f |= ERROR_VALUE;
-          internal_set(signal, error);
-        }
+        signal.f |= ERROR_VALUE;
+        internal_set(signal, error);
       } else {
         if ((signal.f & ERROR_VALUE) !== 0) {
           signal.f ^= ERROR_VALUE;
@@ -1035,9 +1103,7 @@ function async_derived(fn, label, location) {
           d2.reject(STALE_REACTION);
         }
       }
-      if (decrement_pending) {
-        decrement_pending();
-      }
+      batch.deactivate();
     };
     d.promise.then(handler, (e) => handler(null, e || "unknown"));
   });
@@ -1113,11 +1179,13 @@ function execute_derived(derived2) {
   return value;
 }
 function update_derived(derived2) {
+  var old_value = derived2.v;
   var value = execute_derived(derived2);
   if (!derived2.equals(value)) {
     derived2.wv = increment_write_version();
     if (!current_batch?.is_fork || derived2.deps === null) {
       derived2.v = value;
+      current_batch?.capture(derived2, old_value);
       if (derived2.deps === null) {
         set_signal_status(derived2, CLEAN);
         return;
@@ -1195,9 +1263,9 @@ function set(source2, value, should_proxy = false) {
     state_unsafe_mutation();
   }
   let new_value = should_proxy ? proxy(value) : value;
-  return internal_set(source2, new_value);
+  return internal_set(source2, new_value, legacy_updates);
 }
-function internal_set(source2, value) {
+function internal_set(source2, value, updated_during_traversal = null) {
   if (!source2.equals(value)) {
     var old_value = source2.v;
     if (is_destroying_effect) {
@@ -1216,10 +1284,12 @@ function internal_set(source2, value) {
       if ((source2.f & DIRTY) !== 0) {
         execute_derived(derived2);
       }
-      update_derived_status(derived2);
+      if (batch_values === null) {
+        update_derived_status(derived2);
+      }
     }
     source2.wv = increment_write_version();
-    mark_reactions(source2, DIRTY);
+    mark_reactions(source2, DIRTY, updated_during_traversal);
     if (is_runes() && active_effect !== null && (active_effect.f & CLEAN) !== 0 && (active_effect.f & (BRANCH_EFFECT | ROOT_EFFECT)) === 0) {
       if (untracked_writes === null) {
         set_untracked_writes([source2]);
@@ -1248,7 +1318,7 @@ function flush_eager_effects() {
 function increment(source2) {
   set(source2, source2.v + 1);
 }
-function mark_reactions(signal, status) {
+function mark_reactions(signal, status, updated_during_traversal) {
   var reactions = signal.reactions;
   if (reactions === null) return;
   var runes = is_runes();
@@ -1271,19 +1341,21 @@ function mark_reactions(signal, status) {
         if (flags & CONNECTED) {
           reaction.f |= WAS_MARKED;
         }
-        mark_reactions(derived2, MAYBE_DIRTY);
+        mark_reactions(derived2, MAYBE_DIRTY, updated_during_traversal);
       }
     } else if (not_dirty) {
-      if ((flags & BLOCK_EFFECT) !== 0 && eager_block_effects !== null) {
-        eager_block_effects.add(
-          /** @type {Effect} */
-          reaction
-        );
-      }
-      schedule_effect(
+      var effect2 = (
         /** @type {Effect} */
         reaction
       );
+      if ((flags & BLOCK_EFFECT) !== 0 && eager_block_effects !== null) {
+        eager_block_effects.add(effect2);
+      }
+      if (updated_during_traversal !== null) {
+        updated_during_traversal.push(effect2);
+      } else {
+        schedule_effect(effect2);
+      }
     }
   }
 }
@@ -1716,7 +1788,7 @@ function create_effect(type, fn) {
     if (collected_effects !== null) {
       collected_effects.push(effect2);
     } else {
-      schedule_effect(effect2);
+      Batch.ensure().schedule(effect2);
     }
   } else if (fn !== null) {
     try {
@@ -1873,9 +1945,9 @@ function destroy_effect(effect2, remove_dom = true) {
     );
     removed = true;
   }
+  set_signal_status(effect2, DESTROYING);
   destroy_effect_children(effect2, remove_dom && !removed);
   remove_reactions(effect2, 0);
-  set_signal_status(effect2, DESTROYED);
   var transitions = effect2.nodes && effect2.nodes.t;
   if (transitions !== null) {
     for (const transition of transitions) {
@@ -1883,6 +1955,8 @@ function destroy_effect(effect2, remove_dom = true) {
     }
   }
   execute_effect_teardown(effect2);
+  effect2.f ^= DESTROYING;
+  effect2.f |= DESTROYED;
   var parent = effect2.parent;
   if (parent !== null && parent.first !== null) {
     unlink_effect(effect2);
@@ -1954,7 +2028,7 @@ function resume_children(effect2, local) {
   effect2.f ^= INERT;
   if ((effect2.f & CLEAN) === 0) {
     set_signal_status(effect2, DIRTY);
-    schedule_effect(effect2);
+    Batch.ensure().schedule(effect2);
   }
   var child2 = effect2.first;
   while (child2 !== null) {
@@ -2416,102 +2490,98 @@ function deep_read(value, visited = /* @__PURE__ */ new Set()) {
   }
 }
 export {
-  next as $,
-  listen_to_event_and_reset_event as A,
-  tick as B,
-  untrack as C,
-  render_effect as D,
+  HYDRATION_START_ELSE as $,
+  tick as A,
+  untrack as B,
+  render_effect as C,
+  get_prototype_of as D,
   EFFECT_TRANSPARENT as E,
-  previous_batch as F,
-  get_prototype_of as G,
-  HYDRATION_START as H,
-  get_descriptors as I,
-  IS_XHTML as J,
-  queue_micro_task as K,
-  add_form_reset_listener as L,
-  LOADING_ATTR_SYMBOL as M,
+  get_descriptors as F,
+  queue_micro_task as G,
+  add_form_reset_listener as H,
+  IS_XHTML as I,
+  push as J,
+  pop as K,
+  LOADING_ATTR_SYMBOL as L,
+  component_context as M,
   NAMESPACE_HTML as N,
-  push as O,
-  pop as P,
-  component_context as Q,
-  user_pre_effect as R,
-  user_effect as S,
-  run_all as T,
-  run as U,
-  deep_read_state as V,
-  derived as W,
-  enable_legacy_mode_flag as X,
-  legacy_mode_flag as Y,
-  proxy as Z,
-  noop as _,
+  user_pre_effect as O,
+  user_effect as P,
+  run_all as Q,
+  run as R,
+  deep_read_state as S,
+  derived as T,
+  enable_legacy_mode_flag as U,
+  legacy_mode_flag as V,
+  proxy as W,
+  noop as X,
+  next as Y,
+  get_first_child as Z,
+  derived_safe_equal as _,
   state as a,
-  flushSync as a$,
-  get_first_child as a0,
-  derived_safe_equal as a1,
-  COMMENT_NODE as a2,
-  HYDRATION_END as a3,
-  internal_set as a4,
-  EFFECT_OFFSCREEN as a5,
-  each_key_duplicate as a6,
-  source as a7,
-  mutable_source as a8,
-  array_from as a9,
-  set_active_effect as aA,
-  set_active_reaction as aB,
-  set_component_context as aC,
-  handle_error as aD,
-  active_reaction as aE,
-  invoke_error_boundary as aF,
-  EFFECT_PRESERVED as aG,
-  svelte_boundary_reset_onerror as aH,
-  svelte_boundary_reset_noop as aI,
-  define_property as aJ,
-  init_operations as aK,
-  HYDRATION_ERROR as aL,
-  hydration_failed as aM,
-  component_root as aN,
-  hydration_mismatch as aO,
-  effect as aP,
-  STATE_SYMBOL as aQ,
-  get_descriptor as aR,
-  props_invalid_value as aS,
-  PROPS_IS_UPDATED as aT,
-  is_destroying_effect as aU,
-  DESTROYED as aV,
-  PROPS_IS_BINDABLE as aW,
-  PROPS_IS_RUNES as aX,
-  PROPS_IS_IMMUTABLE as aY,
-  PROPS_IS_LAZY_INITIAL as aZ,
-  LEGACY_PROPS as a_,
-  is_array as aa,
-  EACH_ITEM_REACTIVE as ab,
-  EACH_ITEM_IMMUTABLE as ac,
-  EACH_INDEX_REACTIVE as ad,
-  INERT as ae,
-  get_next_sibling as af,
-  BRANCH_EFFECT as ag,
-  clear_text_content as ah,
-  create_element as ai,
-  is_firefox as aj,
-  active_effect as ak,
-  TEMPLATE_FRAGMENT as al,
-  TEMPLATE_USE_IMPORT_NODE as am,
-  REACTION_RAN as an,
-  TEXT_NODE as ao,
-  merge_text_nodes as ap,
-  effect_tracking as aq,
-  increment as ar,
-  BOUNDARY_EFFECT as as,
-  HYDRATION_START_FAILED as at,
-  Batch as au,
-  set_signal_status as av,
-  DIRTY as aw,
-  schedule_effect as ax,
-  MAYBE_DIRTY as ay,
-  defer_effect as az,
+  COMMENT_NODE as a0,
+  HYDRATION_END as a1,
+  internal_set as a2,
+  EFFECT_OFFSCREEN as a3,
+  each_key_duplicate as a4,
+  source as a5,
+  mutable_source as a6,
+  array_from as a7,
+  is_array as a8,
+  EACH_ITEM_REACTIVE as a9,
+  invoke_error_boundary as aA,
+  EFFECT_PRESERVED as aB,
+  svelte_boundary_reset_onerror as aC,
+  svelte_boundary_reset_noop as aD,
+  define_property as aE,
+  init_operations as aF,
+  HYDRATION_START as aG,
+  HYDRATION_ERROR as aH,
+  hydration_failed as aI,
+  component_root as aJ,
+  hydration_mismatch as aK,
+  effect as aL,
+  DESTROYING as aM,
+  STATE_SYMBOL as aN,
+  get_descriptor as aO,
+  props_invalid_value as aP,
+  PROPS_IS_UPDATED as aQ,
+  is_destroying_effect as aR,
+  PROPS_IS_BINDABLE as aS,
+  PROPS_IS_RUNES as aT,
+  PROPS_IS_IMMUTABLE as aU,
+  PROPS_IS_LAZY_INITIAL as aV,
+  LEGACY_PROPS as aW,
+  flushSync as aX,
+  safe_not_equal as aY,
+  settled as aZ,
+  EACH_ITEM_IMMUTABLE as aa,
+  EACH_INDEX_REACTIVE as ab,
+  DESTROYED as ac,
+  INERT as ad,
+  get_next_sibling as ae,
+  BRANCH_EFFECT as af,
+  clear_text_content as ag,
+  create_element as ah,
+  is_firefox as ai,
+  active_effect as aj,
+  TEMPLATE_FRAGMENT as ak,
+  TEMPLATE_USE_IMPORT_NODE as al,
+  REACTION_RAN as am,
+  TEXT_NODE as an,
+  merge_text_nodes as ao,
+  effect_tracking as ap,
+  increment as aq,
+  BOUNDARY_EFFECT as ar,
+  HYDRATION_START_FAILED as as,
+  defer_effect as at,
+  set_active_effect as au,
+  set_active_reaction as av,
+  set_component_context as aw,
+  Batch as ax,
+  handle_error as ay,
+  active_reaction as az,
   set as b,
-  safe_not_equal as b0,
-  settled as b1,
   child as c,
   block as d,
   hydrate_next as e,
@@ -2519,21 +2589,21 @@ export {
   get as g,
   hydrating as h,
   read_hydration_instruction as i,
-  HYDRATION_START_ELSE as j,
-  skip_nodes as k,
-  set_hydrate_node as l,
-  set_hydrating as m,
-  hydrate_node as n,
-  resume_effect as o,
-  destroy_effect as p,
-  pause_effect as q,
+  skip_nodes as j,
+  set_hydrate_node as k,
+  set_hydrating as l,
+  hydrate_node as m,
+  resume_effect as n,
+  destroy_effect as o,
+  pause_effect as p,
+  create_text as q,
   reset as r,
   sibling as s,
   template_effect as t,
   user_derived as u,
-  create_text as v,
-  branch as w,
-  current_batch as x,
-  move_effect as y,
-  should_defer_append as z
+  branch as v,
+  current_batch as w,
+  move_effect as x,
+  should_defer_append as y,
+  listen_to_event_and_reset_event as z
 };
