@@ -1,5 +1,5 @@
-import { o as onMount } from "./Day5Ov8X.js";
-import { _ as noop, b0 as safe_not_equal, a as state, g as get, b as set } from "./BfvVvcMy.js";
+import { o as onMount } from "./BIghDc4y.js";
+import { X as noop, aY as safe_not_equal, a as state, g as get, b as set } from "./aeDwZSEd.js";
 import { b as base64_decode } from "./BqB-gMnm.js";
 const subscriber_queue = [];
 function writable(value, start = noop) {
@@ -308,9 +308,9 @@ function resolve_route(id, params) {
     })
   ).filter(Boolean).join("/") + (has_id_trailing_slash ? "/" : "");
 }
-const base = globalThis.__sveltekit_1yftvo5?.base ?? "/cigale/_pullrequests/pr-158";
-const assets = globalThis.__sveltekit_1yftvo5?.assets ?? base ?? "";
-const version = "1773161187921";
+const base = globalThis.__sveltekit_z5hu3d?.base ?? "/cigale/_pullrequests/pr-158";
+const assets = globalThis.__sveltekit_z5hu3d?.assets ?? base ?? "";
+const version = "1774026695421";
 const SNAPSHOT_KEY = "sveltekit:snapshot";
 const SCROLL_KEY = "sveltekit:scroll";
 const STATES_KEY = "sveltekit:states";
@@ -513,6 +513,7 @@ let page;
 let navigating;
 let updated;
 const is_legacy = onMount.toString().includes("$$") || /function \w+\(\) \{\}/.test(onMount.toString());
+const placeholder_url = "a:";
 if (is_legacy) {
   page = {
     data: {},
@@ -522,7 +523,7 @@ if (is_legacy) {
     route: { id: null },
     state: {},
     status: -1,
-    url: new URL("https://example.com")
+    url: new URL(placeholder_url)
   };
   navigating = { current: null };
   updated = { current: false };
@@ -577,7 +578,7 @@ if (is_legacy) {
     set status(value) {
       set(this.#status, value);
     }
-    #url = state(new URL("https://example.com"));
+    #url = state(new URL(placeholder_url));
     get url() {
       return get(this.#url);
     }

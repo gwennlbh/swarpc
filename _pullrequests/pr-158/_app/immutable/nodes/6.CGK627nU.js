@@ -1,8 +1,8 @@
-import { f as from_html, a as append } from "../chunks/DZo5_qKz.js";
-import { v as create_text, d as block, l as set_hydrate_node, h as hydrating, a0 as get_first_child, e as hydrate_next, g as get, a1 as derived_safe_equal, i as read_hydration_instruction, j as HYDRATION_START_ELSE, k as skip_nodes, m as set_hydrating, n as hydrate_node, a2 as COMMENT_NODE, a3 as HYDRATION_END, a4 as internal_set, x as current_batch, a5 as EFFECT_OFFSCREEN, w as branch, a6 as each_key_duplicate, z as should_defer_append, a7 as source, a8 as mutable_source, a9 as array_from, aa as is_array, ab as EACH_ITEM_REACTIVE, ac as EACH_ITEM_IMMUTABLE, ad as EACH_INDEX_REACTIVE, o as resume_effect, q as pause_effect, ae as INERT, af as get_next_sibling, ag as BRANCH_EFFECT, ah as clear_text_content, p as destroy_effect, Z as proxy, f as first_child, b as set, a as state, s as sibling, u as user_derived, r as reset, c as child, t as template_effect } from "../chunks/BfvVvcMy.js";
-import { d as delegate, a as delegated, s as set_text } from "../chunks/BJmypUAI.js";
-import { r as remove_input_defaults } from "../chunks/CQNZnu2W.js";
-import { b as bind_value } from "../chunks/CgHfaNe3.js";
+import { f as from_html, a as append } from "../chunks/CWPLrOC0.js";
+import { q as create_text, d as block, k as set_hydrate_node, h as hydrating, Z as get_first_child, e as hydrate_next, g as get, _ as derived_safe_equal, i as read_hydration_instruction, $ as HYDRATION_START_ELSE, j as skip_nodes, l as set_hydrating, m as hydrate_node, a0 as COMMENT_NODE, a1 as HYDRATION_END, a2 as internal_set, w as current_batch, a3 as EFFECT_OFFSCREEN, v as branch, a4 as each_key_duplicate, y as should_defer_append, a5 as source, a6 as mutable_source, a7 as array_from, a8 as is_array, a9 as EACH_ITEM_REACTIVE, aa as EACH_ITEM_IMMUTABLE, ab as EACH_INDEX_REACTIVE, ac as DESTROYED, n as resume_effect, p as pause_effect, ad as INERT, ae as get_next_sibling, af as BRANCH_EFFECT, ag as clear_text_content, x as move_effect, o as destroy_effect, W as proxy, f as first_child, b as set, a as state, s as sibling, u as user_derived, c as child, r as reset, t as template_effect } from "../chunks/aeDwZSEd.js";
+import { d as delegate, a as delegated, s as set_text } from "../chunks/C9PsBoAL.js";
+import { r as remove_input_defaults } from "../chunks/FyQvz4Ck.js";
+import { b as bind_value } from "../chunks/C1HAqAkF.js";
 function index(_, i) {
   return i;
 }
@@ -24,7 +24,7 @@ function pause_effects(state2, to_destroy, controlled_anchor) {
               /** @type {Set<EachOutroGroup>} */
               state2.outrogroups
             );
-            destroy_effects(array_from(group.done));
+            destroy_effects(state2, array_from(group.done));
             groups.delete(group);
             if (groups.size === 0) {
               state2.outrogroups = null;
@@ -52,7 +52,7 @@ function pause_effects(state2, to_destroy, controlled_anchor) {
       parent_node.append(anchor);
       state2.items.clear();
     }
-    destroy_effects(to_destroy, !fast_path);
+    destroy_effects(state2, to_destroy, !fast_path);
   } else {
     group = {
       pending: new Set(to_destroy),
@@ -61,9 +61,28 @@ function pause_effects(state2, to_destroy, controlled_anchor) {
     (state2.outrogroups ??= /* @__PURE__ */ new Set()).add(group);
   }
 }
-function destroy_effects(to_destroy, remove_dom = true) {
+function destroy_effects(state2, to_destroy, remove_dom = true) {
+  var preserved_effects;
+  if (state2.pending.size > 0) {
+    preserved_effects = /* @__PURE__ */ new Set();
+    for (const keys of state2.pending.values()) {
+      for (const key of keys) {
+        preserved_effects.add(
+          /** @type {EachItem} */
+          state2.items.get(key).e
+        );
+      }
+    }
+  }
   for (var i = 0; i < to_destroy.length; i++) {
-    destroy_effect(to_destroy[i], remove_dom);
+    var e = to_destroy[i];
+    if (preserved_effects?.has(e)) {
+      e.f |= EFFECT_OFFSCREEN;
+      const fragment = document.createDocumentFragment();
+      move_effect(e, fragment);
+    } else {
+      destroy_effect(to_destroy[i], remove_dom);
+    }
   }
 }
 var offscreen_anchor;
@@ -86,8 +105,13 @@ function each(node, flags, get_collection, get_key, render_fn, fallback_fn = nul
     return is_array(collection) ? collection : collection == null ? [] : array_from(collection);
   });
   var array;
+  var pending = /* @__PURE__ */ new Map();
   var first_run = true;
-  function commit() {
+  function commit(batch) {
+    if ((state2.effect.f & DESTROYED) !== 0) {
+      return;
+    }
+    state2.pending.delete(batch);
     state2.fallback = fallback;
     reconcile(state2, array, anchor, flags, get_key);
     if (fallback !== null) {
@@ -104,6 +128,9 @@ function each(node, flags, get_collection, get_key, render_fn, fallback_fn = nul
         });
       }
     }
+  }
+  function discard(batch) {
+    state2.pending.delete(batch);
   }
   var effect = block(() => {
     array = /** @type {V[]} */
@@ -177,6 +204,7 @@ function each(node, flags, get_collection, get_key, render_fn, fallback_fn = nul
       set_hydrate_node(skip_nodes());
     }
     if (!first_run) {
+      pending.set(batch, keys);
       if (defer) {
         for (const [key2, item2] of items) {
           if (!keys.has(key2)) {
@@ -184,10 +212,9 @@ function each(node, flags, get_collection, get_key, render_fn, fallback_fn = nul
           }
         }
         batch.oncommit(commit);
-        batch.ondiscard(() => {
-        });
+        batch.ondiscard(discard);
       } else {
-        commit();
+        commit(batch);
       }
     }
     if (mismatch) {
@@ -195,7 +222,7 @@ function each(node, flags, get_collection, get_key, render_fn, fallback_fn = nul
     }
     get(each_array);
   });
-  var state2 = { effect, items, outrogroups: null, fallback };
+  var state2 = { effect, items, pending, outrogroups: null, fallback };
   first_run = false;
   if (hydrating) {
     anchor = hydrate_node;
@@ -230,6 +257,9 @@ function reconcile(state2, array, anchor, flags, get_key) {
         group.done.delete(effect);
       }
     }
+    if ((effect.f & INERT) !== 0) {
+      resume_effect(effect);
+    }
     if ((effect.f & EFFECT_OFFSCREEN) !== 0) {
       effect.f ^= EFFECT_OFFSCREEN;
       if (effect === current) {
@@ -250,9 +280,6 @@ function reconcile(state2, array, anchor, flags, get_key) {
         current = skip_to_branch(prev.next);
         continue;
       }
-    }
-    if ((effect.f & INERT) !== 0) {
-      resume_effect(effect);
     }
     if (effect !== current) {
       if (seen !== void 0 && seen.has(effect)) {
@@ -306,7 +333,7 @@ function reconcile(state2, array, anchor, flags, get_key) {
   if (state2.outrogroups !== null) {
     for (const group of state2.outrogroups) {
       if (group.pending.size === 0) {
-        destroy_effects(array_from(group.done));
+        destroy_effects(state2, array_from(group.done));
         state2.outrogroups?.delete(group);
       }
     }

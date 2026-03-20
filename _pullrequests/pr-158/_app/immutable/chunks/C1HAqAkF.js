@@ -1,4 +1,4 @@
-import { A as listen_to_event_and_reset_event, B as tick, C as untrack, D as render_effect, h as hydrating, x as current_batch, F as previous_batch } from "./BfvVvcMy.js";
+import { z as listen_to_event_and_reset_event, w as current_batch, A as tick, B as untrack, C as render_effect, h as hydrating } from "./aeDwZSEd.js";
 function bind_value(input, get, set = get) {
   var batches = /* @__PURE__ */ new WeakSet();
   listen_to_event_and_reset_event(input, "input", async (is_reset) => {
@@ -43,7 +43,7 @@ function bind_value(input, get, set = get) {
     if (input === document.activeElement) {
       var batch = (
         /** @type {Batch} */
-        previous_batch ?? current_batch
+        current_batch
       );
       if (batches.has(batch)) {
         return;

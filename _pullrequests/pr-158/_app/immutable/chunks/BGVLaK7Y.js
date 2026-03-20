@@ -1,5 +1,5 @@
-import { d as block, h as hydrating, e as hydrate_next, E as EFFECT_TRANSPARENT, i as read_hydration_instruction, H as HYDRATION_START, j as HYDRATION_START_ELSE, k as skip_nodes, l as set_hydrate_node, m as set_hydrating, n as hydrate_node } from "./BfvVvcMy.js";
-import { B as BranchManager } from "./DD3MC3Xw.js";
+import { d as block, h as hydrating, e as hydrate_next, E as EFFECT_TRANSPARENT, i as read_hydration_instruction, j as skip_nodes, k as set_hydrate_node, l as set_hydrating, m as hydrate_node } from "./aeDwZSEd.js";
+import { B as BranchManager } from "./zAvPtT5X.js";
 function if_block(node, fn, elseif = false) {
   var marker;
   if (hydrating) {
@@ -14,15 +14,7 @@ function if_block(node, fn, elseif = false) {
         /** @type {TemplateNode} */
         marker
       );
-      var hydrated_key;
-      if (data === HYDRATION_START) {
-        hydrated_key = 0;
-      } else if (data === HYDRATION_START_ELSE) {
-        hydrated_key = false;
-      } else {
-        hydrated_key = parseInt(data.substring(1));
-      }
-      if (key !== hydrated_key) {
+      if (key !== parseInt(data.substring(1))) {
         var anchor = skip_nodes();
         set_hydrate_node(anchor);
         branches.anchor = anchor;
@@ -41,7 +33,7 @@ function if_block(node, fn, elseif = false) {
       update_branch(key, fn2);
     });
     if (!has_branch) {
-      update_branch(false, null);
+      update_branch(-1, null);
     }
   }, flags);
 }
