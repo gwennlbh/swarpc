@@ -2,7 +2,7 @@ import { f as from_html, a as append } from "../chunks/CWPLrOC0.js";
 import { i as init } from "../chunks/33LIZSpI.js";
 import { J as push, t as template_effect, K as pop, s as sibling, c as child, r as reset } from "../chunks/aeDwZSEd.js";
 import { s as set_attribute } from "../chunks/FyQvz4Ck.js";
-import { b as base, r as resolve_route } from "../chunks/CMob6pMO.js";
+import { b as base, r as resolve_route } from "../chunks/szRQube2.js";
 import "../chunks/BqB-gMnm.js";
 const pathname_prefix = "";
 function resolve(...args) {
