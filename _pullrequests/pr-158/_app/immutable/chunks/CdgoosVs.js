@@ -1,6 +1,6 @@
-import { c as comment, a as append } from "./CWPLrOC0.js";
-import { d as block, E as EFFECT_TRANSPARENT, f as first_child } from "./aeDwZSEd.js";
-import { B as BranchManager } from "./zAvPtT5X.js";
+import { c as comment, a as append } from "./QyJcC7qq.js";
+import { d as block, E as EFFECT_TRANSPARENT, f as first_child } from "./BxH_ITiD.js";
+import { B as BranchManager } from "./BWMYNGrY.js";
 function snippet(node, get_snippet, ...args) {
   var branches = new BranchManager(node);
   block(() => {
