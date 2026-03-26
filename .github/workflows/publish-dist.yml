@@ -26,7 +26,7 @@ jobs:
       - run: rm -r dist || true
       - run: npm run build
       - name: Commit and push
-        uses: EndBug/add-and-commit@v9
+        uses: EndBug/add-and-commit@v10
         with:
           author_name: github-actions
           author_email: github-actions@users.noreply.github.com
