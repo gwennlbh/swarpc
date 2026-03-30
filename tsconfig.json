@@ -1,5 +1,4 @@
 {
-
   "include": ["src/**/*"],
   "exclude": ["example/", "dist/", "tests/", "vite.config.ts"],
   "compilerOptions": {
