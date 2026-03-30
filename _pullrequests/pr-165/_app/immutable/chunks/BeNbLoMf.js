@@ -418,6 +418,11 @@ class Batch {
    */
   #roots = [];
   /**
+   * Effects created while this batch was active.
+   * @type {Effect[]}
+   */
+  #new_effects = [];
+  /**
    * Deferred effects (which run after async work has completed) that are DIRTY
    * @type {Set<Effect>}
    */
@@ -655,6 +660,12 @@ class Batch {
     this.#discard_callbacks.clear();
     batches.delete(this);
   }
+  /**
+   * @param {Effect} effect
+   */
+  register_created_effect(effect2) {
+    this.#new_effects.push(effect2);
+  }
   #commit() {
     for (const batch of batches) {
       var is_earlier = batch.id < this.id;
@@ -684,6 +695,23 @@ class Batch {
         var checked = /* @__PURE__ */ new Map();
         for (var source2 of sources) {
           mark_effects(source2, others, marked, checked);
+        }
+        checked = /* @__PURE__ */ new Map();
+        var current_unequal = [...batch.current.keys()].filter(
+          (c) => this.current.has(c) ? (
+            /** @type {[any, boolean]} */
+            this.current.get(c)[0] !== c
+          ) : true
+        );
+        for (const effect2 of this.#new_effects) {
+          if ((effect2.f & (DESTROYED | INERT | EAGER_EFFECT)) === 0 && depends_on(effect2, current_unequal, checked)) {
+            if ((effect2.f & (ASYNC | BLOCK_EFFECT)) !== 0) {
+              set_signal_status(effect2, DIRTY);
+              batch.schedule(effect2);
+            } else {
+              batch.#dirty_effects.add(effect2);
+            }
+          }
         }
         if (batch.#roots.length > 0) {
           batch.apply();
@@ -1840,6 +1868,7 @@ function create_effect(type, fn) {
     wv: 0,
     ac: null
   };
+  current_batch?.register_created_effect(effect2);
   var e = effect2;
   if ((type & EFFECT) !== 0) {
     if (collected_effects !== null) {

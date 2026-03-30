@@ -1,4 +1,4 @@
-import { L } from "../chunks/CdgoosVs.js";
+import { L } from "../chunks/Cwk4Z-zL.js";
 const prerender = true;
 const trailingSlash = "always";
 const _layout = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({

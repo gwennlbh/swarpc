@@ -1,5 +1,5 @@
-import { o as onMount } from "./CCa-uBE9.js";
-import { X as noop, aY as safe_not_equal, a as state, g as get, b as set } from "./BxH_ITiD.js";
+import { o as onMount } from "./BmPeT0Iu.js";
+import { X as noop, aY as safe_not_equal, a as state, g as get, b as set } from "./BeNbLoMf.js";
 import { b as base64_decode } from "./BqB-gMnm.js";
 const subscriber_queue = [];
 function writable(value, start = noop) {
@@ -308,9 +308,9 @@ function resolve_route(id, params) {
     })
   ).filter(Boolean).join("/") + (has_id_trailing_slash ? "/" : "");
 }
-const base = globalThis.__sveltekit_19a93ch?.base ?? "/cigale/_pullrequests/pr-165";
-const assets = globalThis.__sveltekit_19a93ch?.assets ?? base ?? "";
-const version = "1774269242181";
+const base = globalThis.__sveltekit_1hxis7l?.base ?? "/cigale/_pullrequests/pr-165";
+const assets = globalThis.__sveltekit_1hxis7l?.assets ?? base ?? "";
+const version = "1774873439131";
 const SNAPSHOT_KEY = "sveltekit:snapshot";
 const SCROLL_KEY = "sveltekit:scroll";
 const STATES_KEY = "sveltekit:states";

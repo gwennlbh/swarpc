@@ -1,4 +1,4 @@
-import { N as NAMESPACE_HTML, D as get_prototype_of, h as hydrating, F as get_descriptors, I as IS_XHTML, G as queue_micro_task, H as add_form_reset_listener, L as LOADING_ATTR_SYMBOL } from "./BxH_ITiD.js";
+import { N as NAMESPACE_HTML, D as get_prototype_of, h as hydrating, F as get_descriptors, I as IS_XHTML, G as queue_micro_task, H as add_form_reset_listener, L as LOADING_ATTR_SYMBOL } from "./BeNbLoMf.js";
 const IS_CUSTOM_ELEMENT = /* @__PURE__ */ Symbol("is custom element");
 const IS_HTML = /* @__PURE__ */ Symbol("is html");
 const LINK_TAG = IS_XHTML ? "link" : "LINK";
