@@ -372,8 +372,8 @@ function set(key, value, stringify = JSON.stringify) {
 }
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/app/paths/internal/client.js
-var base = globalThis.__sveltekit_1may87z?.base ?? "/cigale/_pullrequests/pr-176";
-var assets = globalThis.__sveltekit_1may87z?.assets ?? base ?? "";
+var base = globalThis.__sveltekit_bfs6gk?.base ?? "/cigale/_pullrequests/pr-176";
+var assets = globalThis.__sveltekit_bfs6gk?.assets ?? base ?? "";
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/app/paths/client.js
 /** @import { Asset, RouteId, RouteIdWithSearchOrHash, Pathname, PathnameWithSearchOrHash, ResolvedPathname } from '$app/types' */
@@ -407,7 +407,7 @@ function resolve(...args) {
 }
 //#endregion
 //#region \0virtual:__sveltekit/environment
-var version = "1775465947883";
+var version = "1775466174267";
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/client/constants.js
 var SNAPSHOT_KEY = "sveltekit:snapshot";
@@ -1039,9 +1039,9 @@ var query_map = /* @__PURE__ */ new Map();
 * @param {Parameters<typeof _hydrate>[1]} [hydrate]
 */
 async function start(_app, _target, hydrate) {
-	if (globalThis.__sveltekit_1may87z) {
-		globalThis.__sveltekit_1may87z.query;
-		globalThis.__sveltekit_1may87z.prerender;
+	if (globalThis.__sveltekit_bfs6gk) {
+		globalThis.__sveltekit_bfs6gk.query;
+		globalThis.__sveltekit_bfs6gk.prerender;
 	}
 	if (document.URL !== location.href) location.href = location.href;
 	app = _app;
