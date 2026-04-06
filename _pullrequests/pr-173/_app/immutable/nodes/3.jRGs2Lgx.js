@@ -1,7 +1,7 @@
 import { f as from_html, a as append } from "../chunks/DCrN3ESg.js";
 import { K as component_context, ab as user_pre_effect, J as user_effect, B as untrack, ac as run_all, ad as run, g as get, ae as deep_read_state, af as derived, ag as enable_legacy_mode_flag, O as push, t as template_effect, P as pop, s as sibling, c as child, r as reset } from "../chunks/Bq7_lh55.js";
 import { s as set_attribute } from "../chunks/B6mHRmdA.js";
-import { b as base, r as resolve_route } from "../chunks/DHbKxw-9.js";
+import { b as base, r as resolve_route } from "../chunks/ne_nh4aw.js";
 import "../chunks/BqB-gMnm.js";
 function init(immutable = false) {
   const context = (
