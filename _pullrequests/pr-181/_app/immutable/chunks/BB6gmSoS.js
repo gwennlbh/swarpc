@@ -21,6 +21,11 @@ var Redirect = class {
 	* @param {string} location
 	*/
 	constructor(status, location) {
+		try {
+			new Headers({ location });
+		} catch {
+			throw new Error(`Invalid redirect location ${JSON.stringify(location)}: this string contains characters that cannot be used in HTTP headers`);
+		}
 		this.status = status;
 		this.location = location;
 	}

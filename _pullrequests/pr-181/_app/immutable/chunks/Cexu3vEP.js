@@ -1,5 +1,5 @@
-import { C as get$1, F as state, L as writable, P as set$1, T as tick$1, n as onMount$1, t as index_client_exports, w as settled } from "./BQ5NvJVA.js";
-import { i as SvelteKitError, n as HttpError, r as Redirect, t as base64_decode } from "./BVsGMvV5.js";
+import { C as get$1, F as state, L as writable, P as set$1, T as tick$1, n as onMount$1, t as index_client_exports, w as settled } from "./vmPmQ6_U.js";
+import { i as SvelteKitError, n as HttpError, r as Redirect, t as base64_decode } from "./BB6gmSoS.js";
 new URL("sveltekit-internal://");
 /**
 * @param {string} path
@@ -73,6 +73,9 @@ function make_trackable(url, callback, search_params_callback, allow_hash = fals
 	});
 	return tracked;
 }
+//#endregion
+//#region node_modules/@sveltejs/kit/src/utils/functions.js
+function noop() {}
 //#endregion
 //#region node_modules/@sveltejs/kit/src/utils/hash.js
 /**
@@ -372,8 +375,8 @@ function set(key, value, stringify = JSON.stringify) {
 }
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/app/paths/internal/client.js
-var base = globalThis.__sveltekit_1h7vnuf?.base ?? "/cigale/_pullrequests/pr-181";
-var assets = globalThis.__sveltekit_1h7vnuf?.assets ?? base ?? "";
+var base = globalThis.__sveltekit_76vdv9?.base ?? "/cigale/_pullrequests/pr-181";
+var assets = globalThis.__sveltekit_76vdv9?.assets ?? base ?? "";
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/app/paths/client.js
 /** @import { Asset, RouteId, RouteIdWithSearchOrHash, Pathname, PathnameWithSearchOrHash, ResolvedPathname } from '$app/types' */
@@ -407,7 +410,7 @@ function resolve(...args) {
 }
 //#endregion
 //#region \0virtual:__sveltekit/environment
-var version = "1776045667715";
+var version = "1776045979980";
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/client/constants.js
 var SNAPSHOT_KEY = "sveltekit:snapshot";
@@ -575,7 +578,7 @@ function notifiable_store(value) {
 		subscribe
 	};
 }
-var updated_listener = { v: () => {} };
+var updated_listener = { v: noop };
 function create_updated_store() {
 	const { set, subscribe } = writable(false);
 	/** @type {NodeJS.Timeout} */
@@ -937,7 +940,7 @@ function clear_onward_history(current_history_index, current_navigation_index) {
 function native_navigation(url, replace = false) {
 	if (replace) location.replace(url.href);
 	else location.href = url.href;
-	return new Promise(() => {});
+	return new Promise(noop);
 }
 /**
 * Checks whether a service worker is registered, and if it is,
@@ -949,7 +952,6 @@ async function update_service_worker() {
 		if (registration) await registration.update();
 	}
 }
-function noop() {}
 /** @type {import('types').CSRRoute[]} All routes of the app. Only available when kit.router.resolution=client */
 var routes;
 /** @type {import('types').CSRPageNodeLoader} */
@@ -1039,9 +1041,9 @@ var query_map = /* @__PURE__ */ new Map();
 * @param {Parameters<typeof _hydrate>[1]} [hydrate]
 */
 async function start(_app, _target, hydrate) {
-	if (globalThis.__sveltekit_1h7vnuf) {
-		globalThis.__sveltekit_1h7vnuf.query;
-		globalThis.__sveltekit_1h7vnuf.prerender;
+	if (globalThis.__sveltekit_76vdv9) {
+		globalThis.__sveltekit_76vdv9.query;
+		globalThis.__sveltekit_76vdv9.prerender;
 	}
 	if (document.URL !== location.href) location.href = location.href;
 	app = _app;
@@ -1361,7 +1363,7 @@ async function load_node({ loader, parent, url, params, route, server_data_node 
 				if (is_tracking) depends(resolved.href);
 				return promise;
 			},
-			setHeaders: () => {},
+			setHeaders: noop,
 			depends,
 			parent() {
 				if (is_tracking) uses.parent = true;
@@ -1479,8 +1481,8 @@ async function load_route({ id, invalidating, url, params, route, preload }) {
 	}
 	const { errors, layouts, leaf } = route;
 	const loaders = [...layouts, leaf];
-	errors.forEach((loader) => loader?.().catch(() => {}));
-	loaders.forEach((loader) => loader?.[1]().catch(() => {}));
+	errors.forEach((loader) => loader?.().catch(noop));
+	loaders.forEach((loader) => loader?.[1]().catch(noop));
 	/** @type {import('types').ServerNodesResponse | import('types').ServerRedirectNode | null} */
 	let server_data = null;
 	const url_changed = current.url ? id !== get_page_key(current.url) : false;
@@ -1509,7 +1511,7 @@ async function load_route({ id, invalidating, url, params, route, preload }) {
 			server_data_node: create_data_node(server_data_node === void 0 && loader[0] ? { type: "skip" } : server_data_node ?? null, loader[0] ? previous?.server : void 0)
 		});
 	});
-	for (const p of branch_promises) p.catch(() => {});
+	for (const p of branch_promises) p.catch(noop);
 	/** @type {Array<import('./types.js').BranchNode | undefined>} */
 	const branch = [];
 	for (let i = 0; i < loaders.length; i += 1) if (loaders[i]) try {
@@ -2356,7 +2358,7 @@ function create_navigation(current, intent, url, type, target_scroll = null) {
 		fulfil = f;
 		reject = r;
 	});
-	complete.catch(() => {});
+	complete.catch(noop);
 	return {
 		navigation: {
 			from: {

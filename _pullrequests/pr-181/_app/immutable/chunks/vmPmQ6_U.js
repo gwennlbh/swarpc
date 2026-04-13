@@ -243,6 +243,12 @@ var HYDRATION_ERROR = {};
 var UNINITIALIZED = Symbol();
 var NAMESPACE_HTML = "http://www.w3.org/1999/xhtml";
 /**
+* Reading a derived belonging to a now-destroyed effect may result in stale values
+*/
+function derived_inert() {
+	console.warn(`https://svelte.dev/e/derived_inert`);
+}
+/**
 * Expected to find a hydratable with key `%key%` during hydration, but did not.
 * @param {string} key
 */
@@ -791,6 +797,11 @@ var Batch = class Batch {
 	*/
 	#discard_callbacks = /* @__PURE__ */ new Set();
 	/**
+	* Callbacks that should run only when a fork is committed.
+	* @type {Set<(batch: Batch) => void>}
+	*/
+	#fork_commit_callbacks = /* @__PURE__ */ new Set();
+	/**
 	* Async effects that are currently in flight
 	* @type {Map<Effect, number>}
 	*/
@@ -834,6 +845,11 @@ var Batch = class Batch {
 	* @type {Map<Effect, { d: Effect[], m: Effect[] }>}
 	*/
 	#skipped_branches = /* @__PURE__ */ new Map();
+	/**
+	* Inverse of #skipped_branches which we need to tell prior batches to unskip them when committing
+	* @type {Set<Effect>}
+	*/
+	#unskipped_branches = /* @__PURE__ */ new Set();
 	is_fork = false;
 	#decrement_queued = false;
 	/** @type {Set<Batch>} */
@@ -865,25 +881,28 @@ var Batch = class Batch {
 			d: [],
 			m: []
 		});
+		this.#unskipped_branches.delete(effect);
 	}
 	/**
 	* Remove an effect from the #skipped_branches map and reschedule
 	* any tracked dirty/maybe_dirty child effects
 	* @param {Effect} effect
+	* @param {(e: Effect) => void} callback
 	*/
-	unskip_effect(effect) {
+	unskip_effect(effect, callback = (e) => this.schedule(e)) {
 		var tracked = this.#skipped_branches.get(effect);
 		if (tracked) {
 			this.#skipped_branches.delete(effect);
 			for (var e of tracked.d) {
 				set_signal_status(e, DIRTY);
-				this.schedule(e);
+				callback(e);
 			}
 			for (e of tracked.m) {
 				set_signal_status(e, MAYBE_DIRTY);
-				this.schedule(e);
+				callback(e);
 			}
 		}
+		this.#unskipped_branches.add(effect);
 	}
 	#process() {
 		if (flush_count++ > 1e3) {
@@ -951,7 +970,7 @@ var Batch = class Batch {
 			batches.add(next_batch);
 			next_batch.#process();
 		}
-		if (!batches.has(this)) this.#commit();
+		if (async_mode_flag && !batches.has(this)) this.#commit();
 	}
 	/**
 	* Traverse the effect tree, executing effects or stashing
@@ -1000,15 +1019,16 @@ var Batch = class Batch {
 	* Associate a change to a given source with the current
 	* batch, noting its previous and current values
 	* @param {Value} source
-	* @param {any} old_value
+	* @param {any} value
 	* @param {boolean} [is_derived]
 	*/
-	capture(source, old_value, is_derived = false) {
-		if (old_value !== UNINITIALIZED && !this.previous.has(source)) this.previous.set(source, old_value);
+	capture(source, value, is_derived = false) {
+		if (source.v !== UNINITIALIZED && !this.previous.has(source)) this.previous.set(source, source.v);
 		if ((source.f & 8388608) === 0) {
-			this.current.set(source, [source.v, is_derived]);
-			batch_values?.set(source, source.v);
+			this.current.set(source, [value, is_derived]);
+			batch_values?.set(source, value);
 		}
+		if (!this.is_fork) source.v = value;
 	}
 	activate() {
 		current_batch = this;
@@ -1036,6 +1056,7 @@ var Batch = class Batch {
 	discard() {
 		for (const fn of this.#discard_callbacks) fn(this);
 		this.#discard_callbacks.clear();
+		this.#fork_commit_callbacks.clear();
 		batches.delete(this);
 	}
 	/**
@@ -1061,6 +1082,10 @@ var Batch = class Batch {
 			if (others.length === 0) {
 				if (is_earlier) batch.discard();
 			} else if (sources.length > 0) {
+				if (is_earlier) for (const unskipped of this.#unskipped_branches) batch.unskip_effect(unskipped, (e) => {
+					if ((e.f & 4194320) !== 0) batch.schedule(e);
+					else batch.#defer_effects([e]);
+				});
 				batch.activate();
 				/** @type {Set<Value>} */
 				var marked = /* @__PURE__ */ new Set();
@@ -1139,6 +1164,14 @@ var Batch = class Batch {
 	/** @param {(batch: Batch) => void} fn */
 	ondiscard(fn) {
 		this.#discard_callbacks.add(fn);
+	}
+	/** @param {(batch: Batch) => void} fn */
+	on_fork_commit(fn) {
+		this.#fork_commit_callbacks.add(fn);
+	}
+	run_fork_commit_callbacks() {
+		for (const fn of this.#fork_commit_callbacks) fn(this);
+		this.#fork_commit_callbacks.clear();
 	}
 	settled() {
 		return (this.#deferred ??= deferred()).promise;
@@ -1398,7 +1431,6 @@ function fork(fn) {
 	var committed = false;
 	var settled = batch.settled();
 	flushSync(fn);
-	for (var [source, value] of batch.previous) source.v = value;
 	return {
 		commit: async () => {
 			if (committed) {
@@ -1412,6 +1444,9 @@ function fork(fn) {
 				source.v = value;
 				source.wv = increment_write_version();
 			}
+			batch.activate();
+			batch.run_fork_commit_callbacks();
+			batch.deactivate();
 			flushSync(() => {
 				/** @type {Set<Effect>} */
 				var eager_effects = /* @__PURE__ */ new Set();
@@ -1752,9 +1787,20 @@ var Boundary = class {
 	}
 	/** @param {unknown} error */
 	error(error) {
-		var onerror = this.#props.onerror;
-		let failed = this.#props.failed;
-		if (!onerror && !failed) throw error;
+		if (!this.#props.onerror && !this.#props.failed) throw error;
+		if (current_batch?.is_fork) {
+			if (this.#main_effect) current_batch.skip_effect(this.#main_effect);
+			if (this.#pending_effect) current_batch.skip_effect(this.#pending_effect);
+			if (this.#failed_effect) current_batch.skip_effect(this.#failed_effect);
+			current_batch.on_fork_commit(() => {
+				this.#handle_error(error);
+			});
+		} else this.#handle_error(error);
+	}
+	/**
+	* @param {unknown} error
+	*/
+	#handle_error(error) {
 		if (this.#main_effect) {
 			destroy_effect(this.#main_effect);
 			this.#main_effect = null;
@@ -1772,6 +1818,8 @@ var Boundary = class {
 			next();
 			set_hydrate_node(skip_nodes());
 		}
+		var onerror = this.#props.onerror;
+		let failed = this.#props.failed;
 		var did_reset = false;
 		var calling_on_error = false;
 		const reset = () => {
@@ -1923,7 +1971,6 @@ function increment_pending() {
 /* @__NO_SIDE_EFFECTS__ */
 function derived(fn) {
 	var flags = 2 | DIRTY;
-	var parent_derived = active_reaction !== null && (active_reaction.f & 2) !== 0 ? active_reaction : null;
 	if (active_effect !== null) active_effect.f |= EFFECT_PRESERVED;
 	return {
 		ctx: component_context,
@@ -1936,7 +1983,7 @@ function derived(fn) {
 		rv: 0,
 		v: UNINITIALIZED,
 		wv: 0,
-		parent: parent_derived ?? active_effect,
+		parent: active_effect,
 		ac: null
 	};
 }
@@ -2052,18 +2099,6 @@ function destroy_derived_effects(derived) {
 	}
 }
 /**
-* @param {Derived} derived
-* @returns {Effect | null}
-*/
-function get_derived_parent_effect(derived) {
-	var parent = derived.parent;
-	while (parent !== null) {
-		if ((parent.f & 2) === 0) return (parent.f & 16384) === 0 ? parent : null;
-		parent = parent.parent;
-	}
-	return null;
-}
-/**
 * @template T
 * @param {Derived} derived
 * @returns {T}
@@ -2071,7 +2106,12 @@ function get_derived_parent_effect(derived) {
 function execute_derived(derived) {
 	var value;
 	var prev_active_effect = active_effect;
-	set_active_effect(get_derived_parent_effect(derived));
+	var parent = derived.parent;
+	if (!is_destroying_effect && parent !== null && (parent.f & 24576) !== 0) {
+		derived_inert();
+		return derived.v;
+	}
+	set_active_effect(parent);
 	try {
 		derived.f &= ~WAS_MARKED;
 		destroy_derived_effects(derived);
@@ -2086,13 +2126,12 @@ function execute_derived(derived) {
 * @returns {void}
 */
 function update_derived(derived) {
-	var old_value = derived.v;
 	var value = execute_derived(derived);
 	if (!derived.equals(value)) {
 		derived.wv = increment_write_version();
 		if (!current_batch?.is_fork || derived.deps === null) {
-			derived.v = value;
-			current_batch?.capture(derived, old_value, true);
+			if (current_batch !== null) current_batch.capture(derived, value, true);
+			else derived.v = value;
 			if (derived.deps === null) {
 				set_signal_status(derived, CLEAN);
 				return;
@@ -2199,12 +2238,9 @@ function set(source, value, should_proxy = false) {
 */
 function internal_set(source, value, updated_during_traversal = null) {
 	if (!source.equals(value)) {
-		var old_value = source.v;
-		if (is_destroying_effect) old_values.set(source, value);
-		else old_values.set(source, old_value);
-		source.v = value;
+		old_values.set(source, is_destroying_effect ? value : source.v);
 		var batch = Batch.ensure();
-		batch.capture(source, old_value);
+		batch.capture(source, value);
 		if ((source.f & 2) !== 0) {
 			const derived = source;
 			if ((source.f & 2048) !== 0) execute_derived(derived);
@@ -3230,7 +3266,7 @@ function remove_reaction(signal, dependency) {
 			derived.f ^= 512;
 			derived.f &= ~WAS_MARKED;
 		}
-		update_derived_status(derived);
+		if (derived.v !== UNINITIALIZED) update_derived_status(derived);
 		freeze_derived_effects(derived);
 		remove_reactions(derived, 0);
 	}
