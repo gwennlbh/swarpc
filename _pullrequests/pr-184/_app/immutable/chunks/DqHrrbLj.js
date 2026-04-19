@@ -1,4 +1,4 @@
-import { C as get$1, F as state, L as writable, P as set$1, T as tick$1, n as onMount$1, t as index_client_exports, w as settled } from "./vmPmQ6_U.js";
+import { C as get$1, F as state, L as writable, P as set$1, T as tick$1, n as onMount$1, t as index_client_exports, w as settled } from "./DGs0AZwM.js";
 import { i as SvelteKitError, n as HttpError, r as Redirect, t as base64_decode } from "./BB6gmSoS.js";
 new URL("sveltekit-internal://");
 /**
@@ -375,8 +375,8 @@ function set(key, value, stringify = JSON.stringify) {
 }
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/app/paths/internal/client.js
-var base = globalThis.__sveltekit_y50hsg?.base ?? "/cigale/_pullrequests/pr-184";
-var assets = globalThis.__sveltekit_y50hsg?.assets ?? base ?? "";
+var base = globalThis.__sveltekit_1nng597?.base ?? "/cigale/_pullrequests/pr-184";
+var assets = globalThis.__sveltekit_1nng597?.assets ?? base ?? "";
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/app/paths/client.js
 /** @import { Asset, RouteId, RouteIdWithSearchOrHash, Pathname, PathnameWithSearchOrHash, ResolvedPathname } from '$app/types' */
@@ -410,7 +410,7 @@ function resolve(...args) {
 }
 //#endregion
 //#region \0virtual:__sveltekit/environment
-var version = "1776634626302";
+var version = "1776634821535";
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/client/constants.js
 var SNAPSHOT_KEY = "sveltekit:snapshot";
@@ -1041,9 +1041,9 @@ var query_map = /* @__PURE__ */ new Map();
 * @param {Parameters<typeof _hydrate>[1]} [hydrate]
 */
 async function start(_app, _target, hydrate) {
-	if (globalThis.__sveltekit_y50hsg) {
-		globalThis.__sveltekit_y50hsg.query;
-		globalThis.__sveltekit_y50hsg.prerender;
+	if (globalThis.__sveltekit_1nng597) {
+		globalThis.__sveltekit_1nng597.query;
+		globalThis.__sveltekit_1nng597.prerender;
 	}
 	if (document.URL !== location.href) location.href = location.href;
 	app = _app;

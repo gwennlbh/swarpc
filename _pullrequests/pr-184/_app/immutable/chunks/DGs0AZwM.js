@@ -3007,8 +3007,10 @@ function pause_children(effect, transitions, local) {
 	var child = effect.first;
 	while (child !== null) {
 		var sibling = child.next;
-		var transparent = (child.f & 65536) !== 0 || (child.f & 32) !== 0 && (effect.f & 16) !== 0;
-		pause_children(child, transitions, transparent ? local : false);
+		if ((child.f & 64) === 0) {
+			var transparent = (child.f & 65536) !== 0 || (child.f & 32) !== 0 && (effect.f & 16) !== 0;
+			pause_children(child, transitions, transparent ? local : false);
+		}
 		child = sibling;
 	}
 }

@@ -1,4 +1,4 @@
-import { A as child, C as get, D as template_effect, F as state, I as user_derived, M as sibling, N as proxy, P as set, S as delegated, W as reset, _ as append, c as bind_value, g as set_text, j as first_child, l as remove_input_defaults, m as index, p as each, x as delegate, y as from_html } from "../chunks/vmPmQ6_U.js";
+import { A as child, C as get, D as template_effect, F as state, I as user_derived, M as sibling, N as proxy, P as set, S as delegated, W as reset, _ as append, c as bind_value, g as set_text, j as first_child, l as remove_input_defaults, m as index, p as each, x as delegate, y as from_html } from "../chunks/DGs0AZwM.js";
 import "../chunks/BJgEf1bw.js";
 //#region src/routes/[worker]/parallel/+page.svelte
 var root_1 = from_html(`<p><code class="svelte-qrjmsr"> <br/> </code></p>`);
