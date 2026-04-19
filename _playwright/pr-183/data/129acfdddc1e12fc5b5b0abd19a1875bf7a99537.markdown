@@ -1,0 +1,265 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: once.spec.ts >> using a shared worker >> broadcast >> .once() - method scoped >> completes normally when no previous call exists
+- Location: tests/e2e/once.spec.ts:135:11
+
+# Error details
+
+```
+Error: expect(locator).toHaveAccessibleName(expected) failed
+
+Locator:  locator('#test-once').getByRole('button')
+Expected: "21"
+Received: "loading... 100%, 100%, 100%, 100%, 100%, 100%, 100%, 100%"
+Timeout:  10000ms
+
+Call log:
+  - Expect "toHaveAccessibleName" with timeout 10000ms
+  - waiting for locator('#test-once').getByRole('button')
+    3 × locator resolved to <button>…</button>
+      - unexpected value "loading... 0%"
+    - locator resolved to <button>…</button>
+    - unexpected value "loading... 0%, 0%, 0%, 0%, 0%, 0%, 0%, 0%"
+    - locator resolved to <button>…</button>
+    - unexpected value "loading... 14%, 14%, 14%, 14%, 14%, 14%, 14%, 14%"
+    - locator resolved to <button>…</button>
+    - unexpected value "loading... 43%, 43%, 43%, 43%, 43%, 43%, 43%, 43%"
+    - locator resolved to <button>…</button>
+    - unexpected value "loading... 71%, 71%, 71%, 71%, 71%, 71%, 71%, 71%"
+    7 × locator resolved to <button>…</button>
+      - unexpected value "loading... 100%, 100%, 100%, 100%, 100%, 100%, 100%, 100%"
+
+```
+
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - heading "Once Mode Tests" [level=2] [ref=e4]
+  - generic [ref=e5]:
+    - checkbox "Broadcast" [checked] [ref=e6]
+    - text: Broadcast
+  - generic [ref=e7]:
+    - 'heading "Test 1: .once() - cancels previous call of same method" [level=3] [ref=e8]'
+    - spinbutton [ref=e9]: "3"
+    - text: "*"
+    - spinbutton [ref=e10]: "7"
+    - text: =
+    - button "loading... 100%, 100%, 100%, 100%, 100%, 100%, 100%, 100%" [active] [ref=e11]
+  - generic [ref=e12]:
+    - 'heading "Test 2: .onceBy(key) - cancels previous call with same key" [level=3] [ref=e13]'
+    - spinbutton [ref=e14]: "3"
+    - text: "*"
+    - spinbutton [ref=e15]: "7"
+    - text: =
+    - button "compute" [ref=e16]
+  - generic [ref=e17]:
+    - 'heading "Test 3: global onceBy - cancels any call with same global key" [level=3] [ref=e18]'
+    - spinbutton [ref=e19]: "3"
+    - text: "*"
+    - spinbutton [ref=e20]: "7"
+    - text: =
+    - button "compute" [ref=e21]
+```
+
+# Test source
+
+```ts
+  49  | 
+  50  |             // Wait for it to start loading
+  51  |             await expect(button).toHaveAccessibleName(/loading.../);
+  52  | 
+  53  |             // Capture loading progress sequence to ensure
+  54  |             // the previous calls no longer affect it
+  55  |             let loadingTexts: string[] = [];
+  56  | 
+  57  |             async function watchLoadingProgress() {
+  58  |               while (true) {
+  59  |                 const name = await button.textContent();
+  60  |                 if (!name) continue;
+  61  | 
+  62  |                 const lastSeen = loadingTexts.at(-1);
+  63  | 
+  64  |                 if (!lastSeen) {
+  65  |                   loadingTexts.push(name);
+  66  |                   continue;
+  67  |                 }
+  68  | 
+  69  |                 if (lastSeen === name) continue;
+  70  | 
+  71  |                 const pattern = /loading... ((?<progress>\d+)%((, )?))+$/;
+  72  | 
+  73  |                 if (pattern.test(name) && pattern.test(lastSeen)) {
+  74  |                   const lastProgress =
+  75  |                     pattern.exec(lastSeen)!.groups!.progress!;
+  76  |                   const currentProgress = pattern.exec(name)!.groups!.progress!;
+  77  | 
+  78  |                   // 100% is shown very briefly before the result,
+  79  |                   // so we can skip it to avoid flakiness
+  80  |                   // since this watch loop may miss it or may not
+  81  |                   if (currentProgress === "100") continue;
+  82  | 
+  83  |                   if (lastProgress === currentProgress) continue;
+  84  |                 }
+  85  | 
+  86  |                 loadingTexts.push(name);
+  87  | 
+  88  |                 await page.waitForTimeout(50);
+  89  |               }
+  90  |             }
+  91  | 
+  92  |             await Promise.race([
+  93  |               page.waitForTimeout(1_600),
+  94  |               watchLoadingProgress(),
+  95  |             ]);
+  96  | 
+  97  |             // Quickly start a second computation with different values
+  98  |             await inputA.fill("3");
+  99  |             await inputB.fill("4");
+  100 |             await button.click();
+  101 | 
+  102 |             // The result should be from the second computation (3 * 4 = 12)
+  103 |             await expect(button).toHaveAccessibleName("12", {
+  104 |               timeout: 10000,
+  105 |             });
+  106 | 
+  107 |             await either(
+  108 |               () =>
+  109 |                 expect(loadingTexts).toMatchObject([
+  110 |                   loadingPattern(0, 5),
+  111 |                   loadingPattern(20, 5),
+  112 |                   loadingPattern(40, 5),
+  113 |                   loadingPattern(60, 5), // With 60%
+  114 |                   loadingPattern(0, 5),
+  115 |                   loadingPattern(25, 5),
+  116 |                   loadingPattern(50, 5),
+  117 |                   loadingPattern(75, 5),
+  118 |                   "12",
+  119 |                 ]),
+  120 |               () =>
+  121 |                 expect(loadingTexts).toMatchObject([
+  122 |                   loadingPattern(0, 5),
+  123 |                   loadingPattern(20, 5),
+  124 |                   loadingPattern(40, 5),
+  125 |                   // Without 60%
+  126 |                   loadingPattern(0, 5),
+  127 |                   loadingPattern(25, 5),
+  128 |                   loadingPattern(50, 5),
+  129 |                   loadingPattern(75, 5),
+  130 |                   "12",
+  131 |                 ]),
+  132 |             );
+  133 |           });
+  134 | 
+  135 |           test("completes normally when no previous call exists", async ({
+  136 |             page,
+  137 |           }) => {
+  138 |             const section = page.locator("#test-once");
+  139 |             const button = section.getByRole("button");
+  140 |             const inputA = section.getByRole("spinbutton").first();
+  141 |             const inputB = section.getByRole("spinbutton").nth(1);
+  142 | 
+  143 |             await inputA.fill("3");
+  144 |             await inputB.fill("7");
+  145 |             await button.click();
+  146 | 
+  147 |             // Should show progress and complete
+  148 |             await expect(button).toHaveAccessibleName(/loading.../);
+> 149 |             await expect(button).toHaveAccessibleName("21", {
+      |                                  ^ Error: expect(locator).toHaveAccessibleName(expected) failed
+  150 |               timeout: 10000,
+  151 |             });
+  152 |           });
+  153 |         });
+  154 | 
+  155 |         test.describe(".onceBy(key) - method+key scoped", () => {
+  156 |           test("cancels previous call with same key", async ({ page }) => {
+  157 |             const section = page.locator("#test-onceby-key");
+  158 |             const button = section.getByRole("button");
+  159 |             const inputA = section.getByRole("spinbutton").first();
+  160 |             const inputB = section.getByRole("spinbutton").nth(1);
+  161 | 
+  162 |             // Set up first computation
+  163 |             await inputA.fill("4");
+  164 |             await inputB.fill("6");
+  165 | 
+  166 |             // Start first computation
+  167 |             await button.click();
+  168 | 
+  169 |             // Wait for it to start loading
+  170 |             await expect(button).toHaveAccessibleName(/loading.../);
+  171 | 
+  172 |             // Quickly start a second computation with different values
+  173 |             await inputA.fill("5");
+  174 |             await inputB.fill("3");
+  175 |             await button.click();
+  176 | 
+  177 |             // The result should be from the second computation (5 * 3 = 15)
+  178 |             await expect(button).toHaveAccessibleName("15", {
+  179 |               timeout: 10000,
+  180 |             });
+  181 |           });
+  182 |         });
+  183 | 
+  184 |         test.describe("global onceBy - global key scoped", () => {
+  185 |           test("cancels previous call with same global key", async ({
+  186 |             page,
+  187 |           }) => {
+  188 |             const section = page.locator("#test-global-onceby");
+  189 |             const button = section.getByRole("button");
+  190 |             const inputA = section.getByRole("spinbutton").first();
+  191 |             const inputB = section.getByRole("spinbutton").nth(1);
+  192 | 
+  193 |             // Set up first computation
+  194 |             await inputA.fill("6");
+  195 |             await inputB.fill("7");
+  196 | 
+  197 |             // Start first computation
+  198 |             await button.click();
+  199 | 
+  200 |             // Wait for it to start loading
+  201 |             await expect(button).toHaveAccessibleName(/loading.../);
+  202 | 
+  203 |             // Quickly start a second computation with different values
+  204 |             await inputA.fill("8");
+  205 |             await inputB.fill("2");
+  206 |             await button.click();
+  207 | 
+  208 |             // The result should be from the second computation (8 * 2 = 16)
+  209 |             await expect(button).toHaveAccessibleName("16", {
+  210 |               timeout: 10000,
+  211 |             });
+  212 |           });
+  213 |         });
+  214 |       });
+  215 |     }
+  216 |   });
+  217 | }
+  218 | 
+  219 | type MaybePromise<T> = T | Promise<T>;
+  220 | 
+  221 | async function either(
+  222 |   ...checks: Array<() => MaybePromise<void>>
+  223 | ): Promise<void> {
+  224 |   const results = await Promise.allSettled([
+  225 |     ...checks.map(async (check) => check()),
+  226 |   ]);
+  227 | 
+  228 |   if (
+  229 |     !results.every(
+  230 |       (result): result is PromiseRejectedResult => result.status === "rejected",
+  231 |     )
+  232 |   ) {
+  233 |     return;
+  234 |   }
+  235 | 
+  236 |   throw results.map((r) => r.reason);
+  237 | }
+  238 | 
+```
