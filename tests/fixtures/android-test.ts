@@ -19,7 +19,7 @@ export const test = base.extend<object, { device: AndroidDevice }>({
   context: async ({ device, baseURL }, use) => {
     const context = await device.launchBrowser({
       pkg: "com.android.chrome",
-      ...(baseURL ? { baseURL } : {}),
+      baseURL,
       serviceWorkers: "allow",
     });
     await use(context);

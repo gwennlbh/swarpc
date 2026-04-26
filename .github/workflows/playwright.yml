@@ -94,6 +94,8 @@ jobs:
     runs-on: ubuntu-latest
     name: Test (Android Chrome)
     needs: prepare
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
         with:
