@@ -1,4 +1,4 @@
-import { C as get$1, F as state, L as writable, P as set$1, T as tick$1, n as onMount$1, t as index_client_exports, w as settled } from "./DGs0AZwM.js";
+import { C as get$1, F as state, L as writable, P as set$1, T as tick$1, n as onMount$1, t as index_client_exports, w as settled } from "./BPdam01F.js";
 import { i as SvelteKitError, n as HttpError, r as Redirect, t as base64_decode } from "./BB6gmSoS.js";
 new URL("sveltekit-internal://");
 /**
@@ -320,6 +320,7 @@ function parse({ nodes, server_loads, dictionary, matchers }) {
 		/** @type {import('types').CSRRoute} */
 		const route = {
 			id,
+			/** @param {string} path */
 			exec: (path) => {
 				const match = pattern.exec(path);
 				if (match) return exec(match, params, matchers);
@@ -375,8 +376,8 @@ function set(key, value, stringify = JSON.stringify) {
 }
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/app/paths/internal/client.js
-var base = globalThis.__sveltekit_1kfly4d?.base ?? "/cigale/_pullrequests/pr-192";
-var assets = globalThis.__sveltekit_1kfly4d?.assets ?? base ?? "";
+var base = globalThis.__sveltekit_1yh53wx?.base ?? "/cigale/_pullrequests/pr-192";
+var assets = globalThis.__sveltekit_1yh53wx?.assets ?? base ?? "";
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/app/paths/client.js
 /** @import { Asset, RouteId, RouteIdWithSearchOrHash, Pathname, PathnameWithSearchOrHash, ResolvedPathname } from '$app/types' */
@@ -406,11 +407,12 @@ var pathname_prefix = "";
 * @returns {ResolvedPathname}
 */
 function resolve(...args) {
+	if (!args[0].startsWith("/")) throw new Error(`Cannot use \`resolve(...)\` with a non-absolute pathname or route ID (got "${args[0]}"). \`resolve\` is only for internal pathnames and route IDs; external URLs should be used directly.`);
 	return base + pathname_prefix + resolve_route(args[0], args[1]);
 }
 //#endregion
 //#region \0virtual:__sveltekit/environment
-var version = "1777240634678";
+var version = "1777240886983";
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/client/constants.js
 var SNAPSHOT_KEY = "sveltekit:snapshot";
@@ -1041,9 +1043,9 @@ var query_map = /* @__PURE__ */ new Map();
 * @param {Parameters<typeof _hydrate>[1]} [hydrate]
 */
 async function start(_app, _target, hydrate) {
-	if (globalThis.__sveltekit_1kfly4d) {
-		globalThis.__sveltekit_1kfly4d.query;
-		globalThis.__sveltekit_1kfly4d.prerender;
+	if (globalThis.__sveltekit_1yh53wx) {
+		globalThis.__sveltekit_1yh53wx.query;
+		globalThis.__sveltekit_1yh53wx.prerender;
 	}
 	if (document.URL !== location.href) location.href = location.href;
 	app = _app;
