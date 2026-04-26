@@ -36,7 +36,8 @@ export function extractRejecteds(settleds) {
     return settleds.filter((settled) => settled.status === "rejected");
 }
 export function isSharedWorker(worker) {
-    if (!SharedWorker)
+    if (!("SharedWorker" in globalThis)) {
         return false;
+    }
     return worker instanceof SharedWorker;
 }
