@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- swarpc would (still) not work on Chrome for Android due to SharedWorker not being _declared_ at all
+
 ## [0.20.1] - 2026-04-26
 
 ### Fixed

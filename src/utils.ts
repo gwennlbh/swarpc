@@ -71,8 +71,11 @@ export function extractRejecteds<T, D>(
 
 /** @internal */
 export function isSharedWorker(worker: unknown): worker is SharedWorker {
-  // SharedWorker is not defined on Chrome Android
+  // SharedWorker is not declared on Chrome Android
   // https://issues.chromium.org/issues/40290702
-  if (!SharedWorker) return false;
+  if (!("SharedWorker" in globalThis)) {
+    return false;
+  }
+
   return worker instanceof SharedWorker;
 }
