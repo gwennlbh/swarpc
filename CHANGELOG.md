@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.20.1] - 2026-04-26
+
 ### Fixed
 
 - swarpc would not work on Chrome for Android due to SharedWorker not being available (see https://issues.chromium.org/issues/40290702)
@@ -262,7 +264,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - support for transferable objects via a new [`autotransfer` property on procedure declarations](https://swarpc.js.org/types/types.Procedure.html#autotransfer)
 
-[Unreleased]: https://github.com/gwennlbh/swarpc/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/gwennlbh/swarpc/compare/v0.20.1...HEAD
+[0.20.1]: https://github.com/gwennlbh/swarpc/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/gwennlbh/swarpc/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/gwennlbh/swarpc/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/gwennlbh/swarpc/compare/v0.17.2...v0.18.0
