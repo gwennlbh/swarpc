@@ -68,3 +68,11 @@ export function extractRejecteds<T, D>(
       settled.status === "rejected",
   );
 }
+
+/** @internal */
+export function isSharedWorker(worker: unknown): worker is SharedWorker {
+  // SharedWorker is not defined on Chrome Android
+  // https://issues.chromium.org/issues/40290702
+  if (!SharedWorker) return false;
+  return worker instanceof SharedWorker;
+}

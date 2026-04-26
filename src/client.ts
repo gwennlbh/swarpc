@@ -38,6 +38,7 @@ import {
   extractFulfilleds,
   extractRejecteds,
   sizedArray,
+  isSharedWorker,
 } from "./utils.js";
 import type { StandardSchemaV1 as Schema } from "./standardschema.js";
 
@@ -154,7 +155,7 @@ export function Client<Procedures extends ProceduresMap>(
 
       for (const [nodeId, node] of Object.entries(nodes ?? {})) {
         l.debug(null, `Terminating worker for node ${nodeId}`);
-        if (node instanceof SharedWorker) {
+        if (isSharedWorker(node)) {
           node.port.close();
         } else {
           node.terminate();

@@ -6,6 +6,7 @@ import {
   type PendingRequest,
   type ProceduresMap,
 } from "./types.js";
+import { isSharedWorker } from "./utils.js";
 
 /**
  * Context for passing around data useful for requests
@@ -54,12 +55,11 @@ export async function postMessage<Procedures extends ProceduresMap>(
     l.warn("", "Service Worker is not controlling the page");
 
   // If no worker is provided, we use the service worker
-  const w =
-    worker instanceof SharedWorker
-      ? worker.port
-      : worker === undefined
-        ? await navigator.serviceWorker.ready.then((r) => r.active)
-        : worker;
+  const w = isSharedWorker(worker)
+    ? worker.port
+    : worker === undefined
+      ? await navigator.serviceWorker.ready.then((r) => r.active)
+      : worker;
 
   if (!w) {
     throw new Error("[SWARPC Client] No active service worker found");
@@ -82,12 +82,11 @@ export function postMessageSync<Procedures extends ProceduresMap>(
     l.warn("Service Worker is not controlling the page");
 
   // If no worker is provided, we use the service worker
-  const w =
-    worker instanceof SharedWorker
-      ? worker.port
-      : worker === undefined
-        ? navigator.serviceWorker.controller
-        : worker;
+  const w = isSharedWorker(worker)
+    ? worker.port
+    : worker === undefined
+      ? navigator.serviceWorker.controller
+      : worker;
 
   if (!w) {
     throw new Error("[SWARPC Client] No active service worker found");
@@ -185,7 +184,7 @@ async function startClientListener<Procedures extends ProceduresMap>(
     }
   };
 
-  if (w instanceof SharedWorker) {
+  if (isSharedWorker(w)) {
     w.port.addEventListener("message", listener);
     w.port.start();
   } else {
@@ -194,7 +193,7 @@ async function startClientListener<Procedures extends ProceduresMap>(
 
   _clientListeners.set(nodeIdOrSW(ctx.nodeId), {
     disconnect() {
-      if (w instanceof SharedWorker) {
+      if (isSharedWorker(w)) {
         w.port.removeEventListener("message", listener);
       } else {
         w.removeEventListener("message", listener);
