@@ -35,3 +35,8 @@ export function extractFulfilleds(settleds) {
 export function extractRejecteds(settleds) {
     return settleds.filter((settled) => settled.status === "rejected");
 }
+export function isSharedWorker(worker) {
+    if (!SharedWorker)
+        return false;
+    return worker instanceof SharedWorker;
+}

@@ -1,4 +1,5 @@
 import { nodeIdOrSW } from "./nodes.js";
+import { isSharedWorker } from "./utils.js";
 export const pendingRequests = new Map();
 export let _clientListeners = new Map();
 export async function postMessage(ctx, message, options) {
@@ -6,7 +7,7 @@ export async function postMessage(ctx, message, options) {
     const { logger: l, node: worker } = ctx;
     if (!worker && !navigator.serviceWorker.controller)
         l.warn("", "Service Worker is not controlling the page");
-    const w = worker instanceof SharedWorker
+    const w = isSharedWorker(worker)
         ? worker.port
         : worker === undefined
             ? await navigator.serviceWorker.ready.then((r) => r.active)
@@ -19,7 +20,7 @@ export async function postMessage(ctx, message, options) {
 export function postMessageSync(l, worker, message, options) {
     if (!worker && !navigator.serviceWorker.controller)
         l.warn("Service Worker is not controlling the page");
-    const w = worker instanceof SharedWorker
+    const w = isSharedWorker(worker)
         ? worker.port
         : worker === undefined
             ? navigator.serviceWorker.controller
@@ -89,7 +90,7 @@ async function startClientListener(ctx) {
             pendingRequests.delete(requestId);
         }
     };
-    if (w instanceof SharedWorker) {
+    if (isSharedWorker(w)) {
         w.port.addEventListener("message", listener);
         w.port.start();
     }
@@ -98,7 +99,7 @@ async function startClientListener(ctx) {
     }
     _clientListeners.set(nodeIdOrSW(ctx.nodeId), {
         disconnect() {
-            if (w instanceof SharedWorker) {
+            if (isSharedWorker(w)) {
                 w.port.removeEventListener("message", listener);
             }
             else {

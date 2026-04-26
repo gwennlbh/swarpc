@@ -2,7 +2,7 @@ import { createLogger } from "./log.js";
 import { broadcastNodes, makeNodeId, nodeIdOrSW, whoToSendTo, } from "./nodes.js";
 import { _clientListeners, makeRequestId, pendingRequests, postMessage, postMessageSync, } from "./messaging.js";
 import { RequestCancelledError, zProcedures, } from "./types.js";
-import { findTransferables, extractFulfilleds, extractRejecteds, sizedArray, } from "./utils.js";
+import { findTransferables, extractFulfilleds, extractRejecteds, sizedArray, isSharedWorker, } from "./utils.js";
 export const RESERVED_PROCEDURE_NAMES = ["onceBy", "destroy"];
 const emptyProgressCallback = () => { };
 export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug", restartListener = false, hooks = {}, localStorage = {}, nodeIds = [], } = {}) {
@@ -34,7 +34,7 @@ export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug
             }
             for (const [nodeId, node] of Object.entries(nodes ?? {})) {
                 l.debug(null, `Terminating worker for node ${nodeId}`);
-                if (node instanceof SharedWorker) {
+                if (isSharedWorker(node)) {
                     node.port.close();
                 }
                 else {
