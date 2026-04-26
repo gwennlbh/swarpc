@@ -83,7 +83,7 @@
       "prettier --write"
     ],
     "*.{ts,js,md,json,yaml,yml}": [
-      "oxlint --fix",
+      "oxlint --fix --no-error-on-unmatched-pattern",
       "prettier --write"
     ]
   }
