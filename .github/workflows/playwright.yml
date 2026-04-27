@@ -149,6 +149,10 @@ jobs:
         env:
           CI: "1"
           ANDROID: "1"
+          PLEYE_API_KEY: ${{ secrets.PLEYE_API_KEY }}
+          COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          JOB_ID: ${{ job.check_run_id }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
 
       - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}

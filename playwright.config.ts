@@ -87,7 +87,13 @@ export default defineConfig({
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: process.env.CI
     ? process.env.ANDROID
-      ? [["blob"], ["github"], ["list"]]
+      ? [
+          ["blob"],
+          ["github"],
+          ["list"],
+          ["json", { outputFile: "test-results.json" }],
+          ["./tests/reporters/pleye.js", pleye],
+        ]
       : [
           ["json", { outputFile: "test-results.json" }],
           [process.env.SHARDING ? "blob" : "html"],
