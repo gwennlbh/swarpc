@@ -12,13 +12,11 @@ const chromium: Project = {
       serviceWorkers: process.env.CI ? "allow" : "block",
     },
   },
-  testIgnore: ["**/android/**"],
 };
 
 const firefox: Project = {
   name: "firefox",
   use: { ...devices["Desktop Firefox"] },
-  testIgnore: ["**/android/**"],
 };
 
 const webkit: Project = {
@@ -30,14 +28,12 @@ const webkit: Project = {
       serviceWorkers: "block",
     },
   },
-  testIgnore: ["**/android/**"],
 };
 
 // SharedWorker is not tested here because it is not supported on Chrome for Android:
 // https://issues.chromium.org/issues/40290702
 const android: Project = {
   name: "android",
-  testDir: "./tests/e2e/android",
   // Extra time per test to account for Android emulator overhead
   timeout: minutesToMilliseconds(2),
   // The emulator only has one Chrome instance

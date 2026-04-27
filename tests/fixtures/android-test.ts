@@ -2,7 +2,7 @@ import { test as base, expect } from "@playwright/test";
 import { _android } from "playwright";
 import type { AndroidDevice } from "playwright";
 
-export const test = base.extend<object, { device: AndroidDevice }>({
+const androidTest = base.extend<object, { device: AndroidDevice }>({
   // One ADB connection per worker process
   device: [
     async ({}, use) => {
@@ -26,5 +26,7 @@ export const test = base.extend<object, { device: AndroidDevice }>({
     await context.close();
   },
 });
+
+export const test = process.env.ANDROID === "1" ? androidTest : base;
 
 export { expect };

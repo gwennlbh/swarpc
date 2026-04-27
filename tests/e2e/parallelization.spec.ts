@@ -1,9 +1,16 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/android-test";
 
 test.describe("parallel computation", () => {
   // TODO test workerType=service
   for (const workerType of ["shared", "dedicated"]) {
     test.describe(`using a ${workerType} worker`, () => {
+      // SharedWorker is not supported on Chrome for Android
+      if (workerType === "shared") {
+        test.skip(
+          process.env.ANDROID === "1",
+          "SharedWorker not supported on Chrome for Android: https://issues.chromium.org/issues/40290702",
+        );
+      }
       test("completes and uses different nodes", async ({
         page,
         browserName,

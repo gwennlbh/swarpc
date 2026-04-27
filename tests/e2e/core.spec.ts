@@ -1,9 +1,17 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/android-test";
 
 test.describe("cancelable computation", () => {
   // TODO test workerType=service
   for (const workerType of ["shared", "dedicated"]) {
     test.describe(`using a ${workerType} worker`, () => {
+      // SharedWorker is not supported on Chrome for Android
+      if (workerType === "shared") {
+        test.skip(
+          process.env.ANDROID === "1",
+          "SharedWorker not supported on Chrome for Android: https://issues.chromium.org/issues/40290702",
+        );
+      }
+
       test.beforeEach(async ({ page }) => {
         await page.goto(`/${workerType}/`);
         await page.getByRole("spinbutton").first().fill("2");
