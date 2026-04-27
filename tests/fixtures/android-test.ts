@@ -5,7 +5,7 @@ import type { AndroidDevice } from "playwright";
 export const test = base.extend<object, { device: AndroidDevice }>({
   // One ADB connection per worker process
   device: [
-    async (_fixtures, use) => {
+    async ({}, use) => {
       const [device] = await _android.devices();
       await use(device);
       await device.close();
