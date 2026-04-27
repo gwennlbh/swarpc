@@ -270,7 +270,7 @@ function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug", rest
 			console.warn("[SWARPC Client] cancelRequests called with empty nodeIds array, no requests will be cancelled");
 			return;
 		}
-		const trackingKey = concurrencyKey ? functionName ? `${functionName}:${concurrencyKey}` : concurrencyKey : void 0;
+		const trackingKey = concurrencyKey;
 		const criteria = (param, fn) => param ? fn(param) : true;
 		const toCancel = [...pendingRequests.entries()].filter(([_, p]) => criteria(nodeIds, (ns) => !p.nodeId || ns.includes(p.nodeId)) && criteria(functionName, (fn) => p.functionName === fn) && criteria(trackingKey, (key) => p.concurrencyKey === key));
 		for (const [requestId, { functionName }] of toCancel) cancelRequest(requestId, reason, functionName);
