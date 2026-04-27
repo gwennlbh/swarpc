@@ -133,38 +133,18 @@ jobs:
             "emulator" \
             "system-images;android-34;google_apis;x86_64"
 
-      - name: Create Android Virtual Device
-        run: |
-          echo no | avdmanager create avd \
-            --name test \
-            --package "system-images;android-34;google_apis;x86_64" \
-            --device "pixel_3a" \
-            --force
-
-      - name: Start Android emulator
-        run: |
-          $ANDROID_HOME/emulator/emulator \
-            -avd test \
-            -no-window \
-            -no-audio \
-            -no-boot-anim \
-            -no-snapshot-save \
-            -no-snapshot-load \
-            &
-          adb wait-for-device
-          # Wait for full boot
-          until adb shell getprop sys.boot_completed 2>/dev/null | grep -q "1"; do
-            sleep 3
-          done
-          echo "Android emulator is ready"
-
-      - name: Reverse-forward preview server port to emulator
-        # Makes http://localhost:4173 inside Chrome on the emulator
-        # resolve to the preview server running on the CI host
-        run: adb reverse tcp:4173 tcp:4173
-
       - name: Run Playwright tests on Android Chrome
-        run: npx playwright test --config=playwright.android.config.ts
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          profile: pixel_3a
+          avd-name: test
+          emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot-save -no-snapshot-load
+          # adb reverse makes http://localhost:4173 inside Chrome on the emulator
+          # resolve to the preview server running on the CI host
+          script: adb reverse tcp:4173 tcp:4173 && npx playwright test --config=playwright.android.config.ts
         env:
           CI: "1"
 
