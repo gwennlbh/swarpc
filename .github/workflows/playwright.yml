@@ -142,9 +142,13 @@ jobs:
           profile: pixel_3a
           avd-name: test
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot-save -no-snapshot-load
+          # Enable Chrome command-line flags on non-rooted device so Playwright can connect via remote debugging
           # adb reverse makes http://localhost:4173 inside Chrome on the emulator
           # resolve to the preview server running on the CI host
-          script: adb reverse tcp:4173 tcp:4173 && npx playwright test --config=playwright.android.config.ts
+          script: |
+            adb shell 'echo "_ --remote-debugging-port=0" > /data/local/tmp/chrome-command-line' &&
+            adb reverse tcp:4173 tcp:4173 &&
+            npx playwright test --config=playwright.android.config.ts
         env:
           CI: "1"
 
