@@ -179,7 +179,7 @@ jobs:
           merge-multiple: true
 
       - name: Merge sharded reports into HTML
-        run: npx playwright merge-reports --reporter html ./playwright-report-shards
+        run: npx playwright merge-reports --reporter html -c playwright.merge.config.ts ./playwright-report-shards
 
       - name: Deploy results on github pages
         if: ${{ !cancelled() }}
