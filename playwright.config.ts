@@ -12,11 +12,13 @@ const chromium: Project = {
       serviceWorkers: process.env.CI ? "allow" : "block",
     },
   },
+  testIgnore: ["**/android/**"],
 };
 
 const firefox: Project = {
   name: "firefox",
   use: { ...devices["Desktop Firefox"] },
+  testIgnore: ["**/android/**"],
 };
 
 const webkit: Project = {
@@ -28,6 +30,18 @@ const webkit: Project = {
       serviceWorkers: "block",
     },
   },
+  testIgnore: ["**/android/**"],
+};
+
+// SharedWorker is not tested here because it is not supported on Chrome for Android:
+// https://issues.chromium.org/issues/40290702
+const android: Project = {
+  name: "android",
+  testDir: "./tests/e2e/android",
+  // Extra time per test to account for Android emulator overhead
+  timeout: minutesToMilliseconds(2),
+  // The emulator only has one Chrome instance
+  fullyParallel: false,
 };
 
 const prNumber = process.env.PR_NUMBER
@@ -72,13 +86,15 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: process.env.CI
-    ? [
-        ["json", { outputFile: "test-results.json" }],
-        [process.env.SHARDING ? "blob" : "html"],
-        ["github"],
-        ["list"],
-        ["./tests/reporters/pleye.js", pleye],
-      ]
+    ? process.env.ANDROID
+      ? [["blob"], ["github"], ["list"]]
+      : [
+          ["json", { outputFile: "test-results.json" }],
+          [process.env.SHARDING ? "blob" : "html"],
+          ["github"],
+          ["list"],
+          ["./tests/reporters/pleye.js", pleye],
+        ]
     : [],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
@@ -106,9 +122,9 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: dependsOnTarget({
-    live: [chromium],
-    dev: [chromium, firefox, webkit],
-    built: [chromium, firefox, webkit],
+    live: process.env.ANDROID ? [android] : [chromium],
+    dev: process.env.ANDROID ? [android] : [chromium, firefox, webkit],
+    built: process.env.ANDROID ? [android] : [chromium, firefox, webkit],
   }),
 
   /* Run your local dev server before starting the tests */
