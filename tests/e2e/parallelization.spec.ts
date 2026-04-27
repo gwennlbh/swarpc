@@ -73,8 +73,14 @@ function results({
       ? RegExp.escape(value)
       : value.toString().replace(/^\/|\/$/g, "");
 
+  const maxProgress =
+    progress === null ? -1 : progress[progress.length - 1];
   const progressPattern =
-    progress === null ? "waiting" : progress.map((p) => `${p}%`).join(" | ");
+    progress === null
+      ? "waiting"
+      : maxProgress === 100
+        ? "100%"
+        : ["waiting", ...[0, 25, 50, 75, 100].map((p) => `${p}%`)].join("|");
 
   const result = (index: number) => (finished ? index * 4 : 0);
 

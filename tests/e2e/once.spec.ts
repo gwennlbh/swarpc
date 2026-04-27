@@ -136,6 +136,26 @@ for (const workerType of ["shared", "dedicated"]) {
                   loadingPattern(75, 5),
                   "12",
                 ]),
+              // Slow device: first computation barely started before cancellation
+              () =>
+                expect(loadingTexts).toMatchObject([
+                  loadingPattern(0, 5),
+                  loadingPattern(20, 5),
+                  loadingPattern(0, 5),
+                  loadingPattern(25, 5),
+                  loadingPattern(50, 5),
+                  loadingPattern(75, 5),
+                  "12",
+                ]),
+              () =>
+                expect(loadingTexts).toMatchObject([
+                  loadingPattern(0, 5),
+                  loadingPattern(0, 5),
+                  loadingPattern(25, 5),
+                  loadingPattern(50, 5),
+                  loadingPattern(75, 5),
+                  "12",
+                ]),
             );
           });
 
