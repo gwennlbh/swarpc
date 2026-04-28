@@ -54,7 +54,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard-index: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard-index: [1, 2, 3, 4, 5]
         shard-count: [8]
     steps:
       - uses: actions/checkout@v6
@@ -92,10 +92,15 @@ jobs:
   test-android:
     timeout-minutes: 60
     runs-on: ubuntu-latest
-    name: Test (Android Chrome)
+    name: Test (Android Chrome, shard ${{ matrix.shard-index }} of ${{ matrix.shard-count }})
     needs: prepare
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        shard-index: [6, 7, 8]
+        shard-count: [8]
     steps:
       - uses: actions/checkout@v6
         with:
@@ -145,7 +150,7 @@ jobs:
           # Enable Chrome command-line flags on non-rooted device so Playwright can connect via remote debugging
           # adb reverse makes http://localhost:4173 inside Chrome on the emulator
           # resolve to the preview server running on the CI host
-          script: adb shell 'echo "_ --remote-debugging-port=0" > /data/local/tmp/chrome-command-line' && adb reverse tcp:4173 tcp:4173 && npx playwright test
+          script: adb shell 'echo "_ --remote-debugging-port=0" > /data/local/tmp/chrome-command-line' && adb reverse tcp:4173 tcp:4173 && npx playwright test --shard=${{ matrix.shard-index }}/${{ matrix.shard-count }}
         env:
           CI: "1"
           ANDROID: "1"
@@ -157,7 +162,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
-          name: playwright-report-android
+          name: playwright-report-android-shard-${{ matrix.shard-index }}
           path: blob-report/
           retention-days: 30
 
