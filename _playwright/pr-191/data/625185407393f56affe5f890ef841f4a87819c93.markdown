@@ -1,0 +1,270 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: parallelization.spec.ts >> parallel computation >> using a dedicated worker >> completes and uses different nodes
+- Location: tests/e2e/parallelization.spec.ts:14:7
+
+# Error details
+
+```
+Error: expect(locator).toMatchAriaSnapshot(expected) failed
+
+Locator: locator('#result')
+Timeout: 2000ms
+- Expected  - 11
++ Received  + 11
+
+  - paragraph:
+-   - code: /4 · 0 = 4 100% from N[0-9A-F]{3}/
++   - code: 4 · 0 = 0 100% from N63A
+  - paragraph:
+-   - code: /4 · 1 = 8 100% from N[0-9A-F]{3}/
++   - code: 4 · 1 = 4 100% from N191
+  - paragraph:
+-   - code: /4 · 2 = 12 100% from N[0-9A-F]{3}/
++   - code: 4 · 2 = 8 100% from N96D
+  - paragraph:
+-   - code: /4 · 3 = 16 100% from N[0-9A-F]{3}/
++   - code: 4 · 3 = 12 100% from N671
+  - paragraph:
+-   - code: /4 · 4 = 20 100% from N[0-9A-F]{3}/
++   - code: 4 · 4 = 16 100% from NC22
+  - paragraph:
+-   - code: /4 · 5 = 24 100% from N[0-9A-F]{3}/
++   - code: 4 · 5 = 20 100% from N19C
+  - paragraph:
+-   - code: /4 · 6 = 28 100% from N[0-9A-F]{3}/
++   - code: 4 · 6 = 24 100% from NBD7
+  - paragraph:
+-   - code: /4 · 7 = 32 100% from N[0-9A-F]{3}/
++   - code: 4 · 7 = 28 100% from N96E
+  - paragraph:
+-   - code: /4 · 8 = 36 100% from N[0-9A-F]{3}/
++   - code: 4 · 8 = 32 100% from N0AC
+  - paragraph:
+-   - code: /4 · 9 = 4 100% from N[0-9A-F]{3}/
++   - code: 4 · 9 = 36 100% from N058
+  - paragraph:
+-   - code: /4 · 10 = 40 100% from N[0-9A-F]{3}/
++   - code: 4 · 10 = 40 100% from N63A
+
+Call log:
+  - Expect "toMatchAriaSnapshot" with timeout 2000ms
+  - waiting for locator('#result')
+    3 × locator resolved to <div id="result">…</div>
+      - unexpected value "- paragraph:
+  - code: 4 · 0 = 0 0% from N63A
+- paragraph:
+  - code: 4 · 1 = 0 0% from N191
+- paragraph:
+  - code: 4 · 2 = 0 0% from N96D
+- paragraph:
+  - code: 4 · 3 = 0 0% from N671
+- paragraph:
+  - code: 4 · 4 = 0 0% from NC22
+- paragraph:
+  - code: 4 · 5 = 0 0% from N19C
+- paragraph:
+  - code: 4 · 6 = 0 0% from NBD7
+- paragraph:
+  - code: 4 · 7 = 0 0% from N96E
+- paragraph:
+  - code: 4 · 8 = 0 0% from N0AC
+- paragraph:
+  - code: 4 · 9 = 0 0% from N058
+- paragraph:
+  - code: 4 · 10 = 0 0% from N63A"
+    - locator resolved to <div id="result">…</div>
+    - unexpected value "- paragraph:
+  - code: 4 · 0 = 0 25% from N63A
+- paragraph:
+  - code: 4 · 1 = 0 25% from N191
+- paragraph:
+  - code: 4 · 2 = 0 25% from N96D
+- paragraph:
+  - code: 4 · 3 = 0 25% from N671
+- paragraph:
+  - code: 4 · 4 = 0 25% from NC22
+- paragraph:
+  - code: 4 · 5 = 0 25% from N19C
+- paragraph:
+  - code: 4 · 6 = 0 25% from NBD7
+- paragraph:
+  - code: 4 · 7 = 0 25% from N96E
+- paragraph:
+  - code: 4 · 8 = 0 25% from N0AC
+- paragraph:
+  - code: 4 · 9 = 0 25% from N058
+- paragraph:
+  - code: 4 · 10 = 0 25% from N63A"
+    - locator resolved to <div id="result">…</div>
+    - unexpected value "- paragraph:
+  - code: 4 · 0 = 0 50% from N63A
+- paragraph:
+  - code: 4 · 1 = 0 50% from N191
+- paragraph:
+  - code: 4 · 2 = 0 50% from N96D
+- paragraph:
+  - code: 4 · 3 = 0 50% from N671
+- paragraph:
+  - code: 4 · 4 = 0 50% from NC22
+- paragraph:
+  - code: 4 · 5 = 0 50% from N19C
+- paragraph:
+  - code: 4 · 6 = 0 50% from NBD7
+- paragraph:
+  - code: 4 · 7 = 0 50% from N96E
+- paragraph:
+  - code: 4 · 8 = 0 50% from N0AC
+- paragraph:
+  - code: 4 · 9 = 0 50% from N058
+- paragraph:
+  - code: 4 · 10 = 0 50% from N63A"
+    - locator resolved to <div id="result">…</div>
+    - unexpected value "- paragraph:
+  - code: 4 · 0 = 0 100% from N63A
+- paragraph:
+  - code: 4 · 1 = 4 100% from N191
+- paragraph:
+  - code: 4 · 2 = 8 100% from N96D
+- paragraph:
+  - code: 4 · 3 = 12 100% from N671
+- paragraph:
+  - code: 4 · 4 = 16 100% from NC22
+- paragraph:
+  - code: 4 · 5 = 20 100% from N19C
+- paragraph:
+  - code: 4 · 6 = 24 100% from NBD7
+- paragraph:
+  - code: 4 · 7 = 28 100% from N96E
+- paragraph:
+  - code: 4 · 8 = 32 100% from N0AC
+- paragraph:
+  - code: 4 · 9 = 36 100% from N058
+- paragraph:
+  - code: 4 · 10 = 40 100% from N63A"
+
+```
+
+# Test source
+
+```ts
+  1   | import { test, expect } from "../fixtures/android-test";
+  2   | 
+  3   | test.describe("parallel computation", () => {
+  4   |   // TODO test workerType=service
+  5   |   for (const workerType of ["shared", "dedicated"]) {
+  6   |     test.describe(`using a ${workerType} worker`, () => {
+  7   |       // SharedWorker is not supported on Chrome for Android
+  8   |       if (workerType === "shared") {
+  9   |         test.skip(
+  10  |           process.env.ANDROID === "1",
+  11  |           "SharedWorker not supported on Chrome for Android: https://issues.chromium.org/issues/40290702",
+  12  |         );
+  13  |       }
+  14  |       test("completes and uses different nodes", async ({
+  15  |         page,
+  16  |         browserName,
+  17  |       }) => {
+  18  |         test.fixme(
+  19  |           browserName === "webkit",
+  20  |           'For some reason, parallelisation tests are pretty flaky on Webkit, it seems to progress "too soon", we aren\'t able to catch the 0% case',
+  21  |         );
+  22  |         await page.goto(`/${workerType}/parallel/?nodes=10`);
+  23  |         await page.getByRole("spinbutton").first().fill("4");
+  24  |         expect(page.locator("#result")).toMatchAriaSnapshot(
+  25  |           results({ finished: false, progress: null, node: "?" }),
+  26  |         );
+  27  | 
+  28  |         await page.getByRole("button", { name: "Compute" }).click();
+  29  | 
+  30  |         for (const progress of [0, 25, 50, 75, 100]) {
+  31  |           const nodes = await page
+  32  |             .locator("#result")
+  33  |             .allInnerTexts()
+  34  |             .then((lines) => {
+  35  |               const all = lines.join(" ");
+  36  |               const pattern = /from (N[0-9A-F]{3})/g;
+  37  |               const matches: Set<string> = new Set();
+  38  |               let result;
+  39  |               do {
+  40  |                 result = pattern.exec(all);
+  41  |                 if (result) matches.add(result[1]);
+  42  |               } while (result);
+  43  | 
+  44  |               return matches;
+  45  |             });
+> 46  |           await expect(page.locator("#result")).toMatchAriaSnapshot(
+      |                                                 ^ Error: expect(locator).toMatchAriaSnapshot(expected) failed
+  47  |             results({
+  48  |               finished: progress === 100,
+  49  |               progress: [0, 25, 50, 75, 100].filter((p) => p <= progress),
+  50  |               node: progress === 0 ? /(N[0-9A-F]{3}|\?)/ : /N[0-9A-F]{3}/,
+  51  |             }),
+  52  |             { timeout: 2_000 },
+  53  |           );
+  54  | 
+  55  |           if (progress > 0) expect(nodes.size).toBe(10);
+  56  |         }
+  57  |       });
+  58  |     });
+  59  |   }
+  60  | });
+  61  | 
+  62  | function results({
+  63  |   finished,
+  64  |   progress,
+  65  |   node,
+  66  | }: {
+  67  |   finished: boolean;
+  68  |   progress: number[] | null;
+  69  |   node: string | RegExp;
+  70  | }) {
+  71  |   const regexp = (value: string | RegExp) =>
+  72  |     typeof value === "string"
+  73  |       ? RegExp.escape(value)
+  74  |       : value.toString().replace(/^\/|\/$/g, "");
+  75  | 
+  76  |   const maxProgress =
+  77  |     progress === null ? -1 : progress[progress.length - 1];
+  78  |   const progressPattern =
+  79  |     progress === null
+  80  |       ? "waiting"
+  81  |       : maxProgress === 100
+  82  |         ? "100%"
+  83  |         : ["waiting", ...[0, 25, 50, 75, 100].map((p) => `${p}%`)].join("|");
+  84  | 
+  85  |   const result = (index: number) => (finished ? index * 4 : 0);
+  86  | 
+  87  |   return `
+  88  |           - paragraph:
+  89  |             - code: /4 · 0 = ${result(1)} ${progressPattern} from ${regexp(node)}/
+  90  |           - paragraph:
+  91  |             - code: /4 · 1 = ${result(2)} ${progressPattern} from ${regexp(node)}/
+  92  |           - paragraph:
+  93  |             - code: /4 · 2 = ${result(3)} ${progressPattern} from ${regexp(node)}/
+  94  |           - paragraph:
+  95  |             - code: /4 · 3 = ${result(4)} ${progressPattern} from ${regexp(node)}/
+  96  |           - paragraph:
+  97  |             - code: /4 · 4 = ${result(5)} ${progressPattern} from ${regexp(node)}/
+  98  |           - paragraph:
+  99  |             - code: /4 · 5 = ${result(6)} ${progressPattern} from ${regexp(node)}/
+  100 |           - paragraph:
+  101 |             - code: /4 · 6 = ${result(7)} ${progressPattern} from ${regexp(node)}/
+  102 |           - paragraph:
+  103 |             - code: /4 · 7 = ${result(8)} ${progressPattern} from ${regexp(node)}/
+  104 |           - paragraph:
+  105 |             - code: /4 · 8 = ${result(9)} ${progressPattern} from ${regexp(node)}/
+  106 |           - paragraph:
+  107 |             - code: /4 · 9 = ${result(1)} ${progressPattern} from ${regexp(node)}/
+  108 |           - paragraph:
+  109 |             - code: /4 · 10 = ${result(10)} ${progressPattern} from ${regexp(node)}/
+  110 |         `;
+  111 | }
+  112 | 
+```

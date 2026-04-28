@@ -1,0 +1,71 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: core.spec.ts >> cancelable computation >> using a dedicated worker >> can be canceled
+- Location: tests/e2e/core.spec.ts:32:7
+
+# Error details
+
+```
+TimeoutError: locator.click: Timeout 30000ms exceeded.
+Call log:
+  - waiting for getByRole('button', { name: 'Cancel' })
+    - locator resolved to <button>Cancel</button>
+  - attempting click action
+    - waiting for element to be visible, enabled and stable
+  - element was detached from the DOM, retrying
+
+```
+
+# Test source
+
+```ts
+  1  | import { test, expect } from "../fixtures/android-test";
+  2  | 
+  3  | test.describe("cancelable computation", () => {
+  4  |   // TODO test workerType=service
+  5  |   for (const workerType of ["shared", "dedicated"]) {
+  6  |     test.describe(`using a ${workerType} worker`, () => {
+  7  |       // SharedWorker is not supported on Chrome for Android
+  8  |       if (workerType === "shared") {
+  9  |         test.skip(
+  10 |           process.env.ANDROID === "1",
+  11 |           "SharedWorker not supported on Chrome for Android: https://issues.chromium.org/issues/40290702",
+  12 |         );
+  13 |       }
+  14 | 
+  15 |       test.beforeEach(async ({ page }) => {
+  16 |         await page.goto(`/${workerType}/`);
+  17 |         await page.getByRole("spinbutton").first().fill("2");
+  18 |         await page.getByRole("spinbutton").nth(1).fill("5");
+  19 |         await page.getByRole("button", { name: "compute" }).click();
+  20 |       });
+  21 | 
+  22 |       test("completes and shows progress", async ({ page }) => {
+  23 |         const result = page.getByRole("button").first();
+  24 |         await expect(result).toHaveAccessibleName("loading... 0%");
+  25 |         await expect(result).toHaveAccessibleName("loading... 20%");
+  26 |         await expect(result).toHaveAccessibleName("loading... 40%");
+  27 |         await expect(result).toHaveAccessibleName("loading... 60%");
+  28 |         await expect(result).toHaveAccessibleName("loading... 80%");
+  29 |         await expect(result).toHaveAccessibleName("10");
+  30 |       });
+  31 | 
+  32 |       test("can be canceled", async ({ page }) => {
+  33 |         const result = page.getByRole("button").first();
+  34 |         await expect(result).toHaveAccessibleName("loading... 0%");
+  35 |         await expect(result).toHaveAccessibleName("loading... 20%");
+> 36 |         await page.getByRole("button", { name: "Cancel" }).click();
+     |                                                            ^ TimeoutError: locator.click: Timeout 30000ms exceeded.
+  37 |         await expect(result).toHaveAccessibleName("compute");
+  38 |       });
+  39 |     });
+  40 |   }
+  41 | });
+  42 | 
+```
