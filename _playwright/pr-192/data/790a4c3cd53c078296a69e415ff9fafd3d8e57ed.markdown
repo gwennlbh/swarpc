@@ -21,37 +21,37 @@ Timeout: 2000ms
 
   - paragraph:
 -   - code: /4 · 0 = 0 0% from (N[0-9A-F]{3}|\?)/
-+   - code: 4 · 0 = 0 0% from N88D
++   - code: 4 · 0 = 0 75% from N5B0
   - paragraph:
 -   - code: /4 · 1 = 0 0% from (N[0-9A-F]{3}|\?)/
-+   - code: 4 · 1 = 0 25% from N2C5
++   - code: 4 · 1 = 0 75% from NE76
   - paragraph:
 -   - code: /4 · 2 = 0 0% from (N[0-9A-F]{3}|\?)/
-+   - code: 4 · 2 = 0 25% from N2D5
++   - code: 4 · 2 = 0 75% from NC75
   - paragraph:
 -   - code: /4 · 3 = 0 0% from (N[0-9A-F]{3}|\?)/
-+   - code: 4 · 3 = 0 0% from N506
++   - code: 4 · 3 = 0 75% from NA77
   - paragraph:
 -   - code: /4 · 4 = 0 0% from (N[0-9A-F]{3}|\?)/
-+   - code: 4 · 4 = 0 25% from NB60
++   - code: 4 · 4 = 0 75% from N28C
   - paragraph:
 -   - code: /4 · 5 = 0 0% from (N[0-9A-F]{3}|\?)/
-+   - code: 4 · 5 = 0 25% from N693
++   - code: 4 · 5 = 0 75% from N315
   - paragraph:
 -   - code: /4 · 6 = 0 0% from (N[0-9A-F]{3}|\?)/
-+   - code: 4 · 6 = 0 25% from NADE
++   - code: 4 · 6 = 0 75% from N2F4
   - paragraph:
 -   - code: /4 · 7 = 0 0% from (N[0-9A-F]{3}|\?)/
-+   - code: 4 · 7 = 0 25% from N36B
++   - code: 4 · 7 = 0 75% from N9AC
   - paragraph:
 -   - code: /4 · 8 = 0 0% from (N[0-9A-F]{3}|\?)/
-+   - code: 4 · 8 = 0 0% from N140
++   - code: 4 · 8 = 0 75% from N27A
   - paragraph:
 -   - code: /4 · 9 = 0 0% from (N[0-9A-F]{3}|\?)/
-+   - code: 4 · 9 = 0 25% from NF92
++   - code: 4 · 9 = 0 75% from N930
   - paragraph:
 -   - code: /4 · 10 = 0 0% from (N[0-9A-F]{3}|\?)/
-+   - code: 4 · 10 = 0 0% from N88D
++   - code: 4 · 10 = 0 75% from N5B0
 
 Call log:
   - Expect "toMatchAriaSnapshot" with timeout 2000ms
@@ -81,50 +81,73 @@ Call log:
   - code: 4 · 10 = 0 waiting from ?"
     - locator resolved to <div id="result">…</div>
     - unexpected value "- paragraph:
-  - code: 4 · 0 = 0 waiting from ?
+  - code: 4 · 0 = 0 0% from N5B0
 - paragraph:
-  - code: 4 · 1 = 0 0% from N2C5
+  - code: 4 · 1 = 0 0% from NE76
 - paragraph:
-  - code: 4 · 2 = 0 0% from N2D5
+  - code: 4 · 2 = 0 0% from NC75
 - paragraph:
-  - code: 4 · 3 = 0 waiting from ?
+  - code: 4 · 3 = 0 0% from NA77
 - paragraph:
-  - code: 4 · 4 = 0 0% from NB60
+  - code: 4 · 4 = 0 0% from N28C
 - paragraph:
-  - code: 4 · 5 = 0 0% from N693
+  - code: 4 · 5 = 0 0% from N315
 - paragraph:
-  - code: 4 · 6 = 0 0% from NADE
+  - code: 4 · 6 = 0 waiting from ?
 - paragraph:
-  - code: 4 · 7 = 0 0% from N36B
+  - code: 4 · 7 = 0 waiting from ?
 - paragraph:
-  - code: 4 · 8 = 0 waiting from ?
+  - code: 4 · 8 = 0 0% from N27A
 - paragraph:
-  - code: 4 · 9 = 0 0% from NF92
+  - code: 4 · 9 = 0 waiting from ?
 - paragraph:
-  - code: 4 · 10 = 0 waiting from ?"
+  - code: 4 · 10 = 0 0% from N5B0"
     - locator resolved to <div id="result">…</div>
     - unexpected value "- paragraph:
-  - code: 4 · 0 = 0 0% from N88D
+  - code: 4 · 0 = 0 25% from N5B0
 - paragraph:
-  - code: 4 · 1 = 0 25% from N2C5
+  - code: 4 · 1 = 0 25% from NE76
 - paragraph:
-  - code: 4 · 2 = 0 25% from N2D5
+  - code: 4 · 2 = 0 25% from NC75
 - paragraph:
-  - code: 4 · 3 = 0 0% from N506
+  - code: 4 · 3 = 0 25% from NA77
 - paragraph:
-  - code: 4 · 4 = 0 25% from NB60
+  - code: 4 · 4 = 0 25% from N28C
 - paragraph:
-  - code: 4 · 5 = 0 25% from N693
+  - code: 4 · 5 = 0 25% from N315
 - paragraph:
-  - code: 4 · 6 = 0 25% from NADE
+  - code: 4 · 6 = 0 25% from N2F4
 - paragraph:
-  - code: 4 · 7 = 0 25% from N36B
+  - code: 4 · 7 = 0 25% from N9AC
 - paragraph:
-  - code: 4 · 8 = 0 0% from N140
+  - code: 4 · 8 = 0 25% from N27A
 - paragraph:
-  - code: 4 · 9 = 0 25% from NF92
+  - code: 4 · 9 = 0 25% from N930
 - paragraph:
-  - code: 4 · 10 = 0 0% from N88D"
+  - code: 4 · 10 = 0 25% from N5B0"
+    - locator resolved to <div id="result">…</div>
+    - unexpected value "- paragraph:
+  - code: 4 · 0 = 0 75% from N5B0
+- paragraph:
+  - code: 4 · 1 = 0 75% from NE76
+- paragraph:
+  - code: 4 · 2 = 0 75% from NC75
+- paragraph:
+  - code: 4 · 3 = 0 75% from NA77
+- paragraph:
+  - code: 4 · 4 = 0 75% from N28C
+- paragraph:
+  - code: 4 · 5 = 0 75% from N315
+- paragraph:
+  - code: 4 · 6 = 0 75% from N2F4
+- paragraph:
+  - code: 4 · 7 = 0 75% from N9AC
+- paragraph:
+  - code: 4 · 8 = 0 75% from N27A
+- paragraph:
+  - code: 4 · 9 = 0 75% from N930
+- paragraph:
+  - code: 4 · 10 = 0 75% from N5B0"
 
 ```
 
@@ -138,47 +161,47 @@ Call log:
     - paragraph [ref=e6]:
       - code [ref=e7]:
         - text: 4 · 0 = 0
-        - text: 50% from N88D
+        - text: 75% from N5B0
     - paragraph [ref=e8]:
       - code [ref=e9]:
         - text: 4 · 1 = 0
-        - text: 75% from N2C5
+        - text: 75% from NE76
     - paragraph [ref=e10]:
       - code [ref=e11]:
         - text: 4 · 2 = 0
-        - text: 50% from N2D5
+        - text: 75% from NC75
     - paragraph [ref=e12]:
       - code [ref=e13]:
         - text: 4 · 3 = 0
-        - text: 50% from N506
+        - text: 75% from NA77
     - paragraph [ref=e14]:
       - code [ref=e15]:
         - text: 4 · 4 = 0
-        - text: 75% from NB60
+        - text: 75% from N28C
     - paragraph [ref=e16]:
       - code [ref=e17]:
         - text: 4 · 5 = 0
-        - text: 50% from N693
+        - text: 75% from N315
     - paragraph [ref=e18]:
       - code [ref=e19]:
         - text: 4 · 6 = 0
-        - text: 75% from NADE
+        - text: 75% from N2F4
     - paragraph [ref=e20]:
       - code [ref=e21]:
         - text: 4 · 7 = 0
-        - text: 50% from N36B
+        - text: 75% from N9AC
     - paragraph [ref=e22]:
       - code [ref=e23]:
         - text: 4 · 8 = 0
-        - text: 50% from N140
+        - text: 75% from N27A
     - paragraph [ref=e24]:
       - code [ref=e25]:
         - text: 4 · 9 = 0
-        - text: 50% from NF92
+        - text: 75% from N930
     - paragraph [ref=e26]:
       - code [ref=e27]:
         - text: 4 · 10 = 0
-        - text: 50% from N88D
+        - text: 75% from N5B0
 ```
 
 # Test source
