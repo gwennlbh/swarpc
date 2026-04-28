@@ -54,7 +54,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard-index: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard-index: [1, 2, 3, 4, 5]
         shard-count: [8]
     steps:
       - uses: actions/checkout@v6
@@ -89,9 +89,86 @@ jobs:
           path: blob-report/
           retention-days: 30
 
+  test-android:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    name: Test (Android Chrome, shard ${{ matrix.shard-index }} of ${{ matrix.shard-count }})
+    needs: prepare
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        shard-index: [6, 7, 8]
+        shard-count: [8]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 3
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: package.json
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci && cd example && npm ci
+
+      - name: Install Playwright Chromium browser
+        run: npx playwright install chromium
+
+      - name: Download built app
+        uses: actions/download-artifact@v8
+        with:
+          name: build
+          path: ./
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android emulator components
+        run: |
+          sdkmanager --install \
+            "platform-tools" \
+            "emulator" \
+            "system-images;android-34;google_apis;x86_64"
+
+      - name: Run Playwright tests on Android Chrome
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          profile: pixel_3a
+          avd-name: test
+          emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot-save -no-snapshot-load
+          # Enable Chrome command-line flags on non-rooted device so Playwright can connect via remote debugging
+          # adb reverse makes http://localhost:4173 inside Chrome on the emulator
+          # resolve to the preview server running on the CI host
+          script: adb shell 'echo "_ --remote-debugging-port=0" > /data/local/tmp/chrome-command-line' && adb reverse tcp:4173 tcp:4173 && npx playwright test --shard=${{ matrix.shard-index }}/${{ matrix.shard-count }}
+        env:
+          CI: "1"
+          ANDROID: "1"
+          PLEYE_API_KEY: ${{ secrets.PLEYE_API_KEY }}
+          COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          JOB_ID: ${{ job.check_run_id }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-android-shard-${{ matrix.shard-index }}
+          path: blob-report/
+          retention-days: 30
+
   combine-reports:
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, test-android]
     # run even if tests fail
     if: always()
     environment:
@@ -100,14 +177,20 @@ jobs:
     name: Combine reports
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: package.json
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
       - uses: actions/download-artifact@v8
         with:
           path: ./playwright-report-shards
-          pattern: playwright-report-shard-*
+          pattern: playwright-report-*
           merge-multiple: true
 
       - name: Merge sharded reports into HTML
-        run: npx playwright merge-reports --reporter html ./playwright-report-shards
+        run: npx playwright merge-reports --reporter html -c playwright.config.ts ./playwright-report-shards
 
       - name: Deploy results on github pages
         if: ${{ !cancelled() }}

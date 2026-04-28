@@ -1,9 +1,16 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/android-test";
 
 test.describe("parallel computation", () => {
   // TODO test workerType=service
   for (const workerType of ["shared", "dedicated"]) {
     test.describe(`using a ${workerType} worker`, () => {
+      // SharedWorker is not supported on Chrome for Android
+      if (workerType === "shared") {
+        test.skip(
+          process.env.ANDROID === "1",
+          "SharedWorker not supported on Chrome for Android: https://issues.chromium.org/issues/40290702",
+        );
+      }
       test("completes and uses different nodes", async ({
         page,
         browserName,
@@ -66,8 +73,14 @@ function results({
       ? RegExp.escape(value)
       : value.toString().replace(/^\/|\/$/g, "");
 
+  const maxProgress =
+    progress === null ? -1 : progress[progress.length - 1];
   const progressPattern =
-    progress === null ? "waiting" : progress.map((p) => `${p}%`).join(" | ");
+    progress === null
+      ? "waiting"
+      : maxProgress === 100
+        ? "100%"
+        : ["waiting", ...[0, 25, 50, 75, 100].map((p) => `${p}%`)].join("|");
 
   const result = (index: number) => (finished ? index * 4 : 0);
 

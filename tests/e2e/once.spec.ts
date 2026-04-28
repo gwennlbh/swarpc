@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/android-test";
 
 /**
  * Returns a regex pattern matching loading text on the button
@@ -20,6 +20,13 @@ function loadingPattern(progress: number, granularity: number): RegExp {
 
 for (const workerType of ["shared", "dedicated"]) {
   test.describe(`using a ${workerType} worker`, () => {
+    // SharedWorker is not supported on Chrome for Android
+    if (workerType === "shared") {
+      test.skip(
+        process.env.ANDROID === "1",
+        "SharedWorker not supported on Chrome for Android: https://issues.chromium.org/issues/40290702",
+      );
+    }
     for (const broadcast of [false, true]) {
       test.describe(broadcast ? "broadcast" : "single node", () => {
         test.beforeEach(async ({ page }) => {
@@ -123,6 +130,26 @@ for (const workerType of ["shared", "dedicated"]) {
                   loadingPattern(20, 5),
                   loadingPattern(40, 5),
                   // Without 60%
+                  loadingPattern(0, 5),
+                  loadingPattern(25, 5),
+                  loadingPattern(50, 5),
+                  loadingPattern(75, 5),
+                  "12",
+                ]),
+              // Slow device: first computation barely started before cancellation
+              () =>
+                expect(loadingTexts).toMatchObject([
+                  loadingPattern(0, 5),
+                  loadingPattern(20, 5),
+                  loadingPattern(0, 5),
+                  loadingPattern(25, 5),
+                  loadingPattern(50, 5),
+                  loadingPattern(75, 5),
+                  "12",
+                ]),
+              () =>
+                expect(loadingTexts).toMatchObject([
+                  loadingPattern(0, 5),
                   loadingPattern(0, 5),
                   loadingPattern(25, 5),
                   loadingPattern(50, 5),

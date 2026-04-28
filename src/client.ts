@@ -192,11 +192,7 @@ export function Client<Procedures extends ProceduresMap>(
       return;
     }
 
-    const trackingKey = concurrencyKey
-      ? functionName
-        ? `${functionName}:${concurrencyKey}`
-        : concurrencyKey
-      : undefined;
+    const trackingKey = concurrencyKey;
 
     /** Apply a criteria if first argument is truthy, otherwise return true */
     const criteria = <T>(param: T, fn: (param: NonNullable<T>) => boolean) =>
