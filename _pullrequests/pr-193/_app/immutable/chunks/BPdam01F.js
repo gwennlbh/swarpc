@@ -69,7 +69,8 @@ var EFFECT_OFFSCREEN = 1 << 25;
 /**
 * Tells that we marked this derived and its reactions as visited during the "mark as (maybe) dirty"-phase.
 * Will be lifted during execution of the derived and during checking its dirty state (both are necessary
-* because a derived might be checked but not executed).
+* because a derived might be checked but not executed). This is a pure performance optimization flag and
+* should not be used for any other purpose!
 */
 var WAS_MARKED = 65536;
 var REACTION_IS_UPDATING = 1 << 21;
@@ -2290,7 +2291,7 @@ function mark_reactions(signal, status, updated_during_traversal) {
 			var derived = reaction;
 			batch_values?.delete(derived);
 			if ((flags & 65536) === 0) {
-				if (flags & 512) reaction.f |= WAS_MARKED;
+				if (flags & 512 && (active_effect === null || (active_effect.f & 2097152) === 0)) reaction.f |= WAS_MARKED;
 				mark_reactions(derived, MAYBE_DIRTY, updated_during_traversal);
 			}
 		} else if (not_dirty) {
@@ -3588,7 +3589,9 @@ function handle_event_propagation(event) {
 }
 //#endregion
 //#region node_modules/svelte/src/internal/client/dom/reconciler.js
-var policy = globalThis?.window?.trustedTypes && /* @__PURE__ */ globalThis.window.trustedTypes.createPolicy("svelte-trusted-html", { createHTML: (html) => {
+var policy = globalThis?.window?.trustedTypes && /* @__PURE__ */ globalThis.window.trustedTypes.createPolicy("svelte-trusted-html", { 
+/** @param {string} html */
+createHTML: (html) => {
 	return html;
 } });
 /** @param {string} html */
@@ -5015,6 +5018,7 @@ var Svelte4Component = class {
 				get() {
 					return this.#instance[key];
 				},
+				/** @param {any} value */
 				set(value) {
 					this.#instance[key] = value;
 				},
