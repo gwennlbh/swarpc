@@ -48,7 +48,6 @@ var SvelteKitError = class extends Error {
 	}
 };
 new TextEncoder();
-new TextDecoder();
 /**
 * @param {string} encoded
 * @returns {Uint8Array}

@@ -1,5 +1,5 @@
 import { C as get$1, F as state, L as writable, P as set$1, T as tick$1, n as onMount$1, t as index_client_exports, w as settled } from "./BPdam01F.js";
-import { i as SvelteKitError, n as HttpError, r as Redirect, t as base64_decode } from "./BB6gmSoS.js";
+import { i as SvelteKitError, n as HttpError, r as Redirect, t as base64_decode } from "./DqZRlSic.js";
 new URL("sveltekit-internal://");
 /**
 * @param {string} path
@@ -376,8 +376,8 @@ function set(key, value, stringify = JSON.stringify) {
 }
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/app/paths/internal/client.js
-var base = globalThis.__sveltekit_96oqk4?.base ?? "/cigale/_pullrequests/pr-193";
-var assets = globalThis.__sveltekit_96oqk4?.assets ?? base ?? "";
+var base = globalThis.__sveltekit_ppmpjl?.base ?? "/cigale/_pullrequests/pr-193";
+var assets = globalThis.__sveltekit_ppmpjl?.assets ?? base ?? "";
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/app/paths/client.js
 /** @import { Asset, RouteId, RouteIdWithSearchOrHash, Pathname, PathnameWithSearchOrHash, ResolvedPathname } from '$app/types' */
@@ -412,7 +412,7 @@ function resolve(...args) {
 }
 //#endregion
 //#region \0virtual:__sveltekit/environment
-var version = "1777463236670";
+var version = "1778101982482";
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/client/constants.js
 var SNAPSHOT_KEY = "sveltekit:snapshot";
@@ -715,6 +715,13 @@ function compact(arr) {
 		(val) => val != null
 	);
 }
+/**
+* @param {string} id
+* @param {string} payload
+*/
+function create_remote_key(id, payload) {
+	return id + "/" + payload;
+}
 //#endregion
 //#region node_modules/@sveltejs/kit/src/utils/error.js
 /**
@@ -882,6 +889,7 @@ var noop_span_context = {
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/client/client.js
 /** @import { RemoteQueryCacheEntry } from './remote-functions/query.svelte.js' */
+/** @import { RemoteLiveQueryCacheEntry } from './remote-functions/query-live.svelte.js' */
 var { onMount, tick } = index_client_exports;
 var ICON_REL_ATTRIBUTES = new Set([
 	"icon",
@@ -1038,14 +1046,19 @@ var preload_tokens = /* @__PURE__ */ new Set();
 */
 var query_map = /* @__PURE__ */ new Map();
 /**
+* @type {Map<string, Map<string, RemoteLiveQueryCacheEntry<any>>>}
+* A map of id -> payload -> live query internals for all active queries.
+*/
+var live_query_map = /* @__PURE__ */ new Map();
+/**
 * @param {import('./types.js').SvelteKitApp} _app
 * @param {HTMLElement} _target
 * @param {Parameters<typeof _hydrate>[1]} [hydrate]
 */
 async function start(_app, _target, hydrate) {
-	if (globalThis.__sveltekit_96oqk4) {
-		globalThis.__sveltekit_96oqk4.query;
-		globalThis.__sveltekit_96oqk4.prerender;
+	if (globalThis.__sveltekit_ppmpjl) {
+		globalThis.__sveltekit_ppmpjl.query;
+		globalThis.__sveltekit_ppmpjl.prerender;
 	}
 	if (document.URL !== location.href) location.href = location.href;
 	app = _app;
@@ -1114,8 +1127,10 @@ function persist_state() {
 * @param {{}} [nav_token]
 */
 async function _goto(url, options, redirect_count, nav_token) {
-	/** @type {string[]} */
+	/** @type {Set<string>} */
 	let query_keys;
+	/** @type {Set<string>} */
+	let live_query_keys;
 	if (options.invalidateAll) discard_load_cache();
 	await navigate({
 		type: "goto",
@@ -1129,20 +1144,17 @@ async function _goto(url, options, redirect_count, nav_token) {
 		accept: () => {
 			if (options.invalidateAll) {
 				force_invalidation = true;
-				query_keys = [];
-				query_map.forEach((entries, id) => {
-					for (const payload of entries.keys()) query_keys.push(id + "/" + payload);
-				});
+				query_keys = /* @__PURE__ */ new Set();
+				for (const [id, entries] of query_map) for (const payload of entries.keys()) query_keys.add(create_remote_key(id, payload));
+				live_query_keys = /* @__PURE__ */ new Set();
+				for (const [id, entries] of live_query_map) for (const payload of entries.keys()) live_query_keys.add(create_remote_key(id, payload));
 			}
 			if (options.invalidate) options.invalidate.forEach(push_invalidated);
 		}
 	});
 	if (options.invalidateAll) tick$1().then(tick$1).then(() => {
-		query_map.forEach((entries, id) => {
-			entries.forEach(({ resource }, payload) => {
-				if (query_keys?.includes(id + "/" + payload)) resource.refresh?.();
-			});
-		});
+		for (const [id, entries] of query_map) for (const [payload, { resource }] of entries) if (query_keys?.has(create_remote_key(id, payload))) resource.refresh();
+		for (const [id, entries] of live_query_map) for (const [payload, { resource }] of entries) if (live_query_keys?.has(create_remote_key(id, payload))) resource.reconnect();
 	});
 }
 /** @param {import('./types.js').NavigationIntent} intent */
