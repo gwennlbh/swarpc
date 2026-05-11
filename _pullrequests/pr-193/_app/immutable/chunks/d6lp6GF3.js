@@ -4620,7 +4620,7 @@ function set_attribute(element, attribute, value, skip_warning) {
 	if (hydrating) {
 		attributes[attribute] = element.getAttribute(attribute);
 		if (attribute === "src" || attribute === "srcset" || attribute === "href" && element.nodeName === LINK_TAG) {
-			if (!skip_warning) check_src_in_dev_hydration(element, attribute, value ?? "");
+			if (!skip_warning);
 			return;
 		}
 	}
@@ -4658,12 +4658,6 @@ function get_setters(element) {
 	}
 	return setters;
 }
-/**
-* @param {any} element
-* @param {string} attribute
-* @param {string} value
-*/
-function check_src_in_dev_hydration(element, attribute, value) {}
 //#endregion
 //#region node_modules/svelte/src/internal/client/dom/elements/bindings/input.js
 /** @import { Batch } from '../../../reactivity/batch.js' */
