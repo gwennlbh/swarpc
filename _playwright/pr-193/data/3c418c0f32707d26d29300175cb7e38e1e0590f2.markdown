@@ -6,7 +6,7 @@
 
 # Test info
 
-- Name: once.spec.ts >> using a shared worker >> broadcast >> .once() - method scoped >> cancels previous call when new call is made
+- Name: once.spec.ts >> using a dedicated worker >> broadcast >> .once() - method scoped >> cancels previous call when new call is made
 - Location: tests/e2e/once.spec.ts:35:11
 
 # Page snapshot
