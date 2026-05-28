@@ -1,4 +1,4 @@
-import { C as get$1, F as state, L as writable, P as set$1, T as tick$1, n as onMount$1, t as index_client_exports, w as settled } from "./d6lp6GF3.js";
+import { C as get$1, F as state, L as writable, P as set$1, T as tick$1, n as onMount$1, t as index_client_exports, w as settled } from "./CeMGYp1X.js";
 import { i as SvelteKitError, n as HttpError, r as Redirect, t as base64_decode } from "./DqZRlSic.js";
 new URL("sveltekit-internal://");
 /**
@@ -376,8 +376,8 @@ function set(key, value, stringify = JSON.stringify) {
 }
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/app/paths/internal/client.js
-var base = globalThis.__sveltekit_q0coqe?.base ?? "/cigale/_pullrequests/pr-202";
-var assets = globalThis.__sveltekit_q0coqe?.assets ?? base ?? "";
+var base = globalThis.__sveltekit_1nbebrv?.base ?? "/cigale/_pullrequests/pr-202";
+var assets = globalThis.__sveltekit_1nbebrv?.assets ?? base ?? "";
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/app/paths/client.js
 /** @import { Asset, RouteId, RouteIdWithSearchOrHash, Pathname, PathnameWithSearchOrHash, ResolvedPathname } from '$app/types' */
@@ -412,7 +412,7 @@ function resolve(...args) {
 }
 //#endregion
 //#region \0virtual:__sveltekit/environment
-var version = "1779715149163";
+var version = "1779984043554";
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/client/constants.js
 var SNAPSHOT_KEY = "sveltekit:snapshot";
@@ -1002,9 +1002,9 @@ var live_query_map = /* @__PURE__ */ new Map();
 * @param {Parameters<typeof _hydrate>[1]} [hydrate]
 */
 async function start(_app, _target, hydrate) {
-	if (globalThis.__sveltekit_q0coqe) {
-		globalThis.__sveltekit_q0coqe.query;
-		globalThis.__sveltekit_q0coqe.prerender;
+	if (globalThis.__sveltekit_1nbebrv) {
+		globalThis.__sveltekit_1nbebrv.query;
+		globalThis.__sveltekit_1nbebrv.prerender;
 	}
 	if (document.URL !== location.href) location.href = location.href;
 	app = _app;
@@ -1154,7 +1154,7 @@ async function initialize(result, target, hydrate) {
 	};
 	const style = document.querySelector("style[data-sveltekit]");
 	if (style) style.remove();
-	Object.assign(page, result.props.page);
+	update(result.props.page);
 	root = new app.root({
 		target,
 		props: {
@@ -1844,6 +1844,11 @@ async function navigate({ type, url, popped, keepfocus, noscroll, replace_state,
 	await commit_promise;
 	await tick$1();
 	await tick$1();
+	if (token !== nav_token) {
+		nav.reject(/* @__PURE__ */ new Error("navigation aborted"));
+		return false;
+	}
+	if (navigation_result.props.page && rendering_error) Object.assign(navigation_result.props.page, rendering_error);
 	/** @type {Element | null | ''} */
 	let deep_linked = null;
 	if (autoscroll) {
@@ -1855,10 +1860,6 @@ async function navigate({ type, url, popped, keepfocus, noscroll, replace_state,
 	const changed_focus = document.activeElement !== activeElement && document.activeElement !== document.body;
 	if (!keepfocus && !changed_focus) reset_focus(url, !deep_linked);
 	autoscroll = true;
-	if (navigation_result.props.page) {
-		if (rendering_error) Object.assign(navigation_result.props.page, rendering_error);
-		Object.assign(page, navigation_result.props.page);
-	}
 	is_navigating = false;
 	if (type === "popstate") restore_snapshot(current_navigation_index);
 	nav.fulfil(void 0);
