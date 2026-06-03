@@ -803,12 +803,6 @@ var Batch = class Batch {
 	*/
 	previous = /* @__PURE__ */ new Map();
 	/**
-	* Async effects which this batch doesn't take into account anymore when calculating blockers,
-	* as it has a value for it already.
-	* @type {Set<Effect>}
-	*/
-	unblocked = /* @__PURE__ */ new Set();
-	/**
 	* When the batch is committed (and the DOM is updated), we need to remove old branches
 	* and append new ones by calling the functions added inside (if/each/key/etc) blocks
 	* @type {Set<(batch: Batch) => void>}
@@ -874,6 +868,14 @@ var Batch = class Batch {
 	#unskipped_branches = /* @__PURE__ */ new Set();
 	is_fork = false;
 	#decrement_queued = false;
+	constructor() {
+		if (last_batch === null) first_batch = last_batch = this;
+		else {
+			last_batch.#next = this;
+			this.#prev = last_batch;
+		}
+		last_batch = this;
+	}
 	#is_deferred() {
 		if (this.is_fork) return true;
 		for (const effect of this.#blocking_pending.keys()) {
@@ -928,16 +930,14 @@ var Batch = class Batch {
 			this.#unlink();
 			infinite_loop_guard();
 		}
-		if (!this.#is_deferred()) {
-			for (const e of this.#dirty_effects) {
-				this.#maybe_dirty_effects.delete(e);
-				set_signal_status(e, DIRTY);
-				this.schedule(e);
-			}
-			for (const e of this.#maybe_dirty_effects) {
-				set_signal_status(e, MAYBE_DIRTY);
-				this.schedule(e);
-			}
+		for (const e of this.#dirty_effects) {
+			this.#maybe_dirty_effects.delete(e);
+			set_signal_status(e, DIRTY);
+			this.schedule(e);
+		}
+		for (const e of this.#maybe_dirty_effects) {
+			set_signal_status(e, MAYBE_DIRTY);
+			this.schedule(e);
 		}
 		const roots = this.#roots;
 		this.#roots = [];
@@ -955,6 +955,7 @@ var Batch = class Batch {
 			this.#traverse(root, effects, render_effects);
 		} catch (e) {
 			reset_all(root);
+			if (!this.#is_deferred()) this.discard();
 			throw e;
 		}
 		current_batch = null;
@@ -974,6 +975,8 @@ var Batch = class Batch {
 		}
 		const earlier_batch = this.#find_earlier_batch();
 		if (earlier_batch) {
+			this.#defer_effects(render_effects);
+			this.#defer_effects(effects);
 			earlier_batch.#merge(this);
 			return;
 		}
@@ -987,19 +990,17 @@ var Batch = class Batch {
 		previous_batch = null;
 		this.#deferred?.resolve();
 		var next_batch = current_batch;
-		if (this.linked && this.#pending === 0) this.#unlink();
-		if (async_mode_flag && !this.linked) {
-			this.#commit();
-			current_batch = next_batch;
-		}
-		if (this.#roots.length > 0) {
-			if (next_batch === null) {
-				next_batch = this;
-				this.#link();
+		if (this.#pending === 0 && (this.#roots.length === 0 || next_batch !== null)) {
+			this.#unlink();
+			if (async_mode_flag) {
+				this.#commit();
+				current_batch = next_batch;
 			}
+		}
+		if (this.#roots.length > 0) if (next_batch !== null) {
 			const batch = next_batch;
 			batch.#roots.push(...this.#roots.filter((r) => !batch.#roots.includes(r)));
-		}
+		} else next_batch = this;
 		if (next_batch !== null) next_batch.#process();
 	}
 	/**
@@ -1059,8 +1060,9 @@ var Batch = class Batch {
 		}
 		for (const [effect, deferred] of batch.async_deriveds) {
 			const d = this.async_deriveds.get(effect);
-			if (d) deferred.promise.then(d.resolve);
+			if (d) deferred.promise.then(d.resolve).catch(d.reject);
 		}
+		this.transfer_effects(batch.#dirty_effects, batch.#maybe_dirty_effects);
 		/**
 		* mark all effects that depend on `batch.current`, except the
 		* async effects that we just resolved (TODO unless they depend
@@ -1140,6 +1142,7 @@ var Batch = class Batch {
 		this.#discard_callbacks.clear();
 		this.#fork_commit_callbacks.clear();
 		this.#unlink();
+		this.#deferred?.resolve();
 	}
 	/**
 	* @param {Effect} effect
@@ -1148,7 +1151,6 @@ var Batch = class Batch {
 		this.#new_effects.push(effect);
 	}
 	#commit() {
-		this.#unlink();
 		for (let batch = first_batch; batch !== null; batch = batch.#next) {
 			var is_earlier = batch.id < this.id;
 			/** @type {Source[]} */
@@ -1163,10 +1165,10 @@ var Batch = class Batch {
 			}
 			if (is_earlier) for (const [effect, deferred] of this.async_deriveds) {
 				const d = batch.async_deriveds.get(effect);
-				if (d) deferred.promise.then(d.resolve);
+				if (d) deferred.promise.then(d.resolve).catch(d.reject);
 			}
 			if (!batch.#started) continue;
-			var others = [...batch.current.keys()].filter((s) => !this.current.has(s));
+			var others = [...batch.current.keys()].filter((s) => !batch.current.get(s)[1] && !this.current.has(s));
 			if (others.length === 0) {
 				if (is_earlier) batch.discard();
 			} else if (sources.length > 0) {
@@ -1181,7 +1183,11 @@ var Batch = class Batch {
 				var checked = /* @__PURE__ */ new Map();
 				for (var source of sources) mark_effects(source, others, marked, checked);
 				checked = /* @__PURE__ */ new Map();
-				var current_unequal = [...batch.current.keys()].filter((c) => this.current.has(c) ? this.current.get(c)[0] !== c.v : true);
+				var current_unequal = [...batch.current].filter(([c, v1]) => {
+					const v2 = this.current.get(c);
+					if (!v2) return true;
+					return v2[0] !== v1[0] || v2[1] !== v1[1];
+				}).map(([c]) => c);
 				if (current_unequal.length > 0) {
 					for (const effect of this.#new_effects) if ((effect.f & 155648) === 0 && depends_on(effect, current_unequal, checked)) if ((effect.f & 4194320) !== 0) {
 						set_signal_status(effect, DIRTY);
@@ -1258,7 +1264,6 @@ var Batch = class Batch {
 	static ensure() {
 		if (current_batch === null) {
 			const batch = current_batch = new Batch();
-			batch.#link();
 			if (!is_processing && !is_flushing_sync) queue_micro_task(() => {
 				if (!batch.#started) batch.flush();
 			});
@@ -1312,15 +1317,8 @@ var Batch = class Batch {
 		}
 		this.#roots.push(e);
 	}
-	#link() {
-		if (last_batch === null) first_batch = last_batch = this;
-		else {
-			last_batch.#next = this;
-			this.#prev = last_batch;
-		}
-		last_batch = this;
-	}
 	#unlink() {
+		if (!this.linked) return;
 		var prev = this.#prev;
 		var next = this.#next;
 		if (prev === null) first_batch = next;
@@ -2051,11 +2049,11 @@ function increment_pending() {
 	var effect = active_effect;
 	var boundary = effect.b;
 	var batch = current_batch;
-	var blocking = boundary.is_rendered();
-	boundary.update_pending_count(1, batch);
+	var blocking = !!boundary?.is_rendered();
+	boundary?.update_pending_count(1, batch);
 	batch.increment(blocking, effect);
 	return () => {
-		boundary.update_pending_count(-1, batch);
+		boundary?.update_pending_count(-1, batch);
 		batch.decrement(blocking, effect);
 	};
 }
@@ -2116,7 +2114,7 @@ function async_derived(fn, label, location) {
 		var batch = current_batch;
 		if (should_suspend) {
 			if ((effect.f & 32768) !== 0) var decrement_pending = increment_pending();
-			if (parent.b.is_rendered()) batch.async_deriveds.get(effect)?.reject(OBSOLETE);
+			if (parent.b?.is_rendered()) batch.async_deriveds.get(effect)?.reject(OBSOLETE);
 			else for (const d of deferreds.values()) d.reject(OBSOLETE);
 			deferreds.add(d);
 			batch.async_deriveds.set(effect, d);
@@ -2895,7 +2893,7 @@ function teardown(fn) {
 function user_effect(fn) {
 	validate_effect("$effect");
 	var flags = active_effect.f;
-	if (!active_reaction && (flags & 32) !== 0 && (flags & 32768) === 0) {
+	if (!active_reaction && (flags & 32) !== 0 && component_context !== null && !component_context.i) {
 		var context = component_context;
 		(context.e ??= []).push(fn);
 	} else return create_user_effect(fn);
@@ -3676,8 +3674,7 @@ function handle_event_propagation(event) {
 		*/
 		var other_errors = [];
 		while (current_target !== null) {
-			/** @type {null | Element} */
-			var parent_element = current_target.assignedSlot || current_target.parentNode || current_target.host || null;
+			if (current_target === handler_element) break;
 			try {
 				var delegated = current_target[event_symbol]?.[event_name];
 				if (delegated != null && (!current_target.disabled || event.target === current_target)) delegated.call(current_target, event);
@@ -3685,8 +3682,9 @@ function handle_event_propagation(event) {
 				if (throw_error) other_errors.push(error);
 				else throw_error = error;
 			}
-			if (event.cancelBubble || parent_element === handler_element || parent_element === null) break;
-			current_target = parent_element;
+			if (event.cancelBubble) break;
+			path_idx++;
+			current_target = path_idx < path.length ? path[path_idx] : null;
 		}
 		if (throw_error) {
 			for (let error of other_errors) queueMicrotask(() => {
@@ -4073,6 +4071,7 @@ var BranchManager = class {
 		} else {
 			var offscreen = this.#offscreen.get(key);
 			if (offscreen) {
+				resume_effect(offscreen.effect);
 				this.#onscreen.set(key, offscreen.effect);
 				this.#offscreen.delete(key);
 				/** @type {TemplateNode} */ offscreen.fragment.lastChild.remove();
