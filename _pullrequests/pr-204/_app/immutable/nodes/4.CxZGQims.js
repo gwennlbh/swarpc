@@ -1,8 +1,8 @@
-import { A as child, C as get, D as template_effect, F as state, I as user_derived, M as sibling, P as set, S as delegated, W as reset, _ as append, b as text, c as bind_value, g as set_text, h as if_block, j as first_child, l as remove_input_defaults, x as delegate, y as from_html } from "../chunks/DOijWC0y.js";
+import { A as child, C as get, D as template_effect, F as state, I as user_derived, M as sibling, P as set, S as delegated, W as reset, _ as append, b as text, c as bind_value, g as set_text, h as if_block, j as first_child, l as remove_input_defaults, x as delegate, y as from_html } from "../chunks/CACIRoGU.js";
 import "../chunks/DhaYE-8x.js";
 //#region src/routes/[worker]/+page.svelte
-var root_4 = from_html(`<button>Cancel</button>`);
-var root = from_html(`<search><input type="number"/> * <input type="number"/> = <button><!></button></search> <!>`, 1);
+var root = from_html(`<button>Cancel</button>`);
+var root_1 = from_html(`<search><input type="number"/> * <input type="number"/> = <button><!></button></search> <!>`, 1);
 function _page($$anchor, $$props) {
 	const swarpc = user_derived(() => $$props.data.swarpc);
 	let a = state(0);
@@ -11,7 +11,7 @@ function _page($$anchor, $$props) {
 	let progress = state(0);
 	let loading = state(false);
 	let cancel = state(void 0);
-	var fragment = root();
+	var fragment = root_1();
 	var search = first_child(fragment);
 	var input = child(search);
 	remove_input_defaults(input);
@@ -41,7 +41,7 @@ function _page($$anchor, $$props) {
 	reset(search);
 	var node_1 = sibling(search, 2);
 	var consequent_2 = ($$anchor) => {
-		var button_1 = root_4();
+		var button_1 = root();
 		delegated("click", button_1, async () => {
 			get(cancel)?.("User cancelled");
 			set(loading, false);

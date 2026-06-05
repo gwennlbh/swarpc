@@ -814,11 +814,6 @@ var Batch = class Batch {
 	*/
 	#discard_callbacks = /* @__PURE__ */ new Set();
 	/**
-	* Callbacks that should run only when a fork is committed.
-	* @type {Set<(batch: Batch) => void>}
-	*/
-	#fork_commit_callbacks = /* @__PURE__ */ new Set();
-	/**
 	* The number of async effects that are currently in flight
 	*/
 	#pending = 0;
@@ -1140,7 +1135,6 @@ var Batch = class Batch {
 	discard() {
 		for (const fn of this.#discard_callbacks) fn(this);
 		this.#discard_callbacks.clear();
-		this.#fork_commit_callbacks.clear();
 		this.#unlink();
 		this.#deferred?.resolve();
 	}
@@ -1249,14 +1243,6 @@ var Batch = class Batch {
 	/** @param {(batch: Batch) => void} fn */
 	ondiscard(fn) {
 		this.#discard_callbacks.add(fn);
-	}
-	/** @param {(batch: Batch) => void} fn */
-	on_fork_commit(fn) {
-		this.#fork_commit_callbacks.add(fn);
-	}
-	run_fork_commit_callbacks() {
-		for (const fn of this.#fork_commit_callbacks) fn(this);
-		this.#fork_commit_callbacks.clear();
 	}
 	settled() {
 		return (this.#deferred ??= deferred()).promise;
@@ -1537,9 +1523,6 @@ function fork(fn) {
 				source.v = value;
 				source.wv = increment_write_version();
 			}
-			batch.activate();
-			batch.run_fork_commit_callbacks();
-			batch.deactivate();
 			flushSync(() => {
 				/** @type {Set<Effect>} */
 				var eager_effects = /* @__PURE__ */ new Set();
@@ -1885,7 +1868,7 @@ var Boundary = class {
 			if (this.#main_effect) current_batch.skip_effect(this.#main_effect);
 			if (this.#pending_effect) current_batch.skip_effect(this.#pending_effect);
 			if (this.#failed_effect) current_batch.skip_effect(this.#failed_effect);
-			current_batch.on_fork_commit(() => {
+			current_batch.oncommit(() => {
 				this.#handle_error(error);
 			});
 		} else this.#handle_error(error);
@@ -2317,7 +2300,7 @@ function mutable_source(initial_value, immutable = false, trackable = true) {
 * @returns {V}
 */
 function set(source, value, should_proxy = false) {
-	if (active_reaction !== null && (!untracking || (active_reaction.f & 131072) !== 0) && is_runes() && (active_reaction.f & 4325394) !== 0 && (current_sources === null || !includes.call(current_sources, source))) state_unsafe_mutation();
+	if (active_reaction !== null && (!untracking || (active_reaction.f & 131072) !== 0) && is_runes() && (active_reaction.f & 4325394) !== 0 && (current_sources === null || !current_sources.has(source))) state_unsafe_mutation();
 	return internal_set(source, should_proxy ? proxy(value) : value, legacy_updates);
 }
 /**
@@ -2716,6 +2699,12 @@ function should_defer_append() {
 	return (active_effect.f & REACTION_RAN) !== 0;
 }
 /**
+* Branching here is intentional and load-bearing for perf. `createElement(tag)`
+* hits a fast path in Blink that `createElementNS(NAMESPACE_HTML, tag)` doesn't,
+* and passing an explicit `undefined` as the trailing options arg measurably
+* slows both APIs. Funnelling every case through a single `createElementNS(ns,
+* tag, options)` call would be smaller but slower on the HTML path.
+*
 * @template {keyof HTMLElementTagNameMap | string} T
 * @param {T} tag
 * @param {string} [namespace]
@@ -2723,8 +2712,8 @@ function should_defer_append() {
 * @returns {T extends keyof HTMLElementTagNameMap ? HTMLElementTagNameMap[T] : Element}
 */
 function create_element(tag, namespace, is) {
-	let options = is ? { is } : void 0;
-	return document.createElementNS(namespace ?? "http://www.w3.org/1999/xhtml", tag, options);
+	if (namespace == null || namespace === "http://www.w3.org/1999/xhtml") return is ? document.createElement(tag, { is }) : document.createElement(tag);
+	return is ? document.createElementNS(namespace, tag, { is }) : document.createElementNS(namespace, tag);
 }
 /**
 * Browsers split text nodes larger than 65536 bytes when parsing.
@@ -3205,13 +3194,12 @@ function set_active_effect(effect) {
 /**
 * When sources are created within a reaction, reading and writing
 * them within that reaction should not cause a re-run
-* @type {null | Source[]}
+* @type {null | Set<Source>}
 */
 var current_sources = null;
 /** @param {Value} value */
 function push_reaction_value(value) {
-	if (active_reaction !== null && (!async_mode_flag || (active_reaction.f & 2) !== 0)) if (current_sources === null) current_sources = [value];
-	else current_sources.push(value);
+	if (active_reaction !== null && (!async_mode_flag || (active_reaction.f & 2) !== 0)) (current_sources ??= /* @__PURE__ */ new Set()).add(value);
 }
 /**
 * The dependencies of the reaction that is currently being executed. In many cases,
@@ -3276,7 +3264,7 @@ function is_dirty(reaction) {
 function schedule_possible_effect_self_invalidation(signal, effect, root = true) {
 	var reactions = signal.reactions;
 	if (reactions === null) return;
-	if (!async_mode_flag && current_sources !== null && includes.call(current_sources, signal)) return;
+	if (!async_mode_flag && current_sources !== null && current_sources.has(signal)) return;
 	for (var i = 0; i < reactions.length; i++) {
 		var reaction = reactions[i];
 		if ((reaction.f & 2) !== 0) schedule_possible_effect_self_invalidation(reaction, effect, false);
@@ -3449,7 +3437,7 @@ function get(signal) {
 	var is_derived = (signal.f & 2) !== 0;
 	captured_signals?.add(signal);
 	if (active_reaction !== null && !untracking) {
-		if (!(active_effect !== null && (active_effect.f & 16384) !== 0) && (current_sources === null || !includes.call(current_sources, signal))) {
+		if (!(active_effect !== null && (active_effect.f & 16384) !== 0) && (current_sources === null || !current_sources.has(signal))) {
 			var deps = active_reaction.deps;
 			if ((active_reaction.f & 2097152) !== 0) {
 				if (signal.rv < read_version) {
