@@ -1,4 +1,4 @@
-import { C as get$1, F as state, L as writable, P as set$1, T as tick$1, n as onMount$1, t as index_client_exports, w as settled } from "./CACIRoGU.js";
+import { C as get$1, F as state, L as writable, P as set$1, T as tick$1, n as onMount$1, t as index_client_exports, w as settled } from "./C5B8_5uu.js";
 import { i as SvelteKitError, n as HttpError, r as Redirect, t as base64_decode } from "./C0_FQhCQ.js";
 new URL("sveltekit-internal://");
 /**
@@ -357,7 +357,7 @@ function parse({ nodes, server_loads, dictionary, matchers }) {
 * @param {string} key
 * @param {(value: string) => any} parse
 */
-/* @__NO_SIDE_EFFECTS__ */
+/*@__NO_SIDE_EFFECTS__*/
 function get(key, parse = JSON.parse) {
 	try {
 		return parse(sessionStorage[key]);
@@ -377,8 +377,8 @@ function set(key, value, stringify = JSON.stringify) {
 }
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/app/paths/internal/client.js
-var base = globalThis.__sveltekit_kl937g?.base ?? "/cigale/_pullrequests/pr-204";
-var assets = globalThis.__sveltekit_kl937g?.assets ?? base ?? "";
+var base = globalThis.__sveltekit_1uadf1b?.base ?? "/cigale/_pullrequests/pr-204";
+var assets = globalThis.__sveltekit_1uadf1b?.assets ?? base ?? "";
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/app/paths/client.js
 /** @import { Asset, RouteId, RouteIdWithSearchOrHash, Pathname, PathnameWithSearchOrHash, ResolvedPathname } from '$app/types' */
@@ -413,7 +413,7 @@ function resolve(...args) {
 }
 //#endregion
 //#region \0virtual:__sveltekit/environment
-var version = "1780700951508";
+var version = "1780899058643";
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/client/constants.js
 var SNAPSHOT_KEY = "sveltekit:snapshot";
@@ -1018,9 +1018,9 @@ var live_query_map = /* @__PURE__ */ new Map();
 * @param {Parameters<typeof _hydrate>[1]} [hydrate]
 */
 async function start(_app, _target, hydrate) {
-	if (globalThis.__sveltekit_kl937g) {
-		globalThis.__sveltekit_kl937g.query;
-		globalThis.__sveltekit_kl937g.prerender;
+	if (globalThis.__sveltekit_1uadf1b) {
+		globalThis.__sveltekit_1uadf1b.query;
+		globalThis.__sveltekit_1uadf1b.prerender;
 	}
 	if (document.URL !== location.href) location.href = location.href;
 	app = _app;

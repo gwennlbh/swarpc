@@ -2045,7 +2045,7 @@ function increment_pending() {
 * @param {() => V} fn
 * @returns {Derived<V>}
 */
-/* @__NO_SIDE_EFFECTS__ */
+/*#__NO_SIDE_EFFECTS__*/
 function derived(fn) {
 	var flags = 2 | DIRTY;
 	if (active_effect !== null) active_effect.f |= EFFECT_PRESERVED;
@@ -2072,7 +2072,7 @@ var OBSOLETE = Symbol("obsolete");
 * @param {string} [location] If provided, print a warning if the value is not read immediately after update
 * @returns {Promise<Source<V>>}
 */
-/* @__NO_SIDE_EFFECTS__ */
+/*#__NO_SIDE_EFFECTS__*/
 function async_derived(fn, label, location) {
 	let parent = active_effect;
 	if (parent === null) async_derived_orphan();
@@ -2142,7 +2142,7 @@ function async_derived(fn, label, location) {
 * @param {() => V} fn
 * @returns {Derived<V>}
 */
-/* @__NO_SIDE_EFFECTS__ */
+/*#__NO_SIDE_EFFECTS__*/
 function user_derived(fn) {
 	const d = /* @__PURE__ */ derived(fn);
 	if (!async_mode_flag) push_reaction_value(d);
@@ -2153,7 +2153,7 @@ function user_derived(fn) {
 * @param {() => V} fn
 * @returns {Derived<V>}
 */
-/* @__NO_SIDE_EFFECTS__ */
+/*#__NO_SIDE_EFFECTS__*/
 function derived_safe_equal(fn) {
 	const signal = /* @__PURE__ */ derived(fn);
 	signal.equals = safe_equals;
@@ -2273,7 +2273,7 @@ function source(v, stack) {
 * @param {V} v
 * @param {Error | null} [stack]
 */
-/* @__NO_SIDE_EFFECTS__ */
+/*#__NO_SIDE_EFFECTS__*/
 function state(v, stack) {
 	const s = source(v, stack);
 	push_reaction_value(s);
@@ -2285,7 +2285,7 @@ function state(v, stack) {
 * @param {boolean} [immutable]
 * @returns {Source<V>}
 */
-/* @__NO_SIDE_EFFECTS__ */
+/*#__NO_SIDE_EFFECTS__*/
 function mutable_source(initial_value, immutable = false, trackable = true) {
 	const s = source(initial_value);
 	if (!immutable) s.equals = safe_equals;
@@ -2595,7 +2595,7 @@ function create_text(value = "") {
 * @template {Node} N
 * @param {N} node
 */
-/* @__NO_SIDE_EFFECTS__ */
+/*@__NO_SIDE_EFFECTS__*/
 function get_first_child(node) {
 	return first_child_getter.call(node);
 }
@@ -2603,7 +2603,7 @@ function get_first_child(node) {
 * @template {Node} N
 * @param {N} node
 */
-/* @__NO_SIDE_EFFECTS__ */
+/*@__NO_SIDE_EFFECTS__*/
 function get_next_sibling(node) {
 	return next_sibling_getter.call(node);
 }
@@ -3728,7 +3728,7 @@ function assign_nodes(start, end) {
 * @param {number} flags
 * @returns {() => Node | Node[]}
 */
-/* @__NO_SIDE_EFFECTS__ */
+/*#__NO_SIDE_EFFECTS__*/
 function from_html(content, flags) {
 	var is_fragment = (flags & 1) !== 0;
 	var use_import_node = (flags & 2) !== 0;
