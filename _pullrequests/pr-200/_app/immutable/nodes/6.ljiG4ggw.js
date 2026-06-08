@@ -1,8 +1,8 @@
-import { A as child, C as get, D as template_effect, F as state, I as user_derived, M as sibling, N as proxy, P as set, S as delegated, W as reset, _ as append, c as bind_value, g as set_text, j as first_child, l as remove_input_defaults, m as index, p as each, x as delegate, y as from_html } from "../chunks/CeMGYp1X.js";
-import "../chunks/BJgEf1bw.js";
+import { A as child, C as get, D as template_effect, F as state, I as user_derived, M as sibling, N as proxy, P as set, S as delegated, W as reset, _ as append, c as bind_value, g as set_text, j as first_child, l as remove_input_defaults, m as index, p as each, x as delegate, y as from_html } from "../chunks/C5B8_5uu.js";
+import "../chunks/DhaYE-8x.js";
 //#region src/routes/[worker]/parallel/+page.svelte
-var root_1 = from_html(`<p><code class="svelte-qrjmsr"> <br/> </code></p>`);
-var root = from_html(`<input type="number" min="0" max="10"/> <button>Compute</button> <div id="result"></div>`, 1);
+var root = from_html(`<p><code class="svelte-qrjmsr"> <br/> </code></p>`);
+var root_1 = from_html(`<input type="number" min="0" max="10"/> <button>Compute</button> <div id="result"></div>`, 1);
 function _page($$anchor, $$props) {
 	const swarpc = user_derived(() => $$props.data.swarpc);
 	let results = proxy(Array.from({ length: 11 }, () => ({
@@ -24,7 +24,7 @@ function _page($$anchor, $$props) {
 			results[i].node = node;
 		}));
 	}
-	var fragment = root();
+	var fragment = root_1();
 	var input = first_child(fragment);
 	remove_input_defaults(input);
 	var button = sibling(input, 2);
@@ -33,7 +33,7 @@ function _page($$anchor, $$props) {
 		let result = () => get($$item).result;
 		let node = () => get($$item).node;
 		let progress = () => get($$item).progress;
-		var p_1 = root_1();
+		var p_1 = root();
 		var code = child(p_1);
 		var text = child(code);
 		var text_1 = sibling(text, 2);

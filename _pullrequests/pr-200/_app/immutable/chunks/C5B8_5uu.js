@@ -246,7 +246,7 @@ function svelte_boundary_reset_onerror() {
 //#endregion
 //#region node_modules/svelte/src/constants.js
 var HYDRATION_ERROR = {};
-var UNINITIALIZED = Symbol();
+var UNINITIALIZED = Symbol("uninitialized");
 var NAMESPACE_HTML = "http://www.w3.org/1999/xhtml";
 /**
 * Reading a derived belonging to a now-destroyed effect may result in stale values
@@ -803,12 +803,6 @@ var Batch = class Batch {
 	*/
 	previous = /* @__PURE__ */ new Map();
 	/**
-	* Async effects which this batch doesn't take into account anymore when calculating blockers,
-	* as it has a value for it already.
-	* @type {Set<Effect>}
-	*/
-	unblocked = /* @__PURE__ */ new Set();
-	/**
 	* When the batch is committed (and the DOM is updated), we need to remove old branches
 	* and append new ones by calling the functions added inside (if/each/key/etc) blocks
 	* @type {Set<(batch: Batch) => void>}
@@ -819,11 +813,6 @@ var Batch = class Batch {
 	* @type {Set<(batch: Batch) => void>}
 	*/
 	#discard_callbacks = /* @__PURE__ */ new Set();
-	/**
-	* Callbacks that should run only when a fork is committed.
-	* @type {Set<(batch: Batch) => void>}
-	*/
-	#fork_commit_callbacks = /* @__PURE__ */ new Set();
 	/**
 	* The number of async effects that are currently in flight
 	*/
@@ -874,6 +863,14 @@ var Batch = class Batch {
 	#unskipped_branches = /* @__PURE__ */ new Set();
 	is_fork = false;
 	#decrement_queued = false;
+	constructor() {
+		if (last_batch === null) first_batch = last_batch = this;
+		else {
+			last_batch.#next = this;
+			this.#prev = last_batch;
+		}
+		last_batch = this;
+	}
 	#is_deferred() {
 		if (this.is_fork) return true;
 		for (const effect of this.#blocking_pending.keys()) {
@@ -928,16 +925,14 @@ var Batch = class Batch {
 			this.#unlink();
 			infinite_loop_guard();
 		}
-		if (!this.#is_deferred()) {
-			for (const e of this.#dirty_effects) {
-				this.#maybe_dirty_effects.delete(e);
-				set_signal_status(e, DIRTY);
-				this.schedule(e);
-			}
-			for (const e of this.#maybe_dirty_effects) {
-				set_signal_status(e, MAYBE_DIRTY);
-				this.schedule(e);
-			}
+		for (const e of this.#dirty_effects) {
+			this.#maybe_dirty_effects.delete(e);
+			set_signal_status(e, DIRTY);
+			this.schedule(e);
+		}
+		for (const e of this.#maybe_dirty_effects) {
+			set_signal_status(e, MAYBE_DIRTY);
+			this.schedule(e);
 		}
 		const roots = this.#roots;
 		this.#roots = [];
@@ -955,6 +950,7 @@ var Batch = class Batch {
 			this.#traverse(root, effects, render_effects);
 		} catch (e) {
 			reset_all(root);
+			if (!this.#is_deferred()) this.discard();
 			throw e;
 		}
 		current_batch = null;
@@ -974,6 +970,8 @@ var Batch = class Batch {
 		}
 		const earlier_batch = this.#find_earlier_batch();
 		if (earlier_batch) {
+			this.#defer_effects(render_effects);
+			this.#defer_effects(effects);
 			earlier_batch.#merge(this);
 			return;
 		}
@@ -987,19 +985,17 @@ var Batch = class Batch {
 		previous_batch = null;
 		this.#deferred?.resolve();
 		var next_batch = current_batch;
-		if (this.linked && this.#pending === 0) this.#unlink();
-		if (async_mode_flag && !this.linked) {
-			this.#commit();
-			current_batch = next_batch;
-		}
-		if (this.#roots.length > 0) {
-			if (next_batch === null) {
-				next_batch = this;
-				this.#link();
+		if (this.#pending === 0 && (this.#roots.length === 0 || next_batch !== null)) {
+			this.#unlink();
+			if (async_mode_flag) {
+				this.#commit();
+				current_batch = next_batch;
 			}
+		}
+		if (this.#roots.length > 0) if (next_batch !== null) {
 			const batch = next_batch;
 			batch.#roots.push(...this.#roots.filter((r) => !batch.#roots.includes(r)));
-		}
+		} else next_batch = this;
 		if (next_batch !== null) next_batch.#process();
 	}
 	/**
@@ -1059,8 +1055,9 @@ var Batch = class Batch {
 		}
 		for (const [effect, deferred] of batch.async_deriveds) {
 			const d = this.async_deriveds.get(effect);
-			if (d) deferred.promise.then(d.resolve);
+			if (d) deferred.promise.then(d.resolve).catch(d.reject);
 		}
+		this.transfer_effects(batch.#dirty_effects, batch.#maybe_dirty_effects);
 		/**
 		* mark all effects that depend on `batch.current`, except the
 		* async effects that we just resolved (TODO unless they depend
@@ -1138,8 +1135,8 @@ var Batch = class Batch {
 	discard() {
 		for (const fn of this.#discard_callbacks) fn(this);
 		this.#discard_callbacks.clear();
-		this.#fork_commit_callbacks.clear();
 		this.#unlink();
+		this.#deferred?.resolve();
 	}
 	/**
 	* @param {Effect} effect
@@ -1148,7 +1145,6 @@ var Batch = class Batch {
 		this.#new_effects.push(effect);
 	}
 	#commit() {
-		this.#unlink();
 		for (let batch = first_batch; batch !== null; batch = batch.#next) {
 			var is_earlier = batch.id < this.id;
 			/** @type {Source[]} */
@@ -1163,10 +1159,10 @@ var Batch = class Batch {
 			}
 			if (is_earlier) for (const [effect, deferred] of this.async_deriveds) {
 				const d = batch.async_deriveds.get(effect);
-				if (d) deferred.promise.then(d.resolve);
+				if (d) deferred.promise.then(d.resolve).catch(d.reject);
 			}
 			if (!batch.#started) continue;
-			var others = [...batch.current.keys()].filter((s) => !this.current.has(s));
+			var others = [...batch.current.keys()].filter((s) => !batch.current.get(s)[1] && !this.current.has(s));
 			if (others.length === 0) {
 				if (is_earlier) batch.discard();
 			} else if (sources.length > 0) {
@@ -1181,14 +1177,18 @@ var Batch = class Batch {
 				var checked = /* @__PURE__ */ new Map();
 				for (var source of sources) mark_effects(source, others, marked, checked);
 				checked = /* @__PURE__ */ new Map();
-				var current_unequal = [...batch.current.keys()].filter((c) => this.current.has(c) ? this.current.get(c)[0] !== c.v : true);
+				var current_unequal = [...batch.current].filter(([c, v1]) => {
+					const v2 = this.current.get(c);
+					if (!v2) return true;
+					return v2[0] !== v1[0] || v2[1] !== v1[1];
+				}).map(([c]) => c);
 				if (current_unequal.length > 0) {
 					for (const effect of this.#new_effects) if ((effect.f & 155648) === 0 && depends_on(effect, current_unequal, checked)) if ((effect.f & 4194320) !== 0) {
 						set_signal_status(effect, DIRTY);
 						batch.schedule(effect);
 					} else batch.#dirty_effects.add(effect);
 				}
-				if (batch.#roots.length > 0) {
+				if (batch.#roots.length > 0 && !batch.#decrement_queued) {
 					batch.apply();
 					for (var root of batch.#roots) batch.#traverse(root, [], []);
 					batch.#roots = [];
@@ -1244,21 +1244,12 @@ var Batch = class Batch {
 	ondiscard(fn) {
 		this.#discard_callbacks.add(fn);
 	}
-	/** @param {(batch: Batch) => void} fn */
-	on_fork_commit(fn) {
-		this.#fork_commit_callbacks.add(fn);
-	}
-	run_fork_commit_callbacks() {
-		for (const fn of this.#fork_commit_callbacks) fn(this);
-		this.#fork_commit_callbacks.clear();
-	}
 	settled() {
 		return (this.#deferred ??= deferred()).promise;
 	}
 	static ensure() {
 		if (current_batch === null) {
 			const batch = current_batch = new Batch();
-			batch.#link();
 			if (!is_processing && !is_flushing_sync) queue_micro_task(() => {
 				if (!batch.#started) batch.flush();
 			});
@@ -1312,15 +1303,8 @@ var Batch = class Batch {
 		}
 		this.#roots.push(e);
 	}
-	#link() {
-		if (last_batch === null) first_batch = last_batch = this;
-		else {
-			last_batch.#next = this;
-			this.#prev = last_batch;
-		}
-		last_batch = this;
-	}
 	#unlink() {
+		if (!this.linked) return;
 		var prev = this.#prev;
 		var next = this.#next;
 		if (prev === null) first_batch = next;
@@ -1539,9 +1523,6 @@ function fork(fn) {
 				source.v = value;
 				source.wv = increment_write_version();
 			}
-			batch.activate();
-			batch.run_fork_commit_callbacks();
-			batch.deactivate();
 			flushSync(() => {
 				/** @type {Set<Effect>} */
 				var eager_effects = /* @__PURE__ */ new Set();
@@ -1887,7 +1868,7 @@ var Boundary = class {
 			if (this.#main_effect) current_batch.skip_effect(this.#main_effect);
 			if (this.#pending_effect) current_batch.skip_effect(this.#pending_effect);
 			if (this.#failed_effect) current_batch.skip_effect(this.#failed_effect);
-			current_batch.on_fork_commit(() => {
+			current_batch.oncommit(() => {
 				this.#handle_error(error);
 			});
 		} else this.#handle_error(error);
@@ -2051,11 +2032,11 @@ function increment_pending() {
 	var effect = active_effect;
 	var boundary = effect.b;
 	var batch = current_batch;
-	var blocking = boundary.is_rendered();
-	boundary.update_pending_count(1, batch);
+	var blocking = !!boundary?.is_rendered();
+	boundary?.update_pending_count(1, batch);
 	batch.increment(blocking, effect);
 	return () => {
-		boundary.update_pending_count(-1, batch);
+		boundary?.update_pending_count(-1, batch);
 		batch.decrement(blocking, effect);
 	};
 }
@@ -2064,7 +2045,7 @@ function increment_pending() {
 * @param {() => V} fn
 * @returns {Derived<V>}
 */
-/* @__NO_SIDE_EFFECTS__ */
+/*#__NO_SIDE_EFFECTS__*/
 function derived(fn) {
 	var flags = 2 | DIRTY;
 	if (active_effect !== null) active_effect.f |= EFFECT_PRESERVED;
@@ -2091,7 +2072,7 @@ var OBSOLETE = Symbol("obsolete");
 * @param {string} [location] If provided, print a warning if the value is not read immediately after update
 * @returns {Promise<Source<V>>}
 */
-/* @__NO_SIDE_EFFECTS__ */
+/*#__NO_SIDE_EFFECTS__*/
 function async_derived(fn, label, location) {
 	let parent = active_effect;
 	if (parent === null) async_derived_orphan();
@@ -2116,7 +2097,7 @@ function async_derived(fn, label, location) {
 		var batch = current_batch;
 		if (should_suspend) {
 			if ((effect.f & 32768) !== 0) var decrement_pending = increment_pending();
-			if (parent.b.is_rendered()) batch.async_deriveds.get(effect)?.reject(OBSOLETE);
+			if (parent.b?.is_rendered()) batch.async_deriveds.get(effect)?.reject(OBSOLETE);
 			else for (const d of deferreds.values()) d.reject(OBSOLETE);
 			deferreds.add(d);
 			batch.async_deriveds.set(effect, d);
@@ -2161,7 +2142,7 @@ function async_derived(fn, label, location) {
 * @param {() => V} fn
 * @returns {Derived<V>}
 */
-/* @__NO_SIDE_EFFECTS__ */
+/*#__NO_SIDE_EFFECTS__*/
 function user_derived(fn) {
 	const d = /* @__PURE__ */ derived(fn);
 	if (!async_mode_flag) push_reaction_value(d);
@@ -2172,7 +2153,7 @@ function user_derived(fn) {
 * @param {() => V} fn
 * @returns {Derived<V>}
 */
-/* @__NO_SIDE_EFFECTS__ */
+/*#__NO_SIDE_EFFECTS__*/
 function derived_safe_equal(fn) {
 	const signal = /* @__PURE__ */ derived(fn);
 	signal.equals = safe_equals;
@@ -2198,7 +2179,7 @@ function execute_derived(derived) {
 	var value;
 	var prev_active_effect = active_effect;
 	var parent = derived.parent;
-	if (!is_destroying_effect && parent !== null && (parent.f & 24576) !== 0) {
+	if (!is_destroying_effect && parent !== null && derived.v !== UNINITIALIZED && (parent.f & 24576) !== 0) {
 		derived_inert();
 		return derived.v;
 	}
@@ -2244,7 +2225,7 @@ function freeze_derived_effects(derived) {
 	for (const e of derived.effects) if (e.teardown || e.ac) {
 		e.teardown?.();
 		e.ac?.abort(STALE_REACTION);
-		e.teardown = noop;
+		if (e.fn !== null) e.teardown = noop;
 		e.ac = null;
 		remove_reactions(e, 0);
 		destroy_effect_children(e);
@@ -2255,7 +2236,7 @@ function freeze_derived_effects(derived) {
 */
 function unfreeze_derived_effects(derived) {
 	if (derived.effects === null) return;
-	for (const e of derived.effects) if (e.teardown) update_effect(e);
+	for (const e of derived.effects) if (e.teardown && e.fn !== null) update_effect(e);
 }
 //#endregion
 //#region node_modules/svelte/src/internal/client/reactivity/sources.js
@@ -2292,7 +2273,7 @@ function source(v, stack) {
 * @param {V} v
 * @param {Error | null} [stack]
 */
-/* @__NO_SIDE_EFFECTS__ */
+/*#__NO_SIDE_EFFECTS__*/
 function state(v, stack) {
 	const s = source(v, stack);
 	push_reaction_value(s);
@@ -2304,7 +2285,7 @@ function state(v, stack) {
 * @param {boolean} [immutable]
 * @returns {Source<V>}
 */
-/* @__NO_SIDE_EFFECTS__ */
+/*#__NO_SIDE_EFFECTS__*/
 function mutable_source(initial_value, immutable = false, trackable = true) {
 	const s = source(initial_value);
 	if (!immutable) s.equals = safe_equals;
@@ -2319,7 +2300,7 @@ function mutable_source(initial_value, immutable = false, trackable = true) {
 * @returns {V}
 */
 function set(source, value, should_proxy = false) {
-	if (active_reaction !== null && (!untracking || (active_reaction.f & 131072) !== 0) && is_runes() && (active_reaction.f & 4325394) !== 0 && (current_sources === null || !includes.call(current_sources, source))) state_unsafe_mutation();
+	if (active_reaction !== null && (!untracking || (active_reaction.f & 131072) !== 0) && is_runes() && (active_reaction.f & 4325394) !== 0 && (current_sources === null || !current_sources.has(source))) state_unsafe_mutation();
 	return internal_set(source, should_proxy ? proxy(value) : value, legacy_updates);
 }
 /**
@@ -2559,6 +2540,17 @@ function proxy(value) {
 		}
 	});
 }
+new Set([
+	"copyWithin",
+	"fill",
+	"pop",
+	"push",
+	"reverse",
+	"shift",
+	"sort",
+	"splice",
+	"unshift"
+]);
 //#endregion
 //#region node_modules/svelte/src/internal/client/dom/operations.js
 /** @import { Effect, TemplateNode } from '#client' */
@@ -2603,7 +2595,7 @@ function create_text(value = "") {
 * @template {Node} N
 * @param {N} node
 */
-/* @__NO_SIDE_EFFECTS__ */
+/*@__NO_SIDE_EFFECTS__*/
 function get_first_child(node) {
 	return first_child_getter.call(node);
 }
@@ -2611,7 +2603,7 @@ function get_first_child(node) {
 * @template {Node} N
 * @param {N} node
 */
-/* @__NO_SIDE_EFFECTS__ */
+/*@__NO_SIDE_EFFECTS__*/
 function get_next_sibling(node) {
 	return next_sibling_getter.call(node);
 }
@@ -2707,6 +2699,12 @@ function should_defer_append() {
 	return (active_effect.f & REACTION_RAN) !== 0;
 }
 /**
+* Branching here is intentional and load-bearing for perf. `createElement(tag)`
+* hits a fast path in Blink that `createElementNS(NAMESPACE_HTML, tag)` doesn't,
+* and passing an explicit `undefined` as the trailing options arg measurably
+* slows both APIs. Funnelling every case through a single `createElementNS(ns,
+* tag, options)` call would be smaller but slower on the HTML path.
+*
 * @template {keyof HTMLElementTagNameMap | string} T
 * @param {T} tag
 * @param {string} [namespace]
@@ -2714,8 +2712,8 @@ function should_defer_append() {
 * @returns {T extends keyof HTMLElementTagNameMap ? HTMLElementTagNameMap[T] : Element}
 */
 function create_element(tag, namespace, is) {
-	let options = is ? { is } : void 0;
-	return document.createElementNS(namespace ?? "http://www.w3.org/1999/xhtml", tag, options);
+	if (namespace == null || namespace === "http://www.w3.org/1999/xhtml") return is ? document.createElement(tag, { is }) : document.createElement(tag);
+	return is ? document.createElementNS(namespace, tag, { is }) : document.createElementNS(namespace, tag);
 }
 /**
 * Browsers split text nodes larger than 65536 bytes when parsing.
@@ -2884,7 +2882,7 @@ function teardown(fn) {
 function user_effect(fn) {
 	validate_effect("$effect");
 	var flags = active_effect.f;
-	if (!active_reaction && (flags & 32) !== 0 && (flags & 32768) === 0) {
+	if (!active_reaction && (flags & 32) !== 0 && component_context !== null && !component_context.i) {
 		var context = component_context;
 		(context.e ??= []).push(fn);
 	} else return create_user_effect(fn);
@@ -3196,13 +3194,12 @@ function set_active_effect(effect) {
 /**
 * When sources are created within a reaction, reading and writing
 * them within that reaction should not cause a re-run
-* @type {null | Source[]}
+* @type {null | Set<Source>}
 */
 var current_sources = null;
 /** @param {Value} value */
 function push_reaction_value(value) {
-	if (active_reaction !== null && (!async_mode_flag || (active_reaction.f & 2) !== 0)) if (current_sources === null) current_sources = [value];
-	else current_sources.push(value);
+	if (active_reaction !== null && (!async_mode_flag || (active_reaction.f & 2) !== 0)) (current_sources ??= /* @__PURE__ */ new Set()).add(value);
 }
 /**
 * The dependencies of the reaction that is currently being executed. In many cases,
@@ -3267,7 +3264,7 @@ function is_dirty(reaction) {
 function schedule_possible_effect_self_invalidation(signal, effect, root = true) {
 	var reactions = signal.reactions;
 	if (reactions === null) return;
-	if (!async_mode_flag && current_sources !== null && includes.call(current_sources, signal)) return;
+	if (!async_mode_flag && current_sources !== null && current_sources.has(signal)) return;
 	for (var i = 0; i < reactions.length; i++) {
 		var reaction = reactions[i];
 		if ((reaction.f & 2) !== 0) schedule_possible_effect_self_invalidation(reaction, effect, false);
@@ -3440,7 +3437,7 @@ function get(signal) {
 	var is_derived = (signal.f & 2) !== 0;
 	captured_signals?.add(signal);
 	if (active_reaction !== null && !untracking) {
-		if (!(active_effect !== null && (active_effect.f & 16384) !== 0) && (current_sources === null || !includes.call(current_sources, signal))) {
+		if (!(active_effect !== null && (active_effect.f & 16384) !== 0) && (current_sources === null || !current_sources.has(signal))) {
 			var deps = active_reaction.deps;
 			if ((active_reaction.f & 2097152) !== 0) {
 				if (signal.rv < read_version) {
@@ -3450,7 +3447,8 @@ function get(signal) {
 					else new_deps.push(signal);
 				}
 			} else {
-				(active_reaction.deps ??= []).push(signal);
+				active_reaction.deps ??= [];
+				if (!includes.call(active_reaction.deps, signal)) active_reaction.deps.push(signal);
 				var reactions = signal.reactions;
 				if (reactions === null) signal.reactions = [active_reaction];
 				else if (!includes.call(reactions, active_reaction)) reactions.push(active_reaction);
@@ -3664,8 +3662,7 @@ function handle_event_propagation(event) {
 		*/
 		var other_errors = [];
 		while (current_target !== null) {
-			/** @type {null | Element} */
-			var parent_element = current_target.assignedSlot || current_target.parentNode || current_target.host || null;
+			if (current_target === handler_element) break;
 			try {
 				var delegated = current_target[event_symbol]?.[event_name];
 				if (delegated != null && (!current_target.disabled || event.target === current_target)) delegated.call(current_target, event);
@@ -3673,8 +3670,9 @@ function handle_event_propagation(event) {
 				if (throw_error) other_errors.push(error);
 				else throw_error = error;
 			}
-			if (event.cancelBubble || parent_element === handler_element || parent_element === null) break;
-			current_target = parent_element;
+			if (event.cancelBubble) break;
+			path_idx++;
+			current_target = path_idx < path.length ? path[path_idx] : null;
 		}
 		if (throw_error) {
 			for (let error of other_errors) queueMicrotask(() => {
@@ -3730,7 +3728,7 @@ function assign_nodes(start, end) {
 * @param {number} flags
 * @returns {() => Node | Node[]}
 */
-/* @__NO_SIDE_EFFECTS__ */
+/*#__NO_SIDE_EFFECTS__*/
 function from_html(content, flags) {
 	var is_fragment = (flags & 1) !== 0;
 	var use_import_node = (flags & 2) !== 0;
@@ -4061,6 +4059,7 @@ var BranchManager = class {
 		} else {
 			var offscreen = this.#offscreen.get(key);
 			if (offscreen) {
+				resume_effect(offscreen.effect);
 				this.#onscreen.set(key, offscreen.effect);
 				this.#offscreen.delete(key);
 				/** @type {TemplateNode} */ offscreen.fragment.lastChild.remove();
