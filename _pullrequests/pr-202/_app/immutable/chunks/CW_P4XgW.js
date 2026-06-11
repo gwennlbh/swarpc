@@ -1,5 +1,5 @@
-import { C as get$1, F as state, L as writable, P as set$1, T as tick$1, n as onMount$1, t as index_client_exports, w as settled } from "./CeMGYp1X.js";
-import { i as SvelteKitError, n as HttpError, r as Redirect, t as base64_decode } from "./DqZRlSic.js";
+import { C as get$1, F as state, L as writable, P as set$1, T as tick$1, n as onMount$1, t as index_client_exports, w as settled } from "./C5B8_5uu.js";
+import { i as SvelteKitError, n as HttpError, r as Redirect, t as base64_decode } from "./C0_FQhCQ.js";
 new URL("sveltekit-internal://");
 /**
 * @param {string} path
@@ -165,6 +165,7 @@ function build_selector(resource, opts) {
 //#endregion
 //#region node_modules/@sveltejs/kit/src/utils/routing.js
 var param_pattern = /^(\[)?(\.\.\.)?(\w+)(?:=(\w+))?(\])?$/;
+var root_group_pattern = /^\/\((?:[^)]+)\)$/;
 /**
 * Creates the regex pattern, extracts parameter names, and generates types for a route
 * @param {string} id
@@ -173,7 +174,7 @@ function parse_route_id(id) {
 	/** @type {import('types').RouteParam[]} */
 	const params = [];
 	return {
-		pattern: id === "/" ? /^\/$/ : new RegExp(`^${get_route_segments(id).map((segment) => {
+		pattern: id === "/" || root_group_pattern.test(id) ? /^\/$/ : new RegExp(`^${get_route_segments(id).map((segment) => {
 			const rest_match = /^\[\.\.\.(\w+)(?:=(\w+))?\]$/.exec(segment);
 			if (rest_match) {
 				params.push({
@@ -356,7 +357,7 @@ function parse({ nodes, server_loads, dictionary, matchers }) {
 * @param {string} key
 * @param {(value: string) => any} parse
 */
-/* @__NO_SIDE_EFFECTS__ */
+/*@__NO_SIDE_EFFECTS__*/
 function get(key, parse = JSON.parse) {
 	try {
 		return parse(sessionStorage[key]);
@@ -376,8 +377,8 @@ function set(key, value, stringify = JSON.stringify) {
 }
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/app/paths/internal/client.js
-var base = globalThis.__sveltekit_tisouw?.base ?? "/cigale/_pullrequests/pr-202";
-var assets = globalThis.__sveltekit_tisouw?.assets ?? base ?? "";
+var base = globalThis.__sveltekit_1eun0us?.base ?? "/cigale/_pullrequests/pr-202";
+var assets = globalThis.__sveltekit_1eun0us?.assets ?? base ?? "";
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/app/paths/client.js
 /** @import { Asset, RouteId, RouteIdWithSearchOrHash, Pathname, PathnameWithSearchOrHash, ResolvedPathname } from '$app/types' */
@@ -412,7 +413,7 @@ function resolve(...args) {
 }
 //#endregion
 //#region \0virtual:__sveltekit/environment
-var version = "1780502977814";
+var version = "1781206584838";
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/client/constants.js
 var SNAPSHOT_KEY = "sveltekit:snapshot";
@@ -647,6 +648,20 @@ new Set([
 	"actions",
 	"entries"
 ]);
+new Set([
+	"GET",
+	"POST",
+	"PATCH",
+	"PUT",
+	"DELETE",
+	"OPTIONS",
+	"HEAD",
+	"fallback",
+	"prerender",
+	"trailingSlash",
+	"config",
+	"entries"
+]);
 //#endregion
 //#region node_modules/@sveltejs/kit/src/utils/array.js
 /**
@@ -834,8 +849,9 @@ var noop_span_context = {
 };
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/client/client.js
-/** @import { RemoteQueryCacheEntry } from './remote-functions/query.svelte.js' */
-/** @import { RemoteLiveQueryCacheEntry } from './remote-functions/query-live.svelte.js' */
+/** @import { CacheEntry } from './remote-functions/cache.svelte.js' */
+/** @import { Query } from './remote-functions/query/instance.svelte.js' */
+/** @import { LiveQuery } from './remote-functions/query-live/instance.svelte.js' */
 var { onMount, tick } = index_client_exports;
 var ICON_REL_ATTRIBUTES = new Set([
 	"icon",
@@ -987,12 +1003,12 @@ var token;
 */
 var preload_tokens = /* @__PURE__ */ new Set();
 /**
-* @type {Map<string, Map<string, RemoteQueryCacheEntry<any>>>}
+* @type {Map<string, Map<string, CacheEntry<Query<any>>>>}
 * A map of query id -> payload -> query internals for all active queries.
 */
 var query_map = /* @__PURE__ */ new Map();
 /**
-* @type {Map<string, Map<string, RemoteLiveQueryCacheEntry<any>>>}
+* @type {Map<string, Map<string, CacheEntry<LiveQuery<any>>>>}
 * A map of id -> payload -> live query internals for all active queries.
 */
 var live_query_map = /* @__PURE__ */ new Map();
@@ -1002,9 +1018,9 @@ var live_query_map = /* @__PURE__ */ new Map();
 * @param {Parameters<typeof _hydrate>[1]} [hydrate]
 */
 async function start(_app, _target, hydrate) {
-	if (globalThis.__sveltekit_tisouw) {
-		globalThis.__sveltekit_tisouw.query;
-		globalThis.__sveltekit_tisouw.prerender;
+	if (globalThis.__sveltekit_1eun0us) {
+		globalThis.__sveltekit_1eun0us.query;
+		globalThis.__sveltekit_1eun0us.prerender;
 	}
 	if (document.URL !== location.href) location.href = location.href;
 	app = _app;
@@ -1152,8 +1168,6 @@ async function initialize(result, target, hydrate) {
 		...result.state,
 		nav
 	};
-	const style = document.querySelector("style[data-sveltekit]");
-	if (style) style.remove();
 	update(result.props.page);
 	root = new app.root({
 		target,
@@ -1443,21 +1457,16 @@ async function load_route({ id, invalidating, url, params, route, preload }) {
 	const loaders = [...layouts, leaf];
 	errors.forEach((loader) => loader?.().catch(noop));
 	loaders.forEach((loader) => loader?.[1]().catch(noop));
-	/** @type {import('types').ServerNodesResponse | import('types').ServerRedirectNode | null} */
-	let server_data = null;
 	const url_changed = current.url ? id !== get_page_key(current.url) : false;
 	const route_changed = current.route ? route.id !== current.route.id : false;
 	const search_params_changed = diff_search_params(current.url, url);
-	const server_data_nodes = server_data?.nodes;
 	let parent_changed = false;
 	const branch_promises = loaders.map(async (loader, i) => {
 		if (!loader) return;
 		/** @type {import('./types.js').BranchNode | undefined} */
 		const previous = current.branch[i];
-		const server_data_node = server_data_nodes?.[i];
-		if ((!server_data_node || server_data_node.type === "skip") && loader[1] === previous?.loader && !has_changed(parent_changed, route_changed, url_changed, search_params_changed, previous.universal?.uses, params)) return previous;
+		if (loader[1] === previous?.loader && !has_changed(parent_changed, route_changed, url_changed, search_params_changed, previous.universal?.uses, params)) return previous;
 		parent_changed = true;
-		if (server_data_node?.type === "error") throw server_data_node;
 		return load_node({
 			loader: loader[1],
 			url,
@@ -1468,7 +1477,7 @@ async function load_route({ id, invalidating, url, params, route, preload }) {
 				for (let j = 0; j < i; j += 1) Object.assign(data, (await branch_promises[j])?.data);
 				return data;
 			},
-			server_data_node: create_data_node(server_data_node === void 0 && loader[0] ? { type: "skip" } : server_data_node ?? null, loader[0] ? previous?.server : void 0)
+			server_data_node: create_data_node(loader[0] ? { type: "skip" } : null, loader[0] ? previous?.server : void 0)
 		});
 	});
 	for (const p of branch_promises) p.catch(noop);
@@ -1494,10 +1503,7 @@ async function load_route({ id, invalidating, url, params, route, preload }) {
 		let status = get_status(err);
 		/** @type {App.Error} */
 		let error;
-		if (server_data_nodes?.includes(err)) {
-			status = err.status ?? status;
-			error = err.error;
-		} else if (err instanceof HttpError) error = err.body;
+		if (err instanceof HttpError) error = err.body;
 		else {
 			if (await stores.updated.check()) {
 				await update_service_worker();
@@ -2015,7 +2021,7 @@ function _start_router() {
 	addEventListener("visibilitychange", () => {
 		if (document.visibilityState === "hidden") persist_state();
 	});
-	if (!navigator.connection?.saveData) setup_preload();
+	if (!navigator.connection?.saveData && !/2g/.test(navigator.connection?.effectiveType)) setup_preload();
 	/** @param {MouseEvent} event */
 	container.addEventListener("click", async (event) => {
 		if (event.button || event.which !== 1) return;
