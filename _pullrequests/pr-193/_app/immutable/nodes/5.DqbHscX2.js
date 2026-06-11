@@ -1,6 +1,6 @@
-import { A as child, B as push, C as get, D as template_effect, F as state, G as noop, I as user_derived, K as __exportAll, M as sibling, N as proxy, P as set, S as delegated, U as next, W as reset, _ as append, b as text, c as bind_value, g as set_text, h as if_block, l as remove_input_defaults, s as bind_checked, x as delegate, y as from_html, z as pop } from "../chunks/CeMGYp1X.js";
-import "../chunks/BJgEf1bw.js";
-import { n as RequestCancelledError } from "../chunks/lxSmp8mr.js";
+import { A as child, B as push, C as get, D as template_effect, F as state, G as noop, I as user_derived, K as __exportAll, M as sibling, N as proxy, P as set, S as delegated, U as next, W as reset, _ as append, b as text, c as bind_value, g as set_text, h as if_block, l as remove_input_defaults, s as bind_checked, x as delegate, y as from_html, z as pop } from "../chunks/C5B8_5uu.js";
+import "../chunks/DhaYE-8x.js";
+import { n as RequestCancelledError } from "../chunks/DgXLx4VU.js";
 //#region src/routes/[worker]/once/+page.ts
 var _page_exports = /* @__PURE__ */ __exportAll({ entries: () => entries });
 var entries = () => [
@@ -10,12 +10,12 @@ var entries = () => [
 ];
 //#endregion
 //#region src/routes/[worker]/once/+page.svelte
-var root_1 = from_html(`<button><!></button>`);
-var root = from_html(`<div><h2>Once Mode Tests</h2> <label><input type="checkbox"/> Broadcast</label> <section id="test-once" class="svelte-1erqe5"><h3>Test 1: .once() - cancels previous call of same method</h3> <input type="number"/> * <input type="number"/> = <!></section> <section id="test-onceby-key" class="svelte-1erqe5"><h3>Test 2: .onceBy(key) - cancels previous call with same key</h3> <input type="number"/> * <input type="number"/> = <!></section> <section id="test-global-onceby" class="svelte-1erqe5"><h3>Test 3: global onceBy - cancels any call with same global key</h3> <input type="number"/> * <input type="number"/> = <!></section></div>`);
+var root = from_html(`<button><!></button>`);
+var root_1 = from_html(`<div><h2>Once Mode Tests</h2> <label><input type="checkbox"/> Broadcast</label> <section id="test-once" class="svelte-1erqe5"><h3>Test 1: .once() - cancels previous call of same method</h3> <input type="number"/> * <input type="number"/> = <!></section> <section id="test-onceby-key" class="svelte-1erqe5"><h3>Test 2: .onceBy(key) - cancels previous call with same key</h3> <input type="number"/> * <input type="number"/> = <!></section> <section id="test-global-onceby" class="svelte-1erqe5"><h3>Test 3: global onceBy - cancels any call with same global key</h3> <input type="number"/> * <input type="number"/> = <!></section></div>`);
 function _page($$anchor, $$props) {
 	push($$props, true);
 	const computeButton = ($$anchor, index = noop, computation = noop) => {
-		var button = root_1();
+		var button = root();
 		var node = child(button);
 		var consequent = ($$anchor) => {
 			var text$1 = text();
@@ -90,7 +90,7 @@ function _page($$anchor, $$props) {
 			if (!cancelled) loadingStates[index] = false;
 		}
 	}
-	var div = root();
+	var div = root_1();
 	var label = sibling(child(div), 2);
 	var input = child(label);
 	remove_input_defaults(input);
