@@ -1,0 +1,24 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: once.spec.ts >> using a shared worker >> broadcast >> .onceBy(key) - method+key scoped >> cancels previous call with same key
+- Location: tests/e2e/once.spec.ts:156:11
+
+# Error details
+
+```
+Error: browserType.launch: Executable doesn't exist at /ms-playwright/webkit-2311/pw_run.sh
+╔════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just updated to 1.61.0.      ║
+║ Please update docker image as well.                    ║
+║ -  current: mcr.microsoft.com/playwright:v1.59.1-noble ║
+║ - required: mcr.microsoft.com/playwright:v1.61.0-noble ║
+║                                                        ║
+║ <3 Playwright Team                                     ║
+╚════════════════════════════════════════════════════════╝
+```
