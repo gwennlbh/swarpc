@@ -1,5 +1,5 @@
-import { A as child, B as push, D as template_effect, M as sibling, W as reset, _ as append, g as set_text, j as first_child, y as from_html, z as pop } from "../chunks/C5B8_5uu.js";
-import { i as page$3, n as stores, r as navigating$1 } from "../chunks/0PI_HUy2.js";
+import { A as child, B as push, D as template_effect, M as sibling, W as reset, _ as append, g as set_text, j as first_child, y as from_html, z as pop } from "../chunks/DoroVSRy.js";
+import { i as page$3, n as stores } from "../chunks/Cp-bmOU5.js";
 import "../chunks/DhaYE-8x.js";
 //#region node_modules/@sveltejs/kit/src/runtime/app/state/client.js
 var page$2 = {
@@ -28,28 +28,6 @@ var page$2 = {
 		return page$3.url;
 	}
 };
-Object.defineProperty({
-	get from() {
-		return navigating$1.current ? navigating$1.current.from : null;
-	},
-	get to() {
-		return navigating$1.current ? navigating$1.current.to : null;
-	},
-	get type() {
-		return navigating$1.current ? navigating$1.current.type : null;
-	},
-	get willUnload() {
-		return navigating$1.current ? navigating$1.current.willUnload : null;
-	},
-	get delta() {
-		return navigating$1.current ? navigating$1.current.delta : null;
-	},
-	get complete() {
-		return navigating$1.current ? navigating$1.current.complete : null;
-	}
-}, "current", { get() {
-	throw new Error("Replace navigating.current.<prop> with navigating.<prop>");
-} });
 stores.updated.check;
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/app/state/index.js
