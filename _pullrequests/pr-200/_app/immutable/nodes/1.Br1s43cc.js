@@ -1,5 +1,5 @@
 import { A as child, B as push, D as template_effect, M as sibling, W as reset, _ as append, g as set_text, j as first_child, y as from_html, z as pop } from "../chunks/C5B8_5uu.js";
-import { i as page$3, n as stores, r as navigating$1 } from "../chunks/CsRFhCAU.js";
+import { i as page$3, n as stores, r as navigating$1 } from "../chunks/0PI_HUy2.js";
 import "../chunks/DhaYE-8x.js";
 //#region node_modules/@sveltejs/kit/src/runtime/app/state/client.js
 var page$2 = {
