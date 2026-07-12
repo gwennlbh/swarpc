@@ -1,4 +1,4 @@
-import { C as get$1, F as state, L as writable, P as set$1, T as tick$1, n as onMount$1, t as index_client_exports, w as settled } from "./C5B8_5uu.js";
+import { C as get$1, F as state, L as writable, P as set$1, T as tick$1, n as onMount$1, t as index_client_exports, w as settled } from "./DoroVSRy.js";
 import { i as SvelteKitError, n as HttpError, r as Redirect, t as base64_decode } from "./C0_FQhCQ.js";
 new URL("sveltekit-internal://");
 /**
@@ -377,8 +377,8 @@ function set(key, value, stringify = JSON.stringify) {
 }
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/app/paths/internal/client.js
-var base = globalThis.__sveltekit_4kux97?.base ?? "/cigale/_pullrequests/pr-202";
-var assets = globalThis.__sveltekit_4kux97?.assets ?? base ?? "";
+var base = globalThis.__sveltekit_5cymhf?.base ?? "/cigale/_pullrequests/pr-202";
+var assets = globalThis.__sveltekit_5cymhf?.assets ?? base ?? "";
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/app/paths/client.js
 /** @import { Asset, RouteId, RouteIdWithSearchOrHash, Pathname, PathnameWithSearchOrHash, ResolvedPathname } from '$app/types' */
@@ -412,8 +412,8 @@ function resolve(...args) {
 	return base + pathname_prefix + resolve_route(args[0], args[1]);
 }
 //#endregion
-//#region \0virtual:__sveltekit/environment
-var version = "1781808470046";
+//#region node_modules/@sveltejs/kit/src/runtime/app/env/internal.js
+var version = "1783875654273";
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/client/constants.js
 var SNAPSHOT_KEY = "sveltekit:snapshot";
@@ -849,6 +849,7 @@ var noop_span_context = {
 };
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/client/client.js
+/** @import { RemoteFunctionDataNode, ServerNodesResponse, ServerRedirectNode } from 'types' */
 /** @import { CacheEntry } from './remote-functions/cache.svelte.js' */
 /** @import { Query } from './remote-functions/query/instance.svelte.js' */
 /** @import { LiveQuery } from './remote-functions/query-live/instance.svelte.js' */
@@ -936,6 +937,20 @@ var container;
 var target;
 /** @type {import('./types.js').SvelteKitApp} */
 var app;
+/**
+* Data that was serialized during SSR for queries/forms/commands, stored as
+* `{ v }` (value) or `{ e }` (error) nodes so that failed states survive hydration.
+* Entries are deleted as they are consumed (when the corresponding resource is created).
+* @type {Record<string, RemoteFunctionDataNode>}
+*/
+var query_responses = {};
+/**
+* Data that was serialized during SSR for prerender functions, stored as
+* `{ v }` (value) or `{ e }` (error) nodes.
+* This persists across client-side navigations.
+* @type {Record<string, RemoteFunctionDataNode>}
+*/
+var prerender_responses = {};
 /** @type {Array<((url: URL) => boolean)>} */
 var invalidated = [];
 /**
@@ -950,6 +965,10 @@ var load_cache = null;
 function discard_load_cache() {
 	load_cache?.fork?.then((f) => f?.discard());
 	load_cache = null;
+	current_a = {
+		element: void 0,
+		href: void 0
+	};
 }
 /**
 * @type {Map<string, Promise<URL>>}
@@ -1018,9 +1037,12 @@ var live_query_map = /* @__PURE__ */ new Map();
 * @param {Parameters<typeof _hydrate>[1]} [hydrate]
 */
 async function start(_app, _target, hydrate) {
-	if (globalThis.__sveltekit_4kux97) {
-		globalThis.__sveltekit_4kux97.query;
-		globalThis.__sveltekit_4kux97.prerender;
+	if (globalThis.__sveltekit_5cymhf.data) {
+		const { q = {}, p = {}, l = {}, f = {} } = globalThis.__sveltekit_5cymhf.data;
+		for (const k in q) query_responses[k] = q[k];
+		for (const k in l) query_responses[k] = l[k];
+		for (const k in f) query_responses[k] = f[k];
+		for (const k in p) prerender_responses[k] = p[k];
 	}
 	if (document.URL !== location.href) location.href = location.href;
 	app = _app;
@@ -1107,7 +1129,10 @@ async function _goto(url, options, redirect_count, nav_token) {
 			if (options.invalidateAll) {
 				force_invalidation = true;
 				query_keys = /* @__PURE__ */ new Set();
-				for (const [id, entries] of query_map) for (const payload of entries.keys()) query_keys.add(create_remote_key(id, payload));
+				for (const [id, entries] of query_map) for (const [payload, entry] of entries) {
+					entry.resource?.reset();
+					query_keys.add(create_remote_key(id, payload));
+				}
 				live_query_keys = /* @__PURE__ */ new Set();
 				for (const [id, entries] of live_query_map) for (const payload of entries.keys()) live_query_keys.add(create_remote_key(id, payload));
 			}
@@ -1115,7 +1140,7 @@ async function _goto(url, options, redirect_count, nav_token) {
 		}
 	});
 	if (options.invalidateAll) tick$1().then(tick$1).then(() => {
-		for (const [id, entries] of query_map) for (const [payload, { resource }] of entries) if (query_keys?.has(create_remote_key(id, payload))) resource.refresh();
+		for (const [id, entries] of query_map) for (const [payload, { resource }] of entries) if (query_keys?.has(create_remote_key(id, payload))) resource.start();
 		for (const [id, entries] of live_query_map) for (const [payload, { resource }] of entries) if (live_query_keys?.has(create_remote_key(id, payload))) resource.reconnect();
 	});
 }
@@ -1803,7 +1828,13 @@ async function navigate({ type, url, popped, keepfocus, noscroll, replace_state,
 	}
 	const load_cache_fork = intent && load_cache?.id === intent.id ? load_cache.fork : null;
 	if (load_cache?.fork && !load_cache_fork) discard_load_cache();
-	load_cache = null;
+	else {
+		load_cache = null;
+		current_a = {
+			element: void 0,
+			href: void 0
+		};
+	}
 	navigation_result.props.page.state = state;
 	/**
 	* @type {Promise<void> | undefined}
@@ -1892,14 +1923,18 @@ async function server_fallback(url, route, error, status, replace_state) {
 	return await native_navigation(url, replace_state);
 }
 /** @typedef {(typeof PRELOAD_PRIORITIES)['hover'] | (typeof PRELOAD_PRIORITIES)['tap']} PreloadDataPriority */
+/**
+* The anchor element whose href is being preloaded. It is reset after navigation
+* or changes when a different anchor element is being preloaded.
+* @type {{ element: Element | SVGAElement | undefined; href: string | SVGAnimatedString | undefined }}
+*/
+var current_a = {
+	element: void 0,
+	href: void 0
+};
 function setup_preload() {
 	/** @type {NodeJS.Timeout} */
 	let mousemove_timeout;
-	/** @type {{ element: Element | SVGAElement | undefined; href: string | SVGAnimatedString | undefined }} */
-	let current_a = {
-		element: void 0,
-		href: void 0
-	};
 	/** @type {PreloadDataPriority} */
 	let current_priority;
 	container.addEventListener("mousemove", (event) => {
@@ -2021,7 +2056,7 @@ function _start_router() {
 	addEventListener("visibilitychange", () => {
 		if (document.visibilityState === "hidden") persist_state();
 	});
-	if (!navigator.connection?.saveData && !/2g/.test(navigator.connection?.effectiveType)) setup_preload();
+	if (!navigator.connection?.saveData) setup_preload();
 	/** @param {MouseEvent} event */
 	container.addEventListener("click", async (event) => {
 		if (event.button || event.which !== 1) return;
