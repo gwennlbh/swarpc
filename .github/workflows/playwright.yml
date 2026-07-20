@@ -15,9 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     name: Prepare
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version-file: package.json
           cache: npm
@@ -35,7 +35,7 @@ jobs:
           npm run build
         working-directory: ./example
       - name: Upload build as artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: build
           include-hidden-files: true
@@ -57,17 +57,17 @@ jobs:
         shard-index: [1, 2, 3, 4, 5, 6, 7, 8]
         shard-count: [8]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 3
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version-file: package.json
           cache: npm
       - name: Install dependencies
         run: npm ci && cd example && npm ci
       - name: Download built app
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: build
           path: ./
@@ -82,7 +82,7 @@ jobs:
           JOB_ID: ${{ job.check_run_id }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-report-shard-${{ matrix.shard-index }}
@@ -99,8 +99,8 @@ jobs:
       url: ${{ steps.deploy-preview.outputs.preview-url }}
     name: Combine reports
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: ./playwright-report-shards
           pattern: playwright-report-shard-*
@@ -112,7 +112,7 @@ jobs:
       - name: Deploy results on github pages
         if: ${{ !cancelled() }}
         id: deploy-preview
-        uses: rossjrw/pr-preview-action@v1
+        uses: rossjrw/pr-preview-action@ffa7509e91a3ec8dfc2e5536c4d5c1acdf7a6de9 # v1
         with:
           source-dir: ./playwright-report
           umbrella-dir: _playwright
