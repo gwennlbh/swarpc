@@ -76,7 +76,7 @@
   },
   "volta": {
     "node": "24.18.0",
-    "npm": "11.12.1"
+    "npm": "11.19.0"
   },
   "lint-staged": {
     ".prettierrc": [
