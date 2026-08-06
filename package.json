@@ -47,7 +47,7 @@
   },
   "devDependencies": {
     "@8hobbies/typedoc-plugin-plausible": "^2.2.0",
-    "@playwright/test": "^1.59.1",
+    "@playwright/test": "^1.62.1",
     "@size-limit/esbuild-why": "^12.1.0",
     "@size-limit/preset-small-lib": "^12.1.0",
     "@vitest/web-worker": "^4.1.8",
