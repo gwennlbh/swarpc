@@ -1,5 +1,5 @@
 import { A as child, B as push, D as template_effect, H as enable_legacy_mode_flag, M as sibling, W as reset, _ as append, a as init, u as set_attribute, y as from_html, z as pop } from "../chunks/DoroVSRy.js";
-import { s as resolve } from "../chunks/BhLelo-N.js";
+import { s as resolve } from "../chunks/CseRRi3B.js";
 import "../chunks/DhaYE-8x.js";
 //#region node_modules/svelte/src/internal/flags/legacy.js
 enable_legacy_mode_flag();
