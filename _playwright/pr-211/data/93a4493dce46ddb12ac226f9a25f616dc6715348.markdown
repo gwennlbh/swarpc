@@ -12,10 +12,120 @@
 # Error details
 
 ```
-Error: expect(received).toBe(expected) // Object.is equality
+Error: expect(locator).toMatchAriaSnapshot(expected) failed
 
-Expected: 10
-Received: 9
+Locator: locator('#result')
+Timeout: 2000ms
+- Expected  - 11
++ Received  + 11
+
+  - paragraph:
+-   - code: /4 · 0 = 0 0% from (N[0-9A-F]{3}|\?)/
++   - code: 4 · 0 = 0 25% from N5EE
+  - paragraph:
+-   - code: /4 · 1 = 0 0% from (N[0-9A-F]{3}|\?)/
++   - code: 4 · 1 = 0 25% from N817
+  - paragraph:
+-   - code: /4 · 2 = 0 0% from (N[0-9A-F]{3}|\?)/
++   - code: 4 · 2 = 0 0% from N10C
+  - paragraph:
+-   - code: /4 · 3 = 0 0% from (N[0-9A-F]{3}|\?)/
++   - code: 4 · 3 = 0 0% from N812
+  - paragraph:
+-   - code: /4 · 4 = 0 0% from (N[0-9A-F]{3}|\?)/
++   - code: 4 · 4 = 0 0% from NCA7
+  - paragraph:
+-   - code: /4 · 5 = 0 0% from (N[0-9A-F]{3}|\?)/
++   - code: 4 · 5 = 0 25% from N6AC
+  - paragraph:
+-   - code: /4 · 6 = 0 0% from (N[0-9A-F]{3}|\?)/
++   - code: 4 · 6 = 0 0% from NAB5
+  - paragraph:
+-   - code: /4 · 7 = 0 0% from (N[0-9A-F]{3}|\?)/
++   - code: 4 · 7 = 0 0% from N106
+  - paragraph:
+-   - code: /4 · 8 = 0 0% from (N[0-9A-F]{3}|\?)/
++   - code: 4 · 8 = 0 0% from N8F0
+  - paragraph:
+-   - code: /4 · 9 = 0 0% from (N[0-9A-F]{3}|\?)/
++   - code: 4 · 9 = 0 0% from N55A
+  - paragraph:
+-   - code: /4 · 10 = 0 0% from (N[0-9A-F]{3}|\?)/
++   - code: 4 · 10 = 0 25% from N5EE
+
+Call log:
+  - Expect "toMatchAriaSnapshot" with timeout 2000ms
+  - waiting for locator('#result')
+    3 × locator resolved to <div id="result">…</div>
+      - unexpected value "- paragraph:
+  - code: 4 · 0 = 0 waiting from ?
+- paragraph:
+  - code: 4 · 1 = 0 waiting from ?
+- paragraph:
+  - code: 4 · 2 = 0 waiting from ?
+- paragraph:
+  - code: 4 · 3 = 0 waiting from ?
+- paragraph:
+  - code: 4 · 4 = 0 waiting from ?
+- paragraph:
+  - code: 4 · 5 = 0 waiting from ?
+- paragraph:
+  - code: 4 · 6 = 0 waiting from ?
+- paragraph:
+  - code: 4 · 7 = 0 waiting from ?
+- paragraph:
+  - code: 4 · 8 = 0 waiting from ?
+- paragraph:
+  - code: 4 · 9 = 0 waiting from ?
+- paragraph:
+  - code: 4 · 10 = 0 waiting from ?"
+    - locator resolved to <div id="result">…</div>
+    - unexpected value "- paragraph:
+  - code: 4 · 0 = 0 0% from N5EE
+- paragraph:
+  - code: 4 · 1 = 0 waiting from ?
+- paragraph:
+  - code: 4 · 2 = 0 waiting from ?
+- paragraph:
+  - code: 4 · 3 = 0 waiting from ?
+- paragraph:
+  - code: 4 · 4 = 0 waiting from ?
+- paragraph:
+  - code: 4 · 5 = 0 waiting from ?
+- paragraph:
+  - code: 4 · 6 = 0 waiting from ?
+- paragraph:
+  - code: 4 · 7 = 0 waiting from ?
+- paragraph:
+  - code: 4 · 8 = 0 waiting from ?
+- paragraph:
+  - code: 4 · 9 = 0 waiting from ?
+- paragraph:
+  - code: 4 · 10 = 0 0% from N5EE"
+    - locator resolved to <div id="result">…</div>
+    - unexpected value "- paragraph:
+  - code: 4 · 0 = 0 25% from N5EE
+- paragraph:
+  - code: 4 · 1 = 0 25% from N817
+- paragraph:
+  - code: 4 · 2 = 0 0% from N10C
+- paragraph:
+  - code: 4 · 3 = 0 0% from N812
+- paragraph:
+  - code: 4 · 4 = 0 0% from NCA7
+- paragraph:
+  - code: 4 · 5 = 0 25% from N6AC
+- paragraph:
+  - code: 4 · 6 = 0 0% from NAB5
+- paragraph:
+  - code: 4 · 7 = 0 0% from N106
+- paragraph:
+  - code: 4 · 8 = 0 0% from N8F0
+- paragraph:
+  - code: 4 · 9 = 0 0% from N55A
+- paragraph:
+  - code: 4 · 10 = 0 25% from N5EE"
+
 ```
 
 # Page snapshot
@@ -28,47 +138,47 @@ Received: 9
     - paragraph [ref=e6]:
       - code [ref=e7]:
         - text: 4 · 0 = 0
-        - text: 0% from NB33
+        - text: 75% from N5EE
     - paragraph [ref=e8]:
       - code [ref=e9]:
         - text: 4 · 1 = 0
-        - text: 0% from NAB3
+        - text: 75% from N817
     - paragraph [ref=e10]:
       - code [ref=e11]:
         - text: 4 · 2 = 0
-        - text: 0% from N2FB
+        - text: 50% from N10C
     - paragraph [ref=e12]:
       - code [ref=e13]:
         - text: 4 · 3 = 0
-        - text: 0% from N5D4
+        - text: 50% from N812
     - paragraph [ref=e14]:
       - code [ref=e15]:
         - text: 4 · 4 = 0
-        - text: 0% from NAC9
+        - text: 50% from NCA7
     - paragraph [ref=e16]:
       - code [ref=e17]:
         - text: 4 · 5 = 0
-        - text: 0% from N58D
+        - text: 75% from N6AC
     - paragraph [ref=e18]:
       - code [ref=e19]:
         - text: 4 · 6 = 0
-        - text: 0% from NCA7
+        - text: 50% from NAB5
     - paragraph [ref=e20]:
       - code [ref=e21]:
         - text: 4 · 7 = 0
-        - text: 0% from NACA
+        - text: 50% from N106
     - paragraph [ref=e22]:
       - code [ref=e23]:
         - text: 4 · 8 = 0
-        - text: 0% from N36F
+        - text: 50% from N8F0
     - paragraph [ref=e24]:
       - code [ref=e25]:
         - text: 4 · 9 = 0
-        - text: 0% from NB33
+        - text: 50% from N55A
     - paragraph [ref=e26]:
       - code [ref=e27]:
         - text: 4 · 10 = 0
-        - text: 0% from NAB3
+        - text: 75% from N5EE
 ```
 
 # Test source
@@ -112,7 +222,8 @@ Received: 9
   36 | 
   37 |               return matches;
   38 |             });
-  39 |           await expect(page.locator("#result")).toMatchAriaSnapshot(
+> 39 |           await expect(page.locator("#result")).toMatchAriaSnapshot(
+     |                                                 ^ Error: expect(locator).toMatchAriaSnapshot(expected) failed
   40 |             results({
   41 |               finished: progress === 100,
   42 |               progress: [0, 25, 50, 75, 100].filter((p) => p <= progress),
@@ -121,8 +232,7 @@ Received: 9
   45 |             { timeout: 2_000 },
   46 |           );
   47 | 
-> 48 |           if (progress > 0) expect(nodes.size).toBe(10);
-     |                                                ^ Error: expect(received).toBe(expected) // Object.is equality
+  48 |           if (progress > 0) expect(nodes.size).toBe(10);
   49 |         }
   50 |       });
   51 |     });
