@@ -6,7 +6,7 @@
 
 # Test info
 
-- Name: parallelization.spec.ts >> parallel computation >> using a shared worker >> completes and uses different nodes
+- Name: parallelization.spec.ts >> parallel computation >> using a dedicated worker >> completes and uses different nodes
 - Location: tests/e2e/parallelization.spec.ts:7:7
 
 # Error details
@@ -21,37 +21,37 @@ Timeout: 2000ms
 
   - paragraph:
 -   - code: /4 · 0 = 0 0% from (N[0-9A-F]{3}|\?)/
-+   - code: 4 · 0 = 0 0% from NE96
++   - code: 4 · 0 = 0 0% from NE1D
   - paragraph:
 -   - code: /4 · 1 = 0 0% from (N[0-9A-F]{3}|\?)/
-+   - code: 4 · 1 = 0 25% from N73D
++   - code: 4 · 1 = 0 0% from NBD5
   - paragraph:
 -   - code: /4 · 2 = 0 0% from (N[0-9A-F]{3}|\?)/
-+   - code: 4 · 2 = 0 0% from N920
++   - code: 4 · 2 = 0 0% from N1E4
   - paragraph:
 -   - code: /4 · 3 = 0 0% from (N[0-9A-F]{3}|\?)/
-+   - code: 4 · 3 = 0 25% from N219
++   - code: 4 · 3 = 0 0% from N842
   - paragraph:
 -   - code: /4 · 4 = 0 0% from (N[0-9A-F]{3}|\?)/
-+   - code: 4 · 4 = 0 25% from N83E
++   - code: 4 · 4 = 0 25% from NDF1
   - paragraph:
 -   - code: /4 · 5 = 0 0% from (N[0-9A-F]{3}|\?)/
-+   - code: 4 · 5 = 0 0% from NB60
++   - code: 4 · 5 = 0 25% from N15E
   - paragraph:
 -   - code: /4 · 6 = 0 0% from (N[0-9A-F]{3}|\?)/
-+   - code: 4 · 6 = 0 0% from N5A9
++   - code: 4 · 6 = 0 0% from ND5F
   - paragraph:
 -   - code: /4 · 7 = 0 0% from (N[0-9A-F]{3}|\?)/
-+   - code: 4 · 7 = 0 25% from NA62
++   - code: 4 · 7 = 0 0% from NEAB
   - paragraph:
 -   - code: /4 · 8 = 0 0% from (N[0-9A-F]{3}|\?)/
-+   - code: 4 · 8 = 0 0% from N8F8
++   - code: 4 · 8 = 0 0% from NEBA
   - paragraph:
 -   - code: /4 · 9 = 0 0% from (N[0-9A-F]{3}|\?)/
-+   - code: 4 · 9 = 0 25% from N599
++   - code: 4 · 9 = 0 25% from N42C
   - paragraph:
 -   - code: /4 · 10 = 0 0% from (N[0-9A-F]{3}|\?)/
-+   - code: 4 · 10 = 0 0% from NE96
++   - code: 4 · 10 = 0 0% from NE1D
 
 Call log:
   - Expect "toMatchAriaSnapshot" with timeout 2000ms
@@ -81,50 +81,50 @@ Call log:
   - code: 4 · 10 = 0 waiting from ?"
     - locator resolved to <div id="result">…</div>
     - unexpected value "- paragraph:
-  - code: 4 · 0 = 0 waiting from ?
+  - code: 4 · 0 = 0 0% from NE1D
 - paragraph:
-  - code: 4 · 1 = 0 0% from N73D
+  - code: 4 · 1 = 0 0% from NBD5
 - paragraph:
-  - code: 4 · 2 = 0 waiting from ?
+  - code: 4 · 2 = 0 0% from N1E4
 - paragraph:
-  - code: 4 · 3 = 0 0% from N219
+  - code: 4 · 3 = 0 waiting from ?
 - paragraph:
-  - code: 4 · 4 = 0 0% from N83E
+  - code: 4 · 4 = 0 0% from NDF1
 - paragraph:
-  - code: 4 · 5 = 0 0% from NB60
+  - code: 4 · 5 = 0 0% from N15E
 - paragraph:
-  - code: 4 · 6 = 0 waiting from ?
+  - code: 4 · 6 = 0 0% from ND5F
 - paragraph:
-  - code: 4 · 7 = 0 0% from NA62
+  - code: 4 · 7 = 0 waiting from ?
 - paragraph:
   - code: 4 · 8 = 0 waiting from ?
 - paragraph:
-  - code: 4 · 9 = 0 0% from N599
+  - code: 4 · 9 = 0 0% from N42C
 - paragraph:
-  - code: 4 · 10 = 0 waiting from ?"
+  - code: 4 · 10 = 0 0% from NE1D"
     - locator resolved to <div id="result">…</div>
     - unexpected value "- paragraph:
-  - code: 4 · 0 = 0 0% from NE96
+  - code: 4 · 0 = 0 0% from NE1D
 - paragraph:
-  - code: 4 · 1 = 0 25% from N73D
+  - code: 4 · 1 = 0 0% from NBD5
 - paragraph:
-  - code: 4 · 2 = 0 0% from N920
+  - code: 4 · 2 = 0 0% from N1E4
 - paragraph:
-  - code: 4 · 3 = 0 25% from N219
+  - code: 4 · 3 = 0 0% from N842
 - paragraph:
-  - code: 4 · 4 = 0 25% from N83E
+  - code: 4 · 4 = 0 25% from NDF1
 - paragraph:
-  - code: 4 · 5 = 0 0% from NB60
+  - code: 4 · 5 = 0 25% from N15E
 - paragraph:
-  - code: 4 · 6 = 0 0% from N5A9
+  - code: 4 · 6 = 0 0% from ND5F
 - paragraph:
-  - code: 4 · 7 = 0 25% from NA62
+  - code: 4 · 7 = 0 0% from NEAB
 - paragraph:
-  - code: 4 · 8 = 0 0% from N8F8
+  - code: 4 · 8 = 0 0% from NEBA
 - paragraph:
-  - code: 4 · 9 = 0 25% from N599
+  - code: 4 · 9 = 0 25% from N42C
 - paragraph:
-  - code: 4 · 10 = 0 0% from NE96"
+  - code: 4 · 10 = 0 0% from NE1D"
 
 ```
 
@@ -138,47 +138,47 @@ Call log:
     - paragraph [ref=e6]:
       - code [ref=e7]:
         - text: 4 · 0 = 0
-        - text: 50% from NE96
+        - text: 75% from NE1D
     - paragraph [ref=e8]:
       - code [ref=e9]:
         - text: 4 · 1 = 0
-        - text: 75% from N73D
+        - text: 75% from NBD5
     - paragraph [ref=e10]:
       - code [ref=e11]:
         - text: 4 · 2 = 0
-        - text: 50% from N920
+        - text: 75% from N1E4
     - paragraph [ref=e12]:
       - code [ref=e13]:
         - text: 4 · 3 = 0
-        - text: 75% from N219
+        - text: 75% from N842
     - paragraph [ref=e14]:
       - code [ref=e15]:
         - text: 4 · 4 = 0
-        - text: 75% from N83E
+        - text: 75% from NDF1
     - paragraph [ref=e16]:
       - code [ref=e17]:
         - text: 4 · 5 = 0
-        - text: 50% from NB60
+        - text: 75% from N15E
     - paragraph [ref=e18]:
       - code [ref=e19]:
         - text: 4 · 6 = 0
-        - text: 50% from N5A9
+        - text: 75% from ND5F
     - paragraph [ref=e20]:
       - code [ref=e21]:
         - text: 4 · 7 = 0
-        - text: 75% from NA62
+        - text: 75% from NEAB
     - paragraph [ref=e22]:
       - code [ref=e23]:
         - text: 4 · 8 = 0
-        - text: 50% from N8F8
+        - text: 75% from NEBA
     - paragraph [ref=e24]:
       - code [ref=e25]:
         - text: 4 · 9 = 0
-        - text: 75% from N599
+        - text: 75% from N42C
     - paragraph [ref=e26]:
       - code [ref=e27]:
         - text: 4 · 10 = 0
-        - text: 50% from NE96
+        - text: 75% from NE1D
 ```
 
 # Test source
