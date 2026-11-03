@@ -377,8 +377,8 @@ function set(key, value, stringify = JSON.stringify) {
 }
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/app/paths/internal/client.js
-var base = globalThis.__sveltekit_13a2mhh?.base ?? "/cigale/_pullrequests/pr-211";
-var assets = globalThis.__sveltekit_13a2mhh?.assets ?? base ?? "";
+var base = globalThis.__sveltekit_pcrl8y?.base ?? "/cigale/_pullrequests/pr-211";
+var assets = globalThis.__sveltekit_pcrl8y?.assets ?? base ?? "";
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/app/paths/client.js
 /** @import { Asset, RouteId, RouteIdWithSearchOrHash, Pathname, PathnameWithSearchOrHash, ResolvedPathname } from '$app/types' */
@@ -413,7 +413,7 @@ function resolve(...args) {
 }
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/app/env/internal.js
-var version = "1793511185317";
+var version = "1793707215793";
 //#endregion
 //#region node_modules/@sveltejs/kit/src/runtime/client/constants.js
 var SNAPSHOT_KEY = "sveltekit:snapshot";
@@ -1037,8 +1037,8 @@ var live_query_map = /* @__PURE__ */ new Map();
 * @param {Parameters<typeof _hydrate>[1]} [hydrate]
 */
 async function start(_app, _target, hydrate) {
-	if (globalThis.__sveltekit_13a2mhh.data) {
-		const { q = {}, p = {}, l = {}, f = {} } = globalThis.__sveltekit_13a2mhh.data;
+	if (globalThis.__sveltekit_pcrl8y.data) {
+		const { q = {}, p = {}, l = {}, f = {} } = globalThis.__sveltekit_pcrl8y.data;
 		for (const k in q) query_responses[k] = q[k];
 		for (const k in l) query_responses[k] = l[k];
 		for (const k in f) query_responses[k] = f[k];
