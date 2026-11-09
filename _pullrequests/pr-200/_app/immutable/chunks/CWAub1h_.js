@@ -144,7 +144,6 @@ function isSharedWorker(worker) {
 }
 //#endregion
 //#region node_modules/swarpc/dist/messaging.js
-var pendingRequests = /* @__PURE__ */ new Map();
 var _clientListeners = /* @__PURE__ */ new Map();
 async function postMessage(ctx, message, options) {
 	await startClientListener(ctx);
@@ -182,7 +181,7 @@ async function startClientListener(ctx) {
 		}
 		const { requestId, ...data } = payload;
 		if (!requestId) throw new Error("[SWARPC Client] Message received without requestId");
-		const handlers = pendingRequests.get(requestId);
+		const handlers = ctx.pendingRequests.get(requestId);
 		if (!handlers) throw new Error(`[SWARPC Client] ${requestId} has no active request handlers, cannot process ${JSON.stringify(data)}`);
 		const duration = performance.now() - handlers.startedAt;
 		if ("error" in data) {
@@ -192,7 +191,7 @@ async function startClientListener(ctx) {
 				duration
 			});
 			handlers.reject(new Error(data.error.message));
-			pendingRequests.delete(requestId);
+			ctx.pendingRequests.delete(requestId);
 		} else if ("progress" in data) {
 			ctx.hooks.progress?.({
 				procedure: data.functionName,
@@ -207,7 +206,7 @@ async function startClientListener(ctx) {
 				duration
 			});
 			handlers.resolve(data.result);
-			pendingRequests.delete(requestId);
+			ctx.pendingRequests.delete(requestId);
 		}
 	};
 	if (isSharedWorker(w)) {
@@ -248,6 +247,7 @@ function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug", rest
 		}
 		l.info(null, `Started ${nodeCount} node${nodeCount > 1 ? "s" : ""}`, Object.keys(nodes));
 	}
+	const pendingRequests = /* @__PURE__ */ new Map();
 	const instance = {
 		[zProcedures]: procedures,
 		destroy() {
@@ -256,6 +256,11 @@ function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug", rest
 				listener.disconnect();
 				_clientListeners.delete(nodeId);
 			}
+			for (const [requestId, pending] of pendingRequests.entries()) {
+				l.debug(requestId, `Rejecting in-flight request on destroy`);
+				pending.reject(/* @__PURE__ */ new Error("Client destroyed"));
+			}
+			pendingRequests.clear();
 			for (const [nodeId, node] of Object.entries(nodes ?? {})) {
 				l.debug(null, `Terminating worker for node ${nodeId}`);
 				if (isSharedWorker(node)) node.port.close();
@@ -301,7 +306,8 @@ function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug", rest
 				nodeId,
 				allNodeIDs: new Set(nodes ? Object.keys(nodes) : []),
 				hooks,
-				localStorage
+				localStorage,
+				pendingRequests
 			}, {
 				...msg,
 				by: "sw&rpc",
