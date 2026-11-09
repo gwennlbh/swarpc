@@ -1,6 +1,5 @@
 import { nodeIdOrSW } from "./nodes.js";
 import { isSharedWorker } from "./utils.js";
-export const pendingRequests = new Map();
 export let _clientListeners = new Map();
 export async function postMessage(ctx, message, options) {
     await startClientListener(ctx);
@@ -58,7 +57,7 @@ async function startClientListener(ctx) {
         if (!requestId) {
             throw new Error("[SWARPC Client] Message received without requestId");
         }
-        const handlers = pendingRequests.get(requestId);
+        const handlers = ctx.pendingRequests.get(requestId);
         if (!handlers) {
             throw new Error(`[SWARPC Client] ${requestId} has no active request handlers, cannot process ${JSON.stringify(data)}`);
         }
@@ -70,7 +69,7 @@ async function startClientListener(ctx) {
                 duration,
             });
             handlers.reject(new Error(data.error.message));
-            pendingRequests.delete(requestId);
+            ctx.pendingRequests.delete(requestId);
         }
         else if ("progress" in data) {
             ctx.hooks.progress?.({
@@ -87,7 +86,7 @@ async function startClientListener(ctx) {
                 duration,
             });
             handlers.resolve(data.result);
-            pendingRequests.delete(requestId);
+            ctx.pendingRequests.delete(requestId);
         }
     };
     if (isSharedWorker(w)) {

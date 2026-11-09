@@ -1,6 +1,6 @@
 import { createLogger } from "./log.js";
 import { broadcastNodes, makeNodeId, nodeIdOrSW, whoToSendTo, } from "./nodes.js";
-import { _clientListeners, makeRequestId, pendingRequests, postMessage, postMessageSync, } from "./messaging.js";
+import { _clientListeners, makeRequestId, postMessage, postMessageSync, } from "./messaging.js";
 import { RequestCancelledError, zProcedures, } from "./types.js";
 import { findTransferables, extractFulfilleds, extractRejecteds, sizedArray, isSharedWorker, } from "./utils.js";
 export const RESERVED_PROCEDURE_NAMES = ["onceBy", "destroy"];
@@ -24,6 +24,7 @@ export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug
         }
         l.info(null, `Started ${nodeCount} node${nodeCount > 1 ? "s" : ""}`, Object.keys(nodes));
     }
+    const pendingRequests = new Map();
     const instance = {
         [zProcedures]: procedures,
         destroy() {
@@ -32,6 +33,11 @@ export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug
                 listener.disconnect();
                 _clientListeners.delete(nodeId);
             }
+            for (const [requestId, pending] of pendingRequests.entries()) {
+                l.debug(requestId, `Rejecting in-flight request on destroy`);
+                pending.reject(new Error("Client destroyed"));
+            }
+            pendingRequests.clear();
             for (const [nodeId, node] of Object.entries(nodes ?? {})) {
                 l.debug(null, `Terminating worker for node ${nodeId}`);
                 if (isSharedWorker(node)) {
@@ -97,6 +103,7 @@ export function Client(procedures, { worker, nodes: nodeCount, loglevel = "debug
                 allNodeIDs: new Set(nodes ? Object.keys(nodes) : []),
                 hooks,
                 localStorage,
+                pendingRequests,
             };
             return postMessage(ctx, {
                 ...msg,

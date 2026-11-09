@@ -24,14 +24,13 @@ export type Context<Procedures extends ProceduresMap> = {
   hooks: Hooks<Procedures>;
   /** Local storage data defined by the client for the faux local storage */
   localStorage: Record<string, any>;
+  /**
+   * Per-client map of pending requests, keyed by request ID.
+   * Scoped to the client instance so that destroying a client
+   * doesn't leave stale entries that would affect other clients.
+   */
+  pendingRequests: Map<string, PendingRequest>;
 };
-
-/**
- * Pending requests are stored in a map, where the key is the request ID.
- * Each request has a set of handlers: resolve, reject, and onProgress.
- * This allows having a single listener for the client, and having multiple in-flight calls to the same procedure.
- */
-export const pendingRequests = new Map<string, PendingRequest>();
 
 // Map of node IDs to listener handles
 // Used to check if a listener has already been started for a given node ID
@@ -147,7 +146,7 @@ async function startClientListener<Procedures extends ProceduresMap>(
     }
 
     // Get the associated pending request handlers
-    const handlers = pendingRequests.get(requestId);
+    const handlers = ctx.pendingRequests.get(requestId);
     if (!handlers) {
       throw new Error(
         `[SWARPC Client] ${requestId} has no active request handlers, cannot process ${JSON.stringify(data)}`,
@@ -165,7 +164,7 @@ async function startClientListener<Procedures extends ProceduresMap>(
         duration,
       });
       handlers.reject(new Error(data.error.message));
-      pendingRequests.delete(requestId);
+      ctx.pendingRequests.delete(requestId);
     } else if ("progress" in data) {
       ctx.hooks.progress?.({
         procedure: data.functionName,
@@ -180,7 +179,7 @@ async function startClientListener<Procedures extends ProceduresMap>(
         duration,
       });
       handlers.resolve(data.result);
-      pendingRequests.delete(requestId);
+      ctx.pendingRequests.delete(requestId);
     }
   };
 
