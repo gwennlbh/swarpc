@@ -17,13 +17,13 @@ export type Context<Procedures extends ProceduresMap> = {
     hooks: Hooks<Procedures>;
     /** Local storage data defined by the client for the faux local storage */
     localStorage: Record<string, any>;
+    /**
+     * Per-client map of pending requests, keyed by request ID.
+     * Scoped to the client instance so that destroying a client
+     * doesn't leave stale entries that would affect other clients.
+     */
+    pendingRequests: Map<string, PendingRequest>;
 };
-/**
- * Pending requests are stored in a map, where the key is the request ID.
- * Each request has a set of handlers: resolve, reject, and onProgress.
- * This allows having a single listener for the client, and having multiple in-flight calls to the same procedure.
- */
-export declare const pendingRequests: Map<string, PendingRequest>;
 export declare let _clientListeners: Map<string, {
     disconnect: () => void;
 }>;

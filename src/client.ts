@@ -14,7 +14,6 @@ import {
   _clientListeners,
   type Context,
   makeRequestId,
-  pendingRequests,
   postMessage,
   postMessageSync,
 } from "./messaging.js";
@@ -31,6 +30,7 @@ import {
   RequestCancelledError,
   WorkerConstructor,
   zProcedures,
+  type PendingRequest,
   type ProceduresMap,
 } from "./types.js";
 import {
@@ -143,6 +143,12 @@ export function Client<Procedures extends ProceduresMap>(
     );
   }
 
+  // Per-client map of pending requests, keyed by request ID.
+  // Scoped to this client instance so that destroying the client
+  // doesn't leave stale entries that would affect other clients
+  // (e.g. the load balancer picking a node that no longer exists).
+  const pendingRequests = new Map<string, PendingRequest>();
+
   const instance = {
     // Store procedures on a symbol key, to avoid conflicts with procedure names
     [zProcedures]: procedures,
@@ -152,6 +158,13 @@ export function Client<Procedures extends ProceduresMap>(
         listener.disconnect();
         _clientListeners.delete(nodeId);
       }
+
+      // Reject any in-flight requests, so their promises don't hang forever
+      for (const [requestId, pending] of pendingRequests.entries()) {
+        l.debug(requestId, `Rejecting in-flight request on destroy`);
+        pending.reject(new Error("Client destroyed"));
+      }
+      pendingRequests.clear();
 
       for (const [nodeId, node] of Object.entries(nodes ?? {})) {
         l.debug(null, `Terminating worker for node ${nodeId}`);
@@ -282,6 +295,7 @@ export function Client<Procedures extends ProceduresMap>(
         allNodeIDs: new Set(nodes ? Object.keys(nodes) : []),
         hooks,
         localStorage,
+        pendingRequests,
       };
 
       return postMessage(

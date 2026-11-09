@@ -144,6 +144,65 @@ describe("Once mode", () => {
   });
 });
 
+describe("Client destroy", () => {
+  test("Destroying a client doesn't leave stale pending requests", async () => {
+    // Create client A with 1 node
+    const clientA = Client(procedures, {
+      worker: Worker,
+      nodes: 1,
+      loglevel: "warn",
+      nodeIds: ["A1"],
+    });
+
+    // Start a long-running request on client A (~100ms with string input)
+    // Catch the rejection to avoid unhandled promise rejection when client A is destroyed
+    clientA.cancellable("test").catch(() => {});
+
+    // Wait for the request to be in-flight
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // Destroy client A (in old code, this leaves stale pending requests
+    // keyed by the dead node ID "A1" in the module-level map)
+    clientA.destroy();
+
+    // Create client B with 1 node
+    const clientB = Client(procedures, {
+      worker: Worker,
+      nodes: 1,
+      loglevel: "warn",
+      nodeIds: ["B1"],
+    });
+
+    // Start 2 concurrent requests on client B (so the live node "B1"
+    // has 2 in-flight requests, more than the stale count of 1 for "A1")
+    const requestB1 = clientB.cancellable("test");
+    const requestB2 = clientB.cancellable("test");
+
+    // Wait for the requests to be in-flight
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // Start a 3rd request on client B.
+    // In old code, whoToSendTo would pick "A1" (dead node, stale count 1 < live count 2),
+    // causing the request to be sent to a non-existent node and hang.
+    // In new code, whoToSendTo picks "B1" (no stale entries), so the request completes.
+    const requestB3 = clientB.cancellable("test");
+
+    // All 3 requests should complete successfully
+    const [resultB1, resultB2, resultB3] = await Promise.all([
+      requestB1,
+      requestB2,
+      requestB3,
+    ]);
+
+    expect(resultB1).toBe("Cancellable hello test");
+    expect(resultB2).toBe("Cancellable hello test");
+    expect(resultB3).toBe("Cancellable hello test");
+
+    // Clean up
+    clientB.destroy();
+  });
+});
+
 describe("Complex data", () => {
   test("Processes complex data", async () => {
     const response = await client.complexData({
