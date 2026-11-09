@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Load balancer could send requests to dead node IDs when a client was destroyed then another one created
+
 ## [0.20.2] - 2026-04-26
 
 ### Fixed
